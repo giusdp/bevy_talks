@@ -1,10 +1,13 @@
 use std::{fs::File, io::Read, path::PathBuf};
 
+use bevy::prelude::Resource;
+
 use crate::{
     repo::{Repo, RepoError},
     Dialogue,
 };
 
+#[derive(Resource, Debug)]
 pub struct LocalRepo {
     base_path: PathBuf,
 }
@@ -22,7 +25,7 @@ impl LocalRepo {
 }
 
 impl Repo for LocalRepo {
-    fn find(&self, name: &str) -> Result<Vec<Dialogue>, RepoError> {
+    fn load(&self, name: &str) -> Result<Vec<Dialogue>, RepoError> {
         let path = self.build_json_path(name);
 
         let mut data = String::new();
@@ -80,7 +83,7 @@ mod tests {
         temp.child("text.json").assert(predicate::path::missing());
 
         let lfs = LocalRepo::new(temp.to_str().unwrap());
-        let res = lfs.find("test").unwrap_err();
+        let res = lfs.load("test").unwrap_err();
 
         assert!(matches!(res, RepoError::ReadResource { .. }));
 
@@ -96,7 +99,7 @@ mod tests {
             .unwrap();
 
         let lfs = LocalRepo::new(temp.to_str().unwrap());
-        let res = lfs.find("test").unwrap_err();
+        let res = lfs.load("test").unwrap_err();
 
         assert!(matches!(res, RepoError::ParseResource { .. }));
 
@@ -104,7 +107,7 @@ mod tests {
     }
 
     #[test]
-    fn valid_rousrce() {
+    fn valid_resource() {
         let temp = assert_fs::TempDir::new().unwrap();
 
         temp.child("test.json")
@@ -117,7 +120,17 @@ mod tests {
                             "name": "John",
                             "asset": "john.png"
                         },
-                        "text": "Hello there!"
+                        "text": "Hello there!",
+                        "choices": [
+                            {
+                                "text": "Yes",
+                                "next": 2
+                            },
+                            {
+                                "text": "No",
+                                "next": 3
+                            }
+                        ]
                     }
                 ]
                 "#,
@@ -125,9 +138,16 @@ mod tests {
             .unwrap();
 
         let lfs = LocalRepo::new(temp.to_str().unwrap());
-        let res = lfs.find("test").unwrap();
+        let res = lfs.load("test").unwrap();
 
         assert_eq!(res.len(), 1);
+
+        assert_eq!(res[0].id, 1);
+        assert_eq!(res[0].talker.name, "John");
+        assert_eq!(res[0].talker.asset, "john.png");
+        assert_eq!(res[0].text, "Hello there!");
+        assert!(res[0].choices.is_some());
+        assert!(res[0].next.is_none());
 
         temp.close().unwrap();
     }

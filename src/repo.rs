@@ -15,5 +15,5 @@ pub enum RepoError {
 }
 
 pub trait Repo {
-    fn find(&self, name: &str) -> Result<Vec<Dialogue>, RepoError>;
+    fn load(&self, name: &str) -> Result<Vec<Dialogue>, RepoError>;
 }
