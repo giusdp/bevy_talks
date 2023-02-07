@@ -343,20 +343,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_dialogues"
-version = "0.1.0"
-dependencies = [
- "assert_fs",
- "bevy",
- "log",
- "petgraph",
- "predicates",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "bevy_ecs"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -713,6 +699,20 @@ dependencies = [
  "fixedbitset",
  "guillotiere",
  "rectangle-pack",
+ "thiserror",
+]
+
+[[package]]
+name = "bevy_talks"
+version = "0.1.0"
+dependencies = [
+ "assert_fs",
+ "bevy",
+ "log",
+ "petgraph",
+ "predicates",
+ "serde",
+ "serde_json",
  "thiserror",
 ]
 
