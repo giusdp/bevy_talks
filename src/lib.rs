@@ -13,6 +13,7 @@ impl Plugin for TalksPlugin {
 
 pub mod conversation;
 pub mod dialogue_line;
+pub mod errors;
 pub mod loader;
 pub mod prelude;
 pub mod talker;

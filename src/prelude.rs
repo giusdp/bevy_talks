@@ -1,4 +1,4 @@
 pub use super::{
-    conversation::Conversation, conversation::ConversationError, dialogue_line::Choice,
-    talker::Talker, TalksPlugin,
+    conversation::Conversation, dialogue_line::Choice, errors::ConversationError,
+    errors::ConvoCreationError, talker::Talker, TalksPlugin,
 };
