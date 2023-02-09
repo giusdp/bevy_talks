@@ -8,7 +8,7 @@ pub(crate) struct DialogueLine {
     pub(crate) choices: Option<Vec<Choice>>,
     pub(crate) next: Option<i32>,
     pub(crate) start: Option<bool>,
-    pub(crate) end: Option<bool>,
+    // pub(crate) end: Option<bool>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

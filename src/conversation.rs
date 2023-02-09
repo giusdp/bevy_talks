@@ -191,6 +191,11 @@ impl Conversation {
             Err(ConversationError::NoChoices)
         }
     }
+
+    pub fn talker_name(&self) -> Option<String> {
+        let dnode = self.dialogue_graph.node_weight(self.current)?;
+        dnode.talker.clone().map(|t| t.name)
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -241,7 +246,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -266,7 +271,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -291,7 +296,7 @@ mod test {
                 choices: None,
                 next: Some(2),
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -311,7 +316,7 @@ mod test {
                     choices: None,
                     next: Some(1),
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 1,
@@ -320,7 +325,7 @@ mod test {
                     choices: None,
                     next: Some(2),
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -340,7 +345,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: None,
-                end: None,
+                // end: None,
             }],
         };
 
@@ -360,7 +365,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -369,7 +374,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -392,7 +397,7 @@ mod test {
                 }]),
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -411,7 +416,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -433,7 +438,7 @@ mod test {
                     choices: None,
                     next: Some(2),
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -442,7 +447,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -463,7 +468,7 @@ mod test {
                 choices: None,
                 next: Some(1),
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -493,7 +498,7 @@ mod test {
                     ]),
                     next: None,
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -502,7 +507,7 @@ mod test {
                     choices: None,
                     next: Some(3),
                     start: None,
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 3,
@@ -511,7 +516,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -519,6 +524,47 @@ mod test {
         let convo = Conversation::new(raw_talk).unwrap();
         assert_eq!(convo.dialogue_graph.node_count(), 3);
         assert_eq!(convo.dialogue_graph.edge_count(), 3);
+        assert_eq!(convo.current, NodeIndex::new(0));
+    }
+
+    #[test]
+    fn new_with_talkers() {
+        let raw_talk = RawTalk {
+            talkers: vec![
+                Talker {
+                    asset: "bob.png".to_string(),
+                    name: "Bob".to_string(),
+                },
+                Talker {
+                    name: "Alice".to_string(),
+                    asset: "alice.png".to_string(),
+                },
+            ],
+            lines: vec![
+                DialogueLine {
+                    id: 1,
+                    text: "Hello".to_string(),
+                    talker: Some("Bob".to_string()),
+                    choices: None,
+                    next: Some(2),
+                    start: Some(true),
+                    // end: None,
+                },
+                DialogueLine {
+                    id: 2,
+                    text: "Whatup".to_string(),
+                    talker: Some("Alice".to_string()),
+                    choices: None,
+                    next: None,
+                    start: None,
+                    // end: None,
+                },
+            ],
+        };
+
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.dialogue_graph.node_count(), 2);
+        assert_eq!(convo.dialogue_graph.edge_count(), 1);
         assert_eq!(convo.current, NodeIndex::new(0));
     }
 
@@ -534,7 +580,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -554,7 +600,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -580,7 +626,7 @@ mod test {
                     }]),
                     next: None,
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -589,7 +635,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -613,7 +659,7 @@ mod test {
                     choices: None,
                     next: Some(2),
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -622,7 +668,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -645,7 +691,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -674,7 +720,7 @@ mod test {
                     ]),
                     next: None,
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -683,7 +729,7 @@ mod test {
                     choices: None,
                     next: Some(3),
                     start: None,
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 3,
@@ -692,7 +738,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -717,7 +763,7 @@ mod test {
                 choices: None,
                 next: None,
                 start: Some(true),
-                end: None,
+                // end: None,
             }],
         };
 
@@ -748,7 +794,7 @@ mod test {
                     ]),
                     next: None,
                     start: Some(true),
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 2,
@@ -757,7 +803,7 @@ mod test {
                     choices: None,
                     next: Some(3),
                     start: None,
-                    end: None,
+                    // end: None,
                 },
                 DialogueLine {
                     id: 3,
@@ -766,7 +812,7 @@ mod test {
                     choices: None,
                     next: None,
                     start: None,
-                    end: None,
+                    // end: None,
                 },
             ],
         };
@@ -775,5 +821,47 @@ mod test {
         assert_eq!(convo.current_text(), "Hello");
         assert!(convo.jump_to(2).is_ok());
         assert_eq!(convo.current_text(), "I'm number 2");
+    }
+
+    // 'talker_name' tests
+    #[test]
+    fn talker_name_none() {
+        let raw_talk = RawTalk {
+            talkers: vec![],
+            lines: vec![DialogueLine {
+                id: 1,
+                text: "Hello".to_string(),
+                talker: None,
+                choices: None,
+                next: None,
+                start: Some(true),
+                // end: None,
+            }],
+        };
+
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.talker_name(), None);
+    }
+
+    #[test]
+    fn talker_name() {
+        let raw_talk = RawTalk {
+            talkers: vec![Talker {
+                name: "Bob".to_string(),
+                asset: "bob.png".to_string(),
+            }],
+            lines: vec![DialogueLine {
+                id: 1,
+                text: "Hello".to_string(),
+                talker: Some("Bob".to_string()),
+                choices: None,
+                next: None,
+                start: Some(true),
+                // end: None,
+            }],
+        };
+
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.talker_name(), Some("Bob".to_string()));
     }
 }
