@@ -24,6 +24,9 @@ pub enum ConversationError {
     NoNextDialogue,
     #[error("called next() while current dialogue has choices")]
     ChoicesNotHandled,
+    #[error("called choices() while current dialogue has no choices")]
+    NoChoices,
+
     #[error("tried to retrieve the current dialogue but there is none")]
     InvalidCurrentDialogue,
 }

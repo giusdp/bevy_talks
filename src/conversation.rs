@@ -156,6 +156,19 @@ impl Conversation {
         self.current = edge_ref.target();
         Ok(())
     }
+
+    pub fn choices(&self) -> Result<Vec<Choice>, ConversationError> {
+        let dnode = self.dialogue_graph.node_weight(self.current);
+
+        // if for some reason the current node is not in the graph, return an error
+        let cur_dial = dnode.ok_or_else(|| ConversationError::InvalidCurrentDialogue)?;
+
+        if let Some(choices) = &cur_dial.choices {
+            Ok(choices.clone())
+        } else {
+            Err(ConversationError::NoChoices)
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
