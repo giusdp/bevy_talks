@@ -13,6 +13,7 @@ use crate::{
 pub struct Conversation {
     dialogue_graph: DiGraph<DialogueNode, ()>,
     current: NodeIndex,
+    id_to_nodeidx: HashMap<i32, NodeIndex>,
 }
 
 impl Conversation {
@@ -30,7 +31,7 @@ impl Conversation {
             .map(|t| (t.name.clone(), t))
             .collect();
 
-        let mut graph: DiGraph<DialogueNode, ()> = DiGraph::new();
+        let mut dialogue_graph: DiGraph<DialogueNode, ()> = DiGraph::new();
 
         // Build a dialogue.id => (NodeIndex, DLineStripped) map so we can keep track of what we added
         // in the graph. If we add the same dialogue.id multiple times then it's a user error (they repeated ids).
@@ -59,7 +60,7 @@ impl Conversation {
                 choices: dline.choices.clone(),
             };
 
-            let node_idx = graph.add_node(dialogue_node);
+            let node_idx = dialogue_graph.add_node(dialogue_node);
 
             if let Some(true) = dline.start {
                 if first_line.is_some() {
@@ -91,10 +92,10 @@ impl Conversation {
         // Effectively we ignore next and choices
 
         // Note: Right now the next == None and choices == None case is not handled,
-        // resulting in an end node cause no edge are added to it.
+        // resulting in an end node, cause no edge are added to it.
         // Maybe we could think of it as pointing to the dialogue coming right after in the list?
-        // Problem is I lost that ordering when I stripped the data into a map.
-        // I'm also not convinced about having these subtle behaviours, perhaps should just throw an error
+        // Problem is I lost that ordering when I stripped the data for the map.
+        // I'm also not convinced about having these subtle behaviours, perhaps we should just throw an error
         // if end is not Some(true) and next and choices are None.
 
         // Add edges to the graph (next has priority over choices)
@@ -103,7 +104,7 @@ impl Conversation {
             if let Some(next_id) = current_dialogue.next {
                 match nodeidx_dialogue_map.get(&next_id) {
                     Some((next_node_idx, _)) => {
-                        graph.add_edge(*current_node_idx, *next_node_idx, ())
+                        dialogue_graph.add_edge(*current_node_idx, *next_node_idx, ())
                     }
                     None => {
                         return Err(ConvoCreationError::NextLineNotFound(
@@ -115,7 +116,9 @@ impl Conversation {
             } else if let Some(choices) = &current_dialogue.choices {
                 for choice in choices {
                     match nodeidx_dialogue_map.get(&choice.next) {
-                        Some(_) => graph.add_edge(*current_node_idx, *current_node_idx, ()),
+                        Some(_) => {
+                            dialogue_graph.add_edge(*current_node_idx, *current_node_idx, ())
+                        }
                         None => {
                             return Err(ConvoCreationError::NextLineNotFound(
                                 current_dialogue.id,
@@ -127,10 +130,16 @@ impl Conversation {
             }
         }
 
+        let id_to_nodeidx = nodeidx_dialogue_map
+            .into_iter()
+            .map(|(id, (nodeidx, _))| (id, nodeidx))
+            .collect();
+
         Ok(Self {
-            dialogue_graph: graph,
+            dialogue_graph,
             // there's an early return if first_line is None, so it's safe to unwrap here
             current: first_line.unwrap(),
+            id_to_nodeidx,
         })
     }
 
@@ -142,7 +151,7 @@ impl Conversation {
         let dnode = self.dialogue_graph.node_weight(self.current);
 
         // if for some reason the current node is not in the graph, return an error
-        let cur_dial = dnode.ok_or(ConversationError::InvalidCurrentDialogue)?;
+        let cur_dial = dnode.ok_or(ConversationError::InvalidDialogue)?;
 
         // if the current dialogue has choices, return an error
         if cur_dial.choices.is_some() {
@@ -160,11 +169,21 @@ impl Conversation {
         Ok(())
     }
 
+    pub fn jump_to(&mut self, id: i32) -> Result<(), ConversationError> {
+        let idx = self
+            .id_to_nodeidx
+            .get(&id)
+            .ok_or(ConversationError::WrongJump(id))?;
+
+        self.current = *idx;
+        Ok(())
+    }
+
+    /// Returns the choices for the current dialogue. If there are no choices, returns an error.
     pub fn choices(&self) -> Result<Vec<Choice>, ConversationError> {
         let dnode = self.dialogue_graph.node_weight(self.current);
-
         // if for some reason the current node is not in the graph, return an error
-        let cur_dial = dnode.ok_or(ConversationError::InvalidCurrentDialogue)?;
+        let cur_dial = dnode.ok_or(ConversationError::InvalidDialogue)?;
 
         if let Some(choices) = &cur_dial.choices {
             Ok(choices.clone())
@@ -199,6 +218,7 @@ struct DLineStripped {
 mod test {
     use super::*;
 
+    // 'new' tests
     #[test]
     fn no_lines_err() {
         let raw_talk = RawTalk {
@@ -502,6 +522,7 @@ mod test {
         assert_eq!(convo.current, NodeIndex::new(0));
     }
 
+    // 'current_text' tests
     #[test]
     fn current_text() {
         let raw_talk = RawTalk {
@@ -521,6 +542,7 @@ mod test {
         assert_eq!(convo.current_text(), "Hello");
     }
 
+    // 'next_line' tests
     #[test]
     fn next_no_next_err() {
         let raw_talk = RawTalk {
@@ -580,7 +602,7 @@ mod test {
     }
 
     #[test]
-    fn next() {
+    fn next_line() {
         let raw_talk = RawTalk {
             talkers: vec![],
             lines: vec![
@@ -609,5 +631,149 @@ mod test {
         assert_eq!(convo.current_text(), "Hello");
         assert!(convo.next_line().is_ok());
         assert_eq!(convo.current_text(), "Whatup");
+    }
+
+    // 'choices' tests
+    #[test]
+    fn choices_no_choices_err() {
+        let raw_talk = RawTalk {
+            talkers: vec![],
+            lines: vec![DialogueLine {
+                id: 1,
+                text: "Hello".to_string(),
+                talker: None,
+                choices: None,
+                next: None,
+                start: Some(true),
+                end: None,
+            }],
+        };
+
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.choices().err(), Some(ConversationError::NoChoices));
+    }
+
+    #[test]
+    fn choices() {
+        let raw_talk = RawTalk {
+            talkers: vec![],
+            lines: vec![
+                DialogueLine {
+                    id: 1,
+                    text: "Hello".to_string(),
+                    talker: None,
+                    choices: Some(vec![
+                        Choice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        Choice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ]),
+                    next: None,
+                    start: Some(true),
+                    end: None,
+                },
+                DialogueLine {
+                    id: 2,
+                    text: "Hello".to_string(),
+                    talker: None,
+                    choices: None,
+                    next: Some(3),
+                    start: None,
+                    end: None,
+                },
+                DialogueLine {
+                    id: 3,
+                    text: "Hello".to_string(),
+                    talker: None,
+                    choices: None,
+                    next: None,
+                    start: None,
+                    end: None,
+                },
+            ],
+        };
+
+        let convo = Conversation::new(raw_talk).unwrap();
+
+        assert_eq!(convo.choices().unwrap()[0].next, 2);
+        assert_eq!(convo.choices().unwrap()[1].next, 3);
+        assert_eq!(convo.choices().unwrap()[0].text, "Choice 1");
+        assert_eq!(convo.choices().unwrap()[1].text, "Choice 2");
+    }
+
+    // 'jump_to' tests
+    #[test]
+    fn jump_to_no_line_err() {
+        let raw_talk = RawTalk {
+            talkers: vec![],
+            lines: vec![DialogueLine {
+                id: 1,
+                text: "Hello".to_string(),
+                talker: None,
+                choices: None,
+                next: None,
+                start: Some(true),
+                end: None,
+            }],
+        };
+
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(
+            convo.jump_to(2).err(),
+            Some(ConversationError::WrongJump(2))
+        );
+    }
+    #[test]
+    fn jump_to() {
+        let raw_talk = RawTalk {
+            talkers: vec![],
+            lines: vec![
+                DialogueLine {
+                    id: 1,
+                    text: "Hello".to_string(),
+                    talker: None,
+                    choices: Some(vec![
+                        Choice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        Choice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ]),
+                    next: None,
+                    start: Some(true),
+                    end: None,
+                },
+                DialogueLine {
+                    id: 2,
+                    text: "I'm number 2".to_string(),
+                    talker: None,
+                    choices: None,
+                    next: Some(3),
+                    start: None,
+                    end: None,
+                },
+                DialogueLine {
+                    id: 3,
+                    text: "I;m number 3".to_string(),
+                    talker: None,
+                    choices: None,
+                    next: None,
+                    start: None,
+                    end: None,
+                },
+            ],
+        };
+
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.current_text(), "Hello");
+        assert!(convo.jump_to(2).is_ok());
+        assert_eq!(convo.current_text(), "I'm number 2");
     }
 }

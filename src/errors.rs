@@ -20,13 +20,15 @@ pub enum ConvoCreationError {
 /// Errors when interacting with a conversation
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ConversationError {
-    #[error("called next() while current dialogue has no next dialogue set")]
+    #[error("current dialogue has no next dialogue")]
     NoNextDialogue,
-    #[error("called next() while current dialogue has choices")]
+    #[error("called next_line() while current dialogue has choices")]
     ChoicesNotHandled,
     #[error("called choices() while current dialogue has no choices")]
     NoChoices,
+    #[error("tried to jump to dialogue {0}, but it does not exist")]
+    WrongJump(i32),
 
-    #[error("tried to retrieve the current dialogue but there is none")]
-    InvalidCurrentDialogue,
+    #[error("failed to access the current dialogue")]
+    InvalidDialogue,
 }
