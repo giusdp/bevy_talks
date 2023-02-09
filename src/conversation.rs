@@ -74,7 +74,10 @@ impl Conversation {
                 choices: dline.choices,
                 next: dline.next,
             };
-            if let Some(_) = nodeidx_dialogue_map.insert(dline.id, (node_idx, dline_stripped)) {
+            if nodeidx_dialogue_map
+                .insert(dline.id, (node_idx, dline_stripped))
+                .is_some()
+            {
                 return Err(ConvoCreationError::RepeatedId(dlineid));
             }
         }
@@ -135,11 +138,11 @@ impl Conversation {
         &self.dialogue_graph[self.current].text
     }
 
-    pub fn next(&mut self) -> Result<(), ConversationError> {
+    pub fn next_line(&mut self) -> Result<(), ConversationError> {
         let dnode = self.dialogue_graph.node_weight(self.current);
 
         // if for some reason the current node is not in the graph, return an error
-        let cur_dial = dnode.ok_or_else(|| ConversationError::InvalidCurrentDialogue)?;
+        let cur_dial = dnode.ok_or(ConversationError::InvalidCurrentDialogue)?;
 
         // if the current dialogue has choices, return an error
         if cur_dial.choices.is_some() {
@@ -150,7 +153,7 @@ impl Conversation {
             .dialogue_graph
             .edges(self.current)
             .next()
-            .ok_or_else(|| ConversationError::NoNextDialogue)?;
+            .ok_or(ConversationError::NoNextDialogue)?;
 
         // TODO: wait, what is this NodeId? Is it the NodeIndex? I'm not sure
         self.current = edge_ref.target();
@@ -161,7 +164,7 @@ impl Conversation {
         let dnode = self.dialogue_graph.node_weight(self.current);
 
         // if for some reason the current node is not in the graph, return an error
-        let cur_dial = dnode.ok_or_else(|| ConversationError::InvalidCurrentDialogue)?;
+        let cur_dial = dnode.ok_or(ConversationError::InvalidCurrentDialogue)?;
 
         if let Some(choices) = &cur_dial.choices {
             Ok(choices.clone())
@@ -534,7 +537,10 @@ mod test {
         };
 
         let mut convo = Conversation::new(raw_talk).unwrap();
-        assert_eq!(convo.next().err(), Some(ConversationError::NoNextDialogue));
+        assert_eq!(
+            convo.next_line().err(),
+            Some(ConversationError::NoNextDialogue)
+        );
     }
 
     #[test]
@@ -568,7 +574,7 @@ mod test {
 
         let mut convo = Conversation::new(raw_talk).unwrap();
         assert_eq!(
-            convo.next().err(),
+            convo.next_line().err(),
             Some(ConversationError::ChoicesNotHandled)
         );
     }
@@ -601,7 +607,7 @@ mod test {
 
         let mut convo = Conversation::new(raw_talk).unwrap();
         assert_eq!(convo.current_text(), "Hello");
-        assert!(convo.next().is_ok());
+        assert!(convo.next_line().is_ok());
         assert_eq!(convo.current_text(), "Whatup");
     }
 }

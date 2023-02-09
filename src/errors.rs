@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// Possible errors when creating a conversation
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ConvoCreationError {
     #[error("an empty lines vector was used to build the conversation")]
     NoLines,
@@ -18,7 +18,7 @@ pub enum ConvoCreationError {
 }
 
 /// Errors when interacting with a conversation
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum ConversationError {
     #[error("called next() while current dialogue has no next dialogue set")]
     NoNextDialogue,
