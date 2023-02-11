@@ -86,7 +86,7 @@ impl Conversation {
             if let Some(choices) = &node_action.choices {
                 for choice in choices {
                     let next_node_action = id_to_nodeids_map
-                        .get(&choice)
+                        .get(choice)
                         .ok_or(ScriptParsingError::NextActionNotFound(*action_id, *choice))?;
 
                     graph.add_edge(node_action.node_idx, next_node_action.node_idx, ());
@@ -107,28 +107,32 @@ impl Conversation {
         })
     }
 
-    // pub fn current_text(&self) -> &str {
-    //     &self.dialogue_graph[self.current].text
-    // }
+    pub fn current_text(&self) -> &str {
+        match &self.graph[self.current].text {
+            Some(t) => t,
+            None => "",
+        }
+    }
 
-    pub fn next_line(&mut self) -> Result<(), ConversationError> {
-        let dnode = self.graph.node_weight(self.current);
+    pub fn next_action(&mut self) -> Result<(), ConversationError> {
+        let cnode = self.graph.node_weight(self.current);
 
-        // if for some reason the current node is not in the graph, return an error
-        let cur_dial = dnode.ok_or(ConversationError::InvalidDialogue)?;
+        // if for some magical reason the current node is not in the graph, return an error
+        let cur_dial = cnode.ok_or(ConversationError::InvalidAction)?;
 
-        // if the current dialogue has choices, return an error
+        // if it's a player action, return an error
         if cur_dial.choices.is_some() {
             return Err(ConversationError::ChoicesNotHandled);
         }
 
+        // retrieve the next edge
         let edge_ref = self
             .graph
             .edges(self.current)
             .next()
-            .ok_or(ConversationError::NoNextDialogue)?;
+            .ok_or(ConversationError::NoNextAction)?;
 
-        // TODO: wait, what is this NodeId? Is it the NodeIndex? I'm not sure
+        // what's this NodeId? Is it the NodeIndex? I'm not sure. Let's assign it anyway
         self.current = edge_ref.target();
         Ok(())
     }
@@ -145,9 +149,9 @@ impl Conversation {
 
     /// Returns the choices for the current dialogue. If there are no choices, returns an error.
     pub fn choices(&self) -> Result<Vec<Choice>, ConversationError> {
-        let dnode = self.graph.node_weight(self.current);
-        // if for some reason the current node is not in the graph, return an error
-        let cur_dial = dnode.ok_or(ConversationError::InvalidDialogue)?;
+        let cnode = self.graph.node_weight(self.current);
+        // if for some fantastic reason the current node is not in the graph, return an error
+        let cur_dial = cnode.ok_or(ConversationError::InvalidAction)?;
 
         if let Some(choices) = &cur_dial.choices {
             Ok(choices.clone())
@@ -156,10 +160,13 @@ impl Conversation {
         }
     }
 
-    // pub fn current_talker(&self) -> Option<Actor> {
-    //     let dnode = self.dialogue_graph.node_weight(self.current)?;
-    //     dnode.actor.clone()
-    // }
+    pub fn current_first_actor(&self) -> Option<Actor> {
+        let cnode = self.graph.node_weight(self.current)?;
+        match &cnode.actors {
+            Some(actors) => actors.first().cloned(),
+            None => None,
+        }
+    }
 }
 #[derive(Debug, Default)]
 struct ConvoNode {
@@ -216,7 +223,9 @@ fn extract_actors(
                 actors.push(
                     actors_map
                         .get(a)
-                        .ok_or(ScriptParsingError::ActorNotFound(aaction.id, a.to_string()))?
+                        .ok_or_else(|| {
+                            ScriptParsingError::ActorNotFound(aaction.id, a.to_string())
+                        })?
                         .to_owned(),
                 );
             }
@@ -647,300 +656,231 @@ mod test {
         assert_eq!(convo.current, NodeIndex::new(0));
     }
 
-    // // 'current_text' tests
-    // #[test]
-    // fn current_text() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![DialogueLine {
-    //             id: 1,
-    //             text: "Hello".to_string(),
-    //             talker: None,
-    //             choices: None,
-    //             next: None,
-    //             start: Some(true),
-    //             // end: None,
-    //         }],
-    //     };
+    // 'current_text' tests
+    #[test]
+    fn current_text() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                id: 1,
+                text: Some("Hello".to_string()),
+                next: None,
+                start: Some(true),
+                ..default()
+            })],
+        };
 
-    //     let convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(convo.current_text(), "Hello");
-    // }
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.current_text(), "Hello");
+    }
 
-    // // 'next_line' tests
-    // #[test]
-    // fn next_no_next_err() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![DialogueLine {
-    //             id: 1,
-    //             text: "Hello".to_string(),
-    //             talker: None,
-    //             choices: None,
-    //             next: None,
-    //             start: Some(true),
-    //             // end: None,
-    //         }],
-    //     };
+    // 'next_line' tests
+    #[test]
+    fn next_no_next_err() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                id: 1,
+                text: Some("Hello".to_string()),
+                start: Some(true),
+                ..default()
+            })],
+        };
 
-    //     let mut convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(
-    //         convo.next_line().err(),
-    //         Some(ConversationError::NoNextDialogue)
-    //     );
-    // }
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(
+            convo.next_action().err(),
+            Some(ConversationError::NoNextAction)
+        );
+    }
 
-    // #[test]
-    // fn next_choices_not_handled_err() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![
-    //             DialogueLine {
-    //                 id: 1,
-    //                 text: "Hello".to_string(),
-    //                 talker: None,
-    //                 choices: Some(vec![Choice {
-    //                     text: "Whatup".to_string(),
-    //                     next: 2,
-    //                 }]),
-    //                 next: None,
-    //                 start: Some(true),
-    //                 // end: None,
-    //             },
-    //             DialogueLine {
-    //                 id: 2,
-    //                 text: "Whatup to you".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: None,
-    //                 start: None,
-    //                 // end: None,
-    //             },
-    //         ],
-    //     };
+    #[test]
+    fn next_choices_not_handled_err() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Player(PlayerAction {
+                    id: 1,
+                    choices: vec![Choice {
+                        text: "Whatup".to_string(),
+                        next: 2,
+                    }],
+                    start: Some(true),
+                    ..default()
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
+            ],
+        };
 
-    //     let mut convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(
-    //         convo.next_line().err(),
-    //         Some(ConversationError::ChoicesNotHandled)
-    //     );
-    // }
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(
+            convo.next_action().err(),
+            Some(ConversationError::ChoicesNotHandled)
+        );
+    }
 
-    // #[test]
-    // fn next_line() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![
-    //             DialogueLine {
-    //                 id: 1,
-    //                 text: "Hello".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: Some(2),
-    //                 start: Some(true),
-    //                 // end: None,
-    //             },
-    //             DialogueLine {
-    //                 id: 2,
-    //                 text: "Whatup".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: None,
-    //                 start: None,
-    //                 // end: None,
-    //             },
-    //         ],
-    //     };
+    #[test]
+    fn next_action() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Actor(ActorAction {
+                    next: Some(2),
+                    start: Some(true),
+                    text: Some("Hello".to_string()),
+                    ..default()
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction {
+                    id: 2,
+                    text: Some("Whatup".to_string()),
+                    ..default()
+                }),
+            ],
+        };
 
-    //     let mut convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(convo.current_text(), "Hello");
-    //     assert!(convo.next_line().is_ok());
-    //     assert_eq!(convo.current_text(), "Whatup");
-    // }
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.current_text(), "Hello");
+        assert!(convo.next_action().is_ok());
+        assert_eq!(convo.current_text(), "Whatup");
+    }
 
-    // // 'choices' tests
-    // #[test]
-    // fn choices_no_choices_err() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![DialogueLine {
-    //             id: 1,
-    //             text: "Hello".to_string(),
-    //             talker: None,
-    //             choices: None,
-    //             next: None,
-    //             start: Some(true),
-    //             // end: None,
-    //         }],
-    //     };
+    // 'choices' tests
+    #[test]
+    fn choices_no_choices_err() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                id: 1,
+                start: Some(true),
+                ..default()
+            })],
+        };
 
-    //     let convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(convo.choices().err(), Some(ConversationError::NoChoices));
-    // }
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(convo.choices().err(), Some(ConversationError::NoChoices));
+    }
 
-    // #[test]
-    // fn choices() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![
-    //             DialogueLine {
-    //                 id: 1,
-    //                 text: "Hello".to_string(),
-    //                 talker: None,
-    //                 choices: Some(vec![
-    //                     Choice {
-    //                         text: "Choice 1".to_string(),
-    //                         next: 2,
-    //                     },
-    //                     Choice {
-    //                         text: "Choice 2".to_string(),
-    //                         next: 3,
-    //                     },
-    //                 ]),
-    //                 next: None,
-    //                 start: Some(true),
-    //                 // end: None,
-    //             },
-    //             DialogueLine {
-    //                 id: 2,
-    //                 text: "Hello".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: Some(3),
-    //                 start: None,
-    //                 // end: None,
-    //             },
-    //             DialogueLine {
-    //                 id: 3,
-    //                 text: "Hello".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: None,
-    //                 start: None,
-    //                 // end: None,
-    //             },
-    //         ],
-    //     };
+    #[test]
+    fn choices() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Player(PlayerAction {
+                    id: 1,
+                    choices: vec![
+                        Choice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        Choice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ],
+                    start: Some(true),
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
+                ActorOrPlayerActionJSON::Actor(ActorAction { id: 3, ..default() }),
+            ],
+        };
 
-    //     let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Conversation::new(raw_talk).unwrap();
 
-    //     assert_eq!(convo.choices().unwrap()[0].next, 2);
-    //     assert_eq!(convo.choices().unwrap()[1].next, 3);
-    //     assert_eq!(convo.choices().unwrap()[0].text, "Choice 1");
-    //     assert_eq!(convo.choices().unwrap()[1].text, "Choice 2");
-    // }
+        assert_eq!(convo.choices().unwrap()[0].next, 2);
+        assert_eq!(convo.choices().unwrap()[1].next, 3);
+        assert_eq!(convo.choices().unwrap()[0].text, "Choice 1");
+        assert_eq!(convo.choices().unwrap()[1].text, "Choice 2");
+    }
 
-    // // 'jump_to' tests
-    // #[test]
-    // fn jump_to_no_line_err() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![DialogueLine {
-    //             id: 1,
-    //             text: "Hello".to_string(),
-    //             talker: None,
-    //             choices: None,
-    //             next: None,
-    //             start: Some(true),
-    //             // end: None,
-    //         }],
-    //     };
+    // 'jump_to' tests
+    #[test]
+    fn jump_to_no_action_err() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                id: 1,
+                start: Some(true),
+                ..default()
+            })],
+        };
 
-    //     let mut convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(
-    //         convo.jump_to(2).err(),
-    //         Some(ConversationError::WrongJump(2))
-    //     );
-    // }
-    // #[test]
-    // fn jump_to() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![
-    //             DialogueLine {
-    //                 id: 1,
-    //                 text: "Hello".to_string(),
-    //                 talker: None,
-    //                 choices: Some(vec![
-    //                     Choice {
-    //                         text: "Choice 1".to_string(),
-    //                         next: 2,
-    //                     },
-    //                     Choice {
-    //                         text: "Choice 2".to_string(),
-    //                         next: 3,
-    //                     },
-    //                 ]),
-    //                 next: None,
-    //                 start: Some(true),
-    //                 // end: None,
-    //             },
-    //             DialogueLine {
-    //                 id: 2,
-    //                 text: "I'm number 2".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: Some(3),
-    //                 start: None,
-    //                 // end: None,
-    //             },
-    //             DialogueLine {
-    //                 id: 3,
-    //                 text: "I;m number 3".to_string(),
-    //                 talker: None,
-    //                 choices: None,
-    //                 next: None,
-    //                 start: None,
-    //                 // end: None,
-    //             },
-    //         ],
-    //     };
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert_eq!(
+            convo.jump_to(2).err(),
+            Some(ConversationError::WrongJump(2))
+        );
+    }
 
-    //     let mut convo = Conversation::new(raw_talk).unwrap();
-    //     assert_eq!(convo.current_text(), "Hello");
-    //     assert!(convo.jump_to(2).is_ok());
-    //     assert_eq!(convo.current_text(), "I'm number 2");
-    // }
+    #[test]
+    fn jump_to() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Player(PlayerAction {
+                    id: 1,
+                    choices: vec![
+                        Choice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        Choice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ],
+                    start: Some(true),
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction {
+                    id: 2,
+                    text: Some("I'm number 2".to_string()),
+                    next: Some(3),
+                    ..default()
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction { id: 3, ..default() }),
+            ],
+        };
 
-    // // 'talker_name' tests
-    // #[test]
-    // fn talker_name_none() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![],
-    //         script: vec![DialogueLine {
-    //             id: 1,
-    //             text: "Hello".to_string(),
-    //             talker: None,
-    //             choices: None,
-    //             next: None,
-    //             start: Some(true),
-    //             // end: None,
-    //         }],
-    //     };
+        let mut convo = Conversation::new(raw_talk).unwrap();
+        assert!(convo.jump_to(2).is_ok());
+        assert_eq!(convo.current_text(), "I'm number 2");
+    }
 
-    //     let convo = Conversation::new(raw_talk).unwrap();
-    //     assert!(convo.current_talker().is_none());
-    // }
+    // 'current_first_actor' tests
+    #[test]
+    fn first_actor_none() {
+        let raw_talk = RawScript {
+            actors: default(),
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                start: Some(true),
+                ..default()
+            })],
+        };
 
-    // #[test]
-    // fn talker_name() {
-    //     let raw_talk = RawScript {
-    //         actors: vec![Actor {
-    //             name: "Bob".to_string(),
-    //             asset: "bob.png".to_string(),
-    //         }],
-    //         script: vec![DialogueLine {
-    //             id: 1,
-    //             text: "Hello".to_string(),
-    //             talker: Some("Bob".to_string()),
-    //             choices: None,
-    //             next: None,
-    //             start: Some(true),
-    //             // end: None,
-    //         }],
-    //     };
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert!(convo.current_first_actor().is_none());
+    }
 
-    //     let convo = Conversation::new(raw_talk).unwrap();
-    //     assert!(convo.current_talker().is_some());
-    // }
+    #[test]
+    fn current_first_actor() {
+        let mut actors_map: HashMap<String, Actor> = HashMap::new();
+        actors_map.insert(
+            "bob".to_string(),
+            Actor {
+                name: "Bob".to_string(),
+                asset: "bob.png".to_string(),
+            },
+        );
+
+        let raw_talk = RawScript {
+            actors: actors_map,
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                actors: Some(vec!["bob".to_string()]),
+                start: Some(true),
+                ..default()
+            })],
+        };
+
+        let convo = Conversation::new(raw_talk).unwrap();
+        assert!(convo.current_first_actor().is_some());
+    }
 }

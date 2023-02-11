@@ -20,15 +20,15 @@ pub enum ScriptParsingError {
 /// Errors when interacting with a conversation
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ConversationError {
-    #[error("current dialogue has no next dialogue")]
-    NoNextDialogue,
-    #[error("called next_line() while current dialogue has choices")]
+    #[error("current action has no next")]
+    NoNextAction,
+    #[error("called next_action() while in a player action")]
     ChoicesNotHandled,
-    #[error("called choices() while current dialogue has no choices")]
+    #[error("current action is an actor action")]
     NoChoices,
-    #[error("tried to jump to dialogue {0}, but it does not exist")]
+    #[error("tried to jump to action {0}, but it does not exist")]
     WrongJump(i32),
 
-    #[error("failed to access the current dialogue")]
-    InvalidDialogue,
+    #[error("failed to access the current action")]
+    InvalidAction,
 }

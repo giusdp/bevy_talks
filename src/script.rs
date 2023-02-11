@@ -27,7 +27,7 @@ impl ActorOrPlayerActionJSON {
     pub(crate) fn next(&self) -> Option<ActionId> {
         match self {
             ActorOrPlayerActionJSON::Actor(a) => a.next,
-            ActorOrPlayerActionJSON::Player(p) => None,
+            ActorOrPlayerActionJSON::Player(_) => None,
         }
     }
 
