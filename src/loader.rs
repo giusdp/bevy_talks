@@ -15,8 +15,8 @@ impl AssetLoader for ConversationLoader {
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), bevy::asset::Error>> {
         Box::pin(async move {
-            let lines = serde_json::from_slice::<RawScript>(bytes)?;
-            let asset = Conversation::new(lines)?;
+            let script = serde_json::from_slice::<RawScript>(bytes)?;
+            let asset = Conversation::new(script)?;
             load_context.set_default_asset(LoadedAsset::new(asset));
             Ok(())
         })
