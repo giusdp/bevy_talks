@@ -1,7 +1,7 @@
 use bevy::utils::HashMap;
 use serde::Deserialize;
 
-pub(crate) type ActionId = i32;
+pub type ActionId = i32;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct RawScript {
