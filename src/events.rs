@@ -1,5 +1,5 @@
-use crate::script::Choice;
+use crate::types::Choice;
 
-pub struct NextDialogueEvent;
+pub struct NextAction;
 pub struct ChoicePickedEvent(pub i32);
 pub struct ChoicesReachedEvent(pub Vec<Choice>);

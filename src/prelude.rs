@@ -1,1 +1,1 @@
-pub use super::{conversation::Conversation, errors::*, events::*, script::*, TalksPlugin};
+pub use super::{conversation::Conversation, errors::*, events::*, types::*, TalksPlugin};

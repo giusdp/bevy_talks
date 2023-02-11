@@ -3,7 +3,7 @@ use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, visit::EdgeRef};
 
 use crate::{
     errors::{ConversationError, ScriptParsingError},
-    script::{ActionId, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScript},
+    types::{ActionId, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScript},
 };
 
 #[derive(Debug, TypeUuid)]
@@ -284,7 +284,7 @@ fn validate_nexts(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::script::{ActorAction, ActorOrPlayerActionJSON, PlayerAction};
+    use crate::types::{ActorAction, ActorOrPlayerActionJSON, PlayerAction};
     use bevy::prelude::default;
 
     fn an_actors_map(name: String) -> HashMap<String, Actor> {

@@ -3,7 +3,7 @@ use bevy::{
     utils::BoxedFuture,
 };
 
-use crate::{conversation::Conversation, script::RawScript};
+use crate::{conversation::Conversation, types::RawScript};
 
 #[derive(Default)]
 pub struct ConversationLoader;

@@ -1,13 +1,13 @@
 use bevy::prelude::{AddAsset, App, Plugin};
 use conversation::Conversation;
 use loader::ConversationLoader;
-use prelude::{ChoicePickedEvent, ChoicesReachedEvent, NextDialogueEvent};
+use prelude::{ChoicePickedEvent, ChoicesReachedEvent, NextAction};
 
 pub struct TalksPlugin;
 
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<NextDialogueEvent>()
+        app.add_event::<NextAction>()
             .add_event::<ChoicesReachedEvent>()
             .add_event::<ChoicePickedEvent>()
             .add_asset::<Conversation>()
@@ -17,7 +17,7 @@ impl Plugin for TalksPlugin {
 
 pub mod conversation;
 pub mod errors;
-mod events;
+pub mod events;
 pub mod loader;
 pub mod prelude;
-pub mod script;
+pub mod types;
