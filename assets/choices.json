@@ -1,0 +1,44 @@
+{
+  "actors": {},
+  "script": [
+    {
+      "id": 1,
+      "action": "talk",
+      "actors": [],
+      "text": "What's 2+2?",
+      "start": true
+    },
+    {
+      "id": 92,
+      "choices": [
+        {
+          "text": "4.",
+          "next": 96
+        },
+        {
+          "text": "Idk.",
+          "next": 420
+        }
+      ]
+    },
+    {
+      "id": 96,
+      "action": "talk",
+      "actors": [],
+      "text": "Bravo.",
+      "next": 999
+    },
+    {
+      "id": 420,
+      "action": "talk",
+      "actors": [],
+      "text": "You high or something?"
+    },
+    {
+      "id": 999,
+      "action": "talk",
+      "actors": [],
+      "text": "The END."
+    }
+  ]
+}

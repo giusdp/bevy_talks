@@ -15,6 +15,7 @@ fn main() {
         .add_startup_system(setup)
         .add_system(interact)
         .add_system(print)
+        .add_system(bevy::window::close_on_esc)
         .run();
 }
 
