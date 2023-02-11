@@ -210,29 +210,17 @@ fn build_id_to_next_map(
 fn extract_actors(
     aaction: &ActorAction,
     actors_map: &HashMap<String, Actor>,
-) -> Result<Option<Vec<Actor>>, ScriptParsingError> {
-    // TODO: this is a bit verbose and I bet there is some functional magic to do this better
-
-    // if actors is None, keep it None.
-    // Otherwise, retrieve them from the actors map. In case one is not found, return an error.
-    match &aaction.actors {
-        Some(actors_vec) => {
-            // For the great majority of times, there will be only one actor
-            let mut actors = Vec::with_capacity(1);
-            for a in actors_vec {
-                actors.push(
-                    actors_map
-                        .get(a)
-                        .ok_or_else(|| {
-                            ScriptParsingError::ActorNotFound(aaction.id, a.to_string())
-                        })?
-                        .to_owned(),
-                );
-            }
-            Ok(Some(actors))
-        }
-        None => Ok(None),
+) -> Result<Vec<Actor>, ScriptParsingError> {
+    // Retrieve the actors from the actors map. In case one is not found, return an error.
+    let mut actors = Vec::with_capacity(1);
+    for actor_key in aaction.actors.iter() {
+        let retrieved_actor = actors_map
+            .get(actor_key)
+            .ok_or_else(|| ScriptParsingError::ActorNotFound(aaction.id, actor_key.to_string()))?
+            .to_owned();
+        actors.push(retrieved_actor);
     }
+    Ok(actors)
 }
 
 fn check_start_flag(
@@ -256,7 +244,7 @@ fn add_action_node(
     let mut node = ConvoNode { ..default() };
     match action {
         ActorOrPlayerActionJSON::Actor(actor_action) => {
-            node.actors = extract_actors(&actor_action, actors_map)?;
+            node.actors = Some(extract_actors(&actor_action, actors_map)?);
             node.text = actor_action.text;
         }
         ActorOrPlayerActionJSON::Player(player_action) => {
@@ -322,7 +310,7 @@ mod test {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 text: Some("Hello".to_string()),
-                actors: Some(vec!["Bob".to_string()]),
+                actors: vec!["Bob".to_string()],
                 start: Some(true),
                 ..default()
             })],
@@ -340,7 +328,7 @@ mod test {
         let raw_talk = RawScript {
             actors: an_actors_map("Bob".to_string()),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-                actors: Some(vec!["Alice".to_string()]),
+                actors: vec!["Alice".to_string()],
                 start: Some(true),
                 ..default()
             })],
@@ -358,7 +346,7 @@ mod test {
         let raw_talk = RawScript {
             actors: an_actors_map("Alice".to_string()),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-                actors: Some(vec!["Alice".to_string()]),
+                actors: vec!["Alice".to_string()],
 
                 ..default()
             })],
@@ -614,14 +602,7 @@ mod test {
 
     #[test]
     fn new_with_actors() {
-        let mut actors_map: HashMap<String, Actor> = HashMap::new();
-        actors_map.insert(
-            "bob".to_string(),
-            Actor {
-                asset: "bob.png".to_string(),
-                name: "Bob".to_string(),
-            },
-        );
+        let mut actors_map = an_actors_map("bob".to_string());
         actors_map.insert(
             "alice".to_string(),
             Actor {
@@ -636,7 +617,7 @@ mod test {
                 ActorOrPlayerActionJSON::Actor(ActorAction {
                     id: 1,
                     text: Some("Hello".to_string()),
-                    actors: Some(vec!["bob".to_string()]),
+                    actors: vec!["bob".to_string()],
                     next: Some(2),
                     start: Some(true),
                     ..default()
@@ -644,7 +625,7 @@ mod test {
                 ActorOrPlayerActionJSON::Actor(ActorAction {
                     id: 2,
                     text: Some("Whatup".to_string()),
-                    actors: Some(vec!["alice".to_string()]),
+                    actors: vec!["alice".to_string()],
                     ..default()
                 }),
             ],
@@ -874,7 +855,7 @@ mod test {
         let raw_talk = RawScript {
             actors: actors_map,
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-                actors: Some(vec!["bob".to_string()]),
+                actors: vec!["bob".to_string()],
                 start: Some(true),
                 ..default()
             })],

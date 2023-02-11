@@ -49,8 +49,8 @@ impl ActorOrPlayerActionJSON {
 #[derive(Debug, Default, Deserialize, Clone)]
 pub(crate) struct ActorAction {
     pub(crate) id: ActionId,
-    pub(crate) action_kind: ActorActionKind,
-    pub(crate) actors: Option<Vec<String>>,
+    pub(crate) action: ActorActionKind,
+    pub(crate) actors: Vec<String>,
     pub(crate) text: Option<String>,
     pub(crate) next: Option<ActionId>,
     pub(crate) start: Option<bool>,
@@ -72,8 +72,11 @@ pub struct Actor {
 #[derive(Debug, Default, Deserialize, Clone)]
 pub enum ActorActionKind {
     #[default]
+    #[serde(rename = "talk")]
     Talk,
+    #[serde(rename = "enter")]
     Enter,
+    #[serde(rename = "exit")]
     Exit,
 }
 
