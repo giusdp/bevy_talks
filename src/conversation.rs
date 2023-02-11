@@ -9,7 +9,7 @@ use crate::{
 #[derive(Debug, TypeUuid)]
 #[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
 pub struct Conversation {
-    graph: DiGraph<ConvoNode, ()>,
+    graph: DiGraph<ActionNode, ()>,
     current: NodeIndex,
     id_to_nodeidx: HashMap<ActionId, NodeIndex>,
 }
@@ -19,7 +19,7 @@ impl Conversation {
         if raw_script.script.is_empty() {
             return Err(ScriptParsingError::EmptyScript);
         }
-        let mut graph: DiGraph<ConvoNode, ()> = DiGraph::new();
+        let mut graph: DiGraph<ActionNode, ()> = DiGraph::new();
 
         let mut start_action = Option::<NodeIndex>::None;
 
@@ -167,9 +167,16 @@ impl Conversation {
             None => None,
         }
     }
+
+    pub fn at_player_action(&self) -> bool {
+        self.graph[self.current].choices.is_some()
+    }
+    pub fn at_actor_action(&self) -> bool {
+        !self.at_player_action()
+    }
 }
 #[derive(Debug, Default)]
-struct ConvoNode {
+struct ActionNode {
     text: Option<String>,
     actors: Option<Vec<Actor>>,
     choices: Option<Vec<Choice>>,
@@ -237,11 +244,11 @@ fn check_start_flag(
 }
 
 fn add_action_node(
-    graph: &mut DiGraph<ConvoNode, ()>,
+    graph: &mut DiGraph<ActionNode, ()>,
     action: ActorOrPlayerActionJSON,
     actors_map: &HashMap<String, Actor>,
 ) -> Result<NodeIndex, ScriptParsingError> {
-    let mut node = ConvoNode { ..default() };
+    let mut node = ActionNode { ..default() };
     match action {
         ActorOrPlayerActionJSON::Actor(actor_action) => {
             node.actors = Some(extract_actors(&actor_action, actors_map)?);
