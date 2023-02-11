@@ -16,9 +16,8 @@ impl Plugin for TalksPlugin {
 }
 
 pub mod conversation;
-pub mod dialogue_line;
 pub mod errors;
 mod events;
 pub mod loader;
 pub mod prelude;
-pub mod talker;
+pub mod script;

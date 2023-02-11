@@ -1,0 +1,84 @@
+use bevy::utils::HashMap;
+use serde::Deserialize;
+
+pub(crate) type ActionId = i32;
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct RawScript {
+    pub(crate) actors: HashMap<String, Actor>,
+    pub(crate) script: Vec<ActorOrPlayerActionJSON>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+pub(crate) enum ActorOrPlayerActionJSON {
+    Actor(ActorAction),
+    Player(PlayerAction),
+}
+
+impl ActorOrPlayerActionJSON {
+    pub(crate) fn id(&self) -> ActionId {
+        match self {
+            ActorOrPlayerActionJSON::Actor(a) => a.id,
+            ActorOrPlayerActionJSON::Player(p) => p.id,
+        }
+    }
+
+    pub(crate) fn next(&self) -> Option<ActionId> {
+        match self {
+            ActorOrPlayerActionJSON::Actor(a) => a.next,
+            ActorOrPlayerActionJSON::Player(p) => None,
+        }
+    }
+
+    pub(crate) fn start(&self) -> Option<bool> {
+        match self {
+            ActorOrPlayerActionJSON::Actor(a) => a.start,
+            ActorOrPlayerActionJSON::Player(p) => p.start,
+        }
+    }
+
+    pub(crate) fn choices(&self) -> Option<&Vec<Choice>> {
+        match self {
+            ActorOrPlayerActionJSON::Actor(_) => None,
+            ActorOrPlayerActionJSON::Player(p) => Some(&p.choices),
+        }
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub(crate) struct ActorAction {
+    pub(crate) id: ActionId,
+    pub(crate) action_kind: ActorActionKind,
+    pub(crate) actors: Option<Vec<String>>,
+    pub(crate) text: Option<String>,
+    pub(crate) next: Option<ActionId>,
+    pub(crate) start: Option<bool>,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct PlayerAction {
+    pub id: ActionId,
+    pub choices: Vec<Choice>,
+    pub(crate) start: Option<bool>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Actor {
+    pub name: String,
+    pub asset: String,
+}
+
+#[derive(Debug, Default, Deserialize, Clone)]
+pub enum ActorActionKind {
+    #[default]
+    Talk,
+    Enter,
+    Exit,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct Choice {
+    pub text: String,
+    pub next: ActionId,
+}

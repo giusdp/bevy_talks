@@ -1,4 +1,1 @@
-pub use super::{
-    conversation::Conversation, dialogue_line::Choice, errors::*, events::*, talker::Talker,
-    TalksPlugin,
-};
+pub use super::{conversation::Conversation, errors::*, events::*, script::*, TalksPlugin};

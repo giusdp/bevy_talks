@@ -2,19 +2,19 @@ use thiserror::Error;
 
 /// Possible errors when creating a conversation
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ConvoCreationError {
-    #[error("an empty lines vector was used to build the conversation")]
-    NoLines,
-    #[error("the dialogue line {0} has specified a non existent talker {1}")]
-    TalkerNotFound(i32, String),
-    #[error("the dialogue line {0} is pointing to id {1} which was not found")]
-    NextLineNotFound(i32, i32),
+pub enum ScriptParsingError {
+    #[error("an empty script was used to build the conversation")]
+    EmptyScript,
+    #[error("the actor action {0} has specified a non existent actor {1}")]
+    ActorNotFound(i32, String),
+    #[error("the action {0} is pointing to id {1} which was not found")]
+    NextActionNotFound(i32, i32),
     #[error("the dialogue line {0} has the same id as another dialogue")]
     RepeatedId(i32),
-    #[error("no initial dialogue was found, add a 'start': true to one of the dialogue lines")]
-    NoStartingDialogue,
-    #[error("too many dialogues with 'start' flag set to true. Only one allowed.")]
-    MultipleStartingDialogues,
+    #[error("no initial action was found, add a 'start': true to one of the actions")]
+    NoStartingAction,
+    #[error("too many actions with 'start' flag set to true. Only one allowed.")]
+    MultipleStartingAction,
 }
 
 /// Errors when interacting with a conversation
