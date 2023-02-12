@@ -3,7 +3,9 @@ use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, visit::EdgeRef};
 
 use crate::{
     errors::{ScriptError, ScriptParsingError},
-    types::{ActionId, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScreenplay},
+    types::{
+        ActionId, ActionKind, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScreenplay,
+    },
 };
 
 #[derive(Debug, TypeUuid)]
@@ -23,7 +25,7 @@ impl Screenplay {
 
         let mut start_action = Option::<NodeIndex>::None;
 
-        // 1. Build auxiliary maps
+        // 1. Build auxiliary maps (I'm bad at naming maps)
 
         // ActionId => next_id map, so we can fill the next when it's None
         // (it means point to the next action) and throw duplicate id error
@@ -52,7 +54,7 @@ impl Screenplay {
                 start_action = Some(node_idx);
             }
 
-            // 2.b add info (idx, next_id) as we build the graph
+            // 2.c add (idx, next_id) as we build the graph
             if id_to_nodeids_map
                 .insert(
                     this_action_id,
@@ -73,7 +75,7 @@ impl Screenplay {
 
         // 4 Add edges to the graph
         for (action_id, node_action) in &id_to_nodeids_map {
-            // 5.a With the next field, add a single edge
+            // 4.a With the next field, add a single edge
             if let Some(next_id) = node_action.next_action_id {
                 let next_node_action = id_to_nodeids_map
                     .get(&next_id)
@@ -82,7 +84,7 @@ impl Screenplay {
                 graph.add_edge(node_action.node_idx, next_node_action.node_idx, ());
             }
 
-            // 5.b With the choices, add an edge for each choice
+            // 4.b With the choices, add an edge for each choice
             if let Some(choices) = &node_action.choices {
                 for choice in choices {
                     let next_node_action = id_to_nodeids_map
@@ -168,16 +170,24 @@ impl Screenplay {
         }
     }
 
+    pub fn current_actors(&self) -> Option<Vec<Actor>> {
+        let cnode = self.graph.node_weight(self.current)?;
+        cnode.actors.clone()
+    }
+
     pub fn at_player_action(&self) -> bool {
-        self.graph[self.current].choices.is_some()
+        self.graph[self.current].kind == ActionKind::PlayerChoice
     }
     pub fn at_actor_action(&self) -> bool {
         !self.at_player_action()
     }
-    // pub fn action_kind(&self) -> ActionKind {}
+    pub fn action_kind(&self) -> ActionKind {
+        self.graph[self.current].kind
+    }
 }
 #[derive(Debug, Default)]
 struct ActionNode {
+    kind: ActionKind,
     text: Option<String>,
     actors: Option<Vec<Actor>>,
     choices: Option<Vec<Choice>>,
@@ -254,9 +264,11 @@ fn add_action_node(
         ActorOrPlayerActionJSON::Actor(actor_action) => {
             node.actors = Some(extract_actors(&actor_action, actors_map)?);
             node.text = actor_action.text;
+            node.kind = actor_action.action.into();
         }
         ActorOrPlayerActionJSON::Player(player_action) => {
             node.choices = Some(player_action.choices);
+            node.kind = ActionKind::PlayerChoice;
         }
     }
     let node_idx = graph.add_node(node);
@@ -285,7 +297,9 @@ fn validate_nexts(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::{ActionKind, ActorAction, ActorOrPlayerActionJSON, PlayerAction};
+    use crate::types::{
+        ActionKind, ActorAction, ActorActionKind, ActorOrPlayerActionJSON, PlayerAction,
+    };
     use bevy::prelude::default;
 
     fn an_actors_map(name: String) -> HashMap<String, Actor> {
@@ -845,14 +859,7 @@ mod test {
 
     #[test]
     fn first_actor() {
-        let mut actors_map: HashMap<String, Actor> = HashMap::new();
-        actors_map.insert(
-            "bob".to_string(),
-            Actor {
-                name: "Bob".to_string(),
-                asset: "bob.png".to_string(),
-            },
-        );
+        let actors_map = an_actors_map("bob".to_string());
 
         let raw_talk = RawScreenplay {
             actors: actors_map,
@@ -865,6 +872,30 @@ mod test {
 
         let convo = Screenplay::new(raw_talk).unwrap();
         assert!(convo.first_actor().is_some());
+    }
+
+    #[test]
+    fn current_actors() {
+        let mut actors_map = an_actors_map("bob".to_string());
+        actors_map.insert(
+            "alice".to_string(),
+            Actor {
+                name: "alice".to_string(),
+                asset: "alice".to_string(),
+            },
+        );
+
+        let raw_play = RawScreenplay {
+            actors: actors_map,
+            script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
+                actors: vec!["bob".to_string(), "alice".to_string()],
+                start: Some(true),
+                ..default()
+            })],
+        };
+
+        let play = Screenplay::new(raw_play).unwrap();
+        assert_eq!(play.current_actors().unwrap().len(), 2);
     }
 
     #[test]
@@ -889,25 +920,49 @@ mod test {
         assert!(convo.at_player_action());
     }
 
-    // #[test]
-    // fn action_kind_choice() {
-    //     let raw_talk = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![
-    //             ActorOrPlayerActionJSON::Player(PlayerAction {
-    //                 id: 1,
-    //                 choices: vec![Choice {
-    //                     text: "Whatup".to_string(),
-    //                     next: 2,
-    //                 }],
-    //                 start: Some(true),
-    //                 ..default()
-    //             }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-    //         ],
-    //     };
+    #[test]
+    fn action_kind_player() {
+        let raw_play = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Player(PlayerAction {
+                    id: 1,
+                    choices: vec![Choice {
+                        text: "Whatup".to_string(),
+                        next: 2,
+                    }],
+                    start: Some(true),
+                    ..default()
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
+            ],
+        };
 
-    //     let convo = Screenplay::new(raw_talk).unwrap();
-    //     assert_eq!(convo.action_kind(), ActionKind::PlayerChoice);
-    // }
+        let sp = Screenplay::new(raw_play).unwrap();
+        assert_eq!(sp.action_kind(), ActionKind::PlayerChoice);
+    }
+
+    #[test]
+    fn action_kind_actor() {
+        let raw_play = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Actor(ActorAction {
+                    id: 1,
+                    start: Some(true),
+                    ..default()
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction {
+                    id: 2,
+                    action: ActorActionKind::Enter,
+                    ..default()
+                }),
+            ],
+        };
+
+        let mut sp = Screenplay::new(raw_play).unwrap();
+        assert_eq!(sp.action_kind(), ActionKind::ActorTalk);
+        sp.next_action().unwrap();
+        assert_eq!(sp.action_kind(), ActionKind::ActorEnter);
+    }
 }

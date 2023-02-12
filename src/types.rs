@@ -13,11 +13,23 @@ pub struct Choice {
     pub next: ActionId,
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum ActionKind {
     PlayerChoice,
+    #[default]
     ActorTalk,
     ActorEnter,
     ActorExit,
+}
+
+impl From<ActorActionKind> for ActionKind {
+    fn from(kind: ActorActionKind) -> Self {
+        match kind {
+            ActorActionKind::Talk => ActionKind::ActorTalk,
+            ActorActionKind::Enter => ActionKind::ActorEnter,
+            ActorActionKind::Exit => ActionKind::ActorExit,
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]

@@ -1,0 +1,97 @@
+{
+  "actors": {
+    "ferris": {
+      "name": "Ferris",
+      "asset": "ferris.png"
+    },
+    "bevy": {
+      "name": "Bevy",
+      "asset": "bevy.png"
+    }
+  },
+  "script": [
+    {
+      "id": 1,
+      "action": "talk",
+      "text": "Here comes the two stars: Ferris and Bevy.",
+      "actors": [],
+      "start": true
+    },
+    {
+      "id": 90,
+      "action": "enter",
+      "actors": [
+        "ferris"
+      ]
+    },
+    {
+      "id": 2,
+      "action": "talk",
+      "actors": [
+        "ferris"
+      ],
+      "text": "Rust is awesome!!!"
+    },
+    {
+      "id": 3,
+      "action": "talk",
+      "actors": [],
+      "text": "A joyful laughter from a nowhere to be seen audience."
+    },
+    {
+      "id": 91,
+      "action": "enter",
+      "actors": [
+        "bevy"
+      ]
+    },
+    {
+      "id": 4,
+      "action": "talk",
+      "actors": [
+        "bevy"
+      ],
+      "text": "Right! I'm so happy to be here! Love you all!"
+    },
+    {
+      "id": 5,
+      "action": "talk",
+      "actors": [],
+      "text": "You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd. You follow their gaze, only a black, silent camera is there."
+    },
+    {
+      "id": 6,
+      "action": "talk",
+      "actors": [
+        "ferris"
+      ],
+      "text": "And what about you?"
+    },
+    {
+      "id": 100,
+      "action": "talk",
+      "actors": [],
+      "text": "You quicky say that you love it, of course, as everyone else."
+    },
+    {
+      "id": 7,
+      "action": "talk",
+      "actors": [],
+      "text": "Everyone clapped."
+    },
+    {
+      "id": 8,
+      "action": "exit",
+      "actors": [
+        "ferris",
+        "bevy"
+      ]
+    },
+    {
+      "id": 9,
+      "action": "talk",
+      "actors": [],
+      "text": "The end."
+    }
+  ]
+}

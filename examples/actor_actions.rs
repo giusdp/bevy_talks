@@ -20,7 +20,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, server: Res<AssetServer>) {
-    let handle: Handle<Screenplay> = server.load("talk_only.json");
+    let handle: Handle<Screenplay> = server.load("actor_actions.json");
     commands.insert_resource(ScreenplayHandle(handle));
 
     println!("Press space to advance the conversation.");
@@ -34,15 +34,26 @@ fn print(
     if !print_enabled.0 {
         return;
     }
-    let conversation = screenplays.get(&sp_handle.0).unwrap();
-    println!(
-        "{}: {}",
-        conversation
-            .first_actor()
-            .map(|a| a.name)
-            .unwrap_or("Narrator".to_string()),
-        conversation.text()
-    );
+    let screenplay = screenplays.get(&sp_handle.0).unwrap();
+
+    let actors = screenplay
+        .current_actors()
+        .map(|a| a.iter().map(|a| a.name.to_owned()).collect::<Vec<String>>())
+        .and_then(|names| {
+            if names.is_empty() {
+                Some("Narrator".to_string())
+            } else {
+                Some(names.join(" and "))
+            }
+        });
+
+    match screenplay.action_kind() {
+        ActionKind::PlayerChoice => println!("Reached a choice."),
+        ActionKind::ActorTalk => println!("{}: {}", actors.unwrap(), screenplay.text()),
+        ActionKind::ActorEnter => println!("--- {} enters the scene.", actors.unwrap()),
+        ActionKind::ActorExit => println!("--- {} exit the scene.", actors.unwrap()),
+    };
+
     print_enabled.0 = false;
 }
 
@@ -52,10 +63,10 @@ fn interact(
     mut screenplays: ResMut<Assets<Screenplay>>,
     mut print_enabled: ResMut<PrintEnabled>,
 ) {
-    let script = screenplays.get_mut(&sp_handle.0).unwrap();
+    let screenplay = screenplays.get_mut(&sp_handle.0).unwrap();
 
     if input.just_pressed(KeyCode::Space) {
-        match script.next_action() {
+        match screenplay.next_action() {
             Ok(_) => print_enabled.0 = true,
             Err(e) => {
                 println!("Error: {:?}", e);
