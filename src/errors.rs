@@ -2,7 +2,7 @@ use thiserror::Error;
 
 /// Possible errors when creating a conversation
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ScriptParsingError {
+pub enum ScreenplayParsingError {
     #[error("an empty script was used to build the conversation")]
     EmptyScript,
     #[error("the actor action {0} has specified a non existent actor {1}")]
@@ -19,7 +19,7 @@ pub enum ScriptParsingError {
 
 /// Errors when interacting with a conversation
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ScriptError {
+pub enum ScreenplayError {
     #[error("current action has no next")]
     NoNextAction,
     #[error("called next_action() while in a player action")]

@@ -2,7 +2,7 @@ use bevy::{prelude::default, reflect::TypeUuid, utils::HashMap};
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, visit::EdgeRef};
 
 use crate::{
-    errors::{ScriptError, ScriptParsingError},
+    errors::{ScreenplayError, ScreenplayParsingError},
     types::{
         ActionId, ActionKind, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScreenplay,
     },
@@ -17,9 +17,9 @@ pub struct Screenplay {
 }
 
 impl Screenplay {
-    pub(crate) fn new(raw_script: RawScreenplay) -> Result<Self, ScriptParsingError> {
+    pub(crate) fn new(raw_script: RawScreenplay) -> Result<Self, ScreenplayParsingError> {
         if raw_script.script.is_empty() {
-            return Err(ScriptParsingError::EmptyScript);
+            return Err(ScreenplayParsingError::EmptyScript);
         }
         let mut graph: DiGraph<ActionNode, ()> = DiGraph::new();
 
@@ -66,7 +66,7 @@ impl Screenplay {
                 )
                 .is_some()
             {
-                return Err(ScriptParsingError::RepeatedId(this_action_id));
+                return Err(ScreenplayParsingError::RepeatedId(this_action_id));
             };
         }
 
@@ -77,9 +77,9 @@ impl Screenplay {
         for (action_id, node_action) in &id_to_nodeids_map {
             // 4.a With the next field, add a single edge
             if let Some(next_id) = node_action.next_action_id {
-                let next_node_action = id_to_nodeids_map
-                    .get(&next_id)
-                    .ok_or(ScriptParsingError::NextActionNotFound(*action_id, next_id))?;
+                let next_node_action = id_to_nodeids_map.get(&next_id).ok_or(
+                    ScreenplayParsingError::NextActionNotFound(*action_id, next_id),
+                )?;
 
                 graph.add_edge(node_action.node_idx, next_node_action.node_idx, ());
             }
@@ -87,9 +87,9 @@ impl Screenplay {
             // 4.b With the choices, add an edge for each choice
             if let Some(choices) = &node_action.choices {
                 for choice in choices {
-                    let next_node_action = id_to_nodeids_map
-                        .get(choice)
-                        .ok_or(ScriptParsingError::NextActionNotFound(*action_id, *choice))?;
+                    let next_node_action = id_to_nodeids_map.get(choice).ok_or(
+                        ScreenplayParsingError::NextActionNotFound(*action_id, *choice),
+                    )?;
 
                     graph.add_edge(node_action.node_idx, next_node_action.node_idx, ());
                 }
@@ -104,7 +104,7 @@ impl Screenplay {
 
         Ok(Self {
             graph,
-            current: start_action.ok_or(ScriptParsingError::NoStartingAction)?,
+            current: start_action.ok_or(ScreenplayParsingError::NoStartingAction)?,
             id_to_nodeidx,
         })
     }
@@ -116,15 +116,15 @@ impl Screenplay {
         }
     }
 
-    pub fn next_action(&mut self) -> Result<(), ScriptError> {
+    pub fn next_action(&mut self) -> Result<(), ScreenplayError> {
         let cnode = self.graph.node_weight(self.current);
 
         // if for some magical reason the current node is not in the graph, return an error
-        let cur_dial = cnode.ok_or(ScriptError::InvalidAction)?;
+        let cur_dial = cnode.ok_or(ScreenplayError::InvalidAction)?;
 
         // if it's a player action, return an error
         if cur_dial.choices.is_some() {
-            return Err(ScriptError::ChoicesNotHandled);
+            return Err(ScreenplayError::ChoicesNotHandled);
         }
 
         // retrieve the next edge
@@ -132,33 +132,33 @@ impl Screenplay {
             .graph
             .edges(self.current)
             .next()
-            .ok_or(ScriptError::NoNextAction)?;
+            .ok_or(ScreenplayError::NoNextAction)?;
 
         // what's this NodeId? Is it the NodeIndex? I'm not sure. Let's assign it anyway
         self.current = edge_ref.target();
         Ok(())
     }
 
-    pub fn jump_to(&mut self, id: i32) -> Result<(), ScriptError> {
+    pub fn jump_to(&mut self, id: i32) -> Result<(), ScreenplayError> {
         let idx = self
             .id_to_nodeidx
             .get(&id)
-            .ok_or(ScriptError::WrongJump(id))?;
+            .ok_or(ScreenplayError::WrongJump(id))?;
 
         self.current = *idx;
         Ok(())
     }
 
     /// Returns the choices for the current dialogue. If there are no choices, returns an error.
-    pub fn choices(&self) -> Result<Vec<Choice>, ScriptError> {
+    pub fn choices(&self) -> Result<Vec<Choice>, ScreenplayError> {
         let cnode = self.graph.node_weight(self.current);
         // if for some fantastic reason the current node is not in the graph, return an error
-        let cur_dial = cnode.ok_or(ScriptError::InvalidAction)?;
+        let cur_dial = cnode.ok_or(ScreenplayError::InvalidAction)?;
 
         if let Some(choices) = &cur_dial.choices {
             Ok(choices.clone())
         } else {
-            Err(ScriptError::NoChoices)
+            Err(ScreenplayError::NoChoices)
         }
     }
 
@@ -203,13 +203,13 @@ struct StrippedNodeAction {
 
 fn build_id_to_next_map(
     script: &Vec<ActorOrPlayerActionJSON>,
-) -> Result<HashMap<ActionId, ActionId>, ScriptParsingError> {
+) -> Result<HashMap<ActionId, ActionId>, ScreenplayParsingError> {
     let mut id_to_next_map: HashMap<ActionId, ActionId> = HashMap::with_capacity(script.len() - 1);
     for (i, a) in script.iter().enumerate() {
         match a.next() {
             Some(n) => {
                 if id_to_next_map.insert(a.id(), n).is_some() {
-                    return Err(ScriptParsingError::RepeatedId(a.id()));
+                    return Err(ScreenplayParsingError::RepeatedId(a.id()));
                 }
             }
             None => {
@@ -228,13 +228,15 @@ fn build_id_to_next_map(
 fn extract_actors(
     aaction: &ActorAction,
     actors_map: &HashMap<String, Actor>,
-) -> Result<Vec<Actor>, ScriptParsingError> {
+) -> Result<Vec<Actor>, ScreenplayParsingError> {
     // Retrieve the actors from the actors map. In case one is not found, return an error.
     let mut actors = Vec::with_capacity(1);
     for actor_key in aaction.actors.iter() {
         let retrieved_actor = actors_map
             .get(actor_key)
-            .ok_or_else(|| ScriptParsingError::ActorNotFound(aaction.id, actor_key.to_string()))?
+            .ok_or_else(|| {
+                ScreenplayParsingError::ActorNotFound(aaction.id, actor_key.to_string())
+            })?
             .to_owned();
         actors.push(retrieved_actor);
     }
@@ -244,10 +246,10 @@ fn extract_actors(
 fn check_start_flag(
     start_flag: Option<bool>,
     already_have_start: bool,
-) -> Result<bool, ScriptParsingError> {
+) -> Result<bool, ScreenplayParsingError> {
     if let Some(true) = start_flag {
         if already_have_start {
-            return Err(ScriptParsingError::MultipleStartingAction);
+            return Err(ScreenplayParsingError::MultipleStartingAction);
         }
         return Ok(true);
     }
@@ -258,7 +260,7 @@ fn add_action_node(
     graph: &mut DiGraph<ActionNode, ()>,
     action: ActorOrPlayerActionJSON,
     actors_map: &HashMap<String, Actor>,
-) -> Result<NodeIndex, ScriptParsingError> {
+) -> Result<NodeIndex, ScreenplayParsingError> {
     let mut node = ActionNode { ..default() };
     match action {
         ActorOrPlayerActionJSON::Actor(actor_action) => {
@@ -277,16 +279,16 @@ fn add_action_node(
 
 fn validate_nexts(
     nodeidx_dialogue_map: &HashMap<i32, StrippedNodeAction>,
-) -> Result<(), ScriptParsingError> {
+) -> Result<(), ScreenplayParsingError> {
     for (id, stripped_node) in nodeidx_dialogue_map {
         if let Some(next_id) = stripped_node.next_action_id {
             if !nodeidx_dialogue_map.contains_key(&next_id) {
-                return Err(ScriptParsingError::NextActionNotFound(*id, next_id));
+                return Err(ScreenplayParsingError::NextActionNotFound(*id, next_id));
             }
         } else if let Some(vc) = &stripped_node.choices {
             for c in vc {
                 if !nodeidx_dialogue_map.contains_key(c) {
-                    return Err(ScriptParsingError::NextActionNotFound(*id, *c));
+                    return Err(ScreenplayParsingError::NextActionNotFound(*id, *c));
                 }
             }
         }
@@ -323,7 +325,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_script).err();
-        assert_eq!(convo, Some(ScriptParsingError::EmptyScript));
+        assert_eq!(convo, Some(ScreenplayParsingError::EmptyScript));
     }
 
     #[test]
@@ -341,7 +343,7 @@ mod test {
         let convo = Screenplay::new(raw_script).err();
         assert_eq!(
             convo,
-            Some(ScriptParsingError::ActorNotFound(0, "Bob".to_string()))
+            Some(ScreenplayParsingError::ActorNotFound(0, "Bob".to_string()))
         );
     }
 
@@ -359,7 +361,10 @@ mod test {
         let convo = Screenplay::new(raw_talk).err();
         assert_eq!(
             convo,
-            Some(ScriptParsingError::ActorNotFound(0, "Alice".to_string()))
+            Some(ScreenplayParsingError::ActorNotFound(
+                0,
+                "Alice".to_string()
+            ))
         );
     }
 
@@ -375,7 +380,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::NoStartingAction));
+        assert_eq!(convo, Some(ScreenplayParsingError::NoStartingAction));
     }
 
     #[test]
@@ -395,7 +400,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::MultipleStartingAction));
+        assert_eq!(convo, Some(ScreenplayParsingError::MultipleStartingAction));
     }
 
     #[test]
@@ -416,7 +421,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::MultipleStartingAction));
+        assert_eq!(convo, Some(ScreenplayParsingError::MultipleStartingAction));
     }
 
     #[test]
@@ -436,7 +441,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::MultipleStartingAction));
+        assert_eq!(convo, Some(ScreenplayParsingError::MultipleStartingAction));
     }
 
     #[test]
@@ -461,7 +466,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::RepeatedId(1)));
+        assert_eq!(convo, Some(ScreenplayParsingError::RepeatedId(1)));
     }
 
     #[test]
@@ -481,7 +486,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::RepeatedId(1)));
+        assert_eq!(convo, Some(ScreenplayParsingError::RepeatedId(1)));
     }
 
     #[test]
@@ -499,7 +504,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::RepeatedId(1)));
+        assert_eq!(convo, Some(ScreenplayParsingError::RepeatedId(1)));
     }
 
     #[test]
@@ -514,7 +519,10 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::NextActionNotFound(0, 2)));
+        assert_eq!(
+            convo,
+            Some(ScreenplayParsingError::NextActionNotFound(0, 2))
+        );
     }
 
     #[test]
@@ -532,7 +540,10 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).err();
-        assert_eq!(convo, Some(ScriptParsingError::NextActionNotFound(0, 2)));
+        assert_eq!(
+            convo,
+            Some(ScreenplayParsingError::NextActionNotFound(0, 2))
+        );
     }
 
     #[test]
@@ -691,7 +702,10 @@ mod test {
         };
 
         let mut convo = Screenplay::new(raw_talk).unwrap();
-        assert_eq!(convo.next_action().err(), Some(ScriptError::NoNextAction));
+        assert_eq!(
+            convo.next_action().err(),
+            Some(ScreenplayError::NoNextAction)
+        );
     }
 
     #[test]
@@ -715,7 +729,7 @@ mod test {
         let mut convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(
             convo.next_action().err(),
-            Some(ScriptError::ChoicesNotHandled)
+            Some(ScreenplayError::ChoicesNotHandled)
         );
     }
 
@@ -757,7 +771,7 @@ mod test {
         };
 
         let convo = Screenplay::new(raw_talk).unwrap();
-        assert_eq!(convo.choices().err(), Some(ScriptError::NoChoices));
+        assert_eq!(convo.choices().err(), Some(ScreenplayError::NoChoices));
     }
 
     #[test]
@@ -805,7 +819,7 @@ mod test {
         };
 
         let mut convo = Screenplay::new(raw_talk).unwrap();
-        assert_eq!(convo.jump_to(2).err(), Some(ScriptError::WrongJump(2)));
+        assert_eq!(convo.jump_to(2).err(), Some(ScreenplayError::WrongJump(2)));
     }
 
     #[test]
