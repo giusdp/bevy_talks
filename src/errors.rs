@@ -19,7 +19,7 @@ pub enum ScriptParsingError {
 
 /// Errors when interacting with a conversation
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ConversationError {
+pub enum ScriptError {
     #[error("current action has no next")]
     NoNextAction,
     #[error("called next_action() while in a player action")]

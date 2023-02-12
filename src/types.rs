@@ -2,9 +2,26 @@ use bevy::utils::HashMap;
 use serde::Deserialize;
 
 pub type ActionId = i32;
+#[derive(Debug, Deserialize, Clone)]
+pub struct Actor {
+    pub name: String,
+    pub asset: String,
+}
+#[derive(Debug, Deserialize, Clone)]
+pub struct Choice {
+    pub text: String,
+    pub next: ActionId,
+}
+
+pub enum ActionKind {
+    PlayerChoice,
+    ActorTalk,
+    ActorEnter,
+    ActorExit,
+}
 
 #[derive(Debug, Deserialize)]
-pub(crate) struct RawScript {
+pub(crate) struct RawScreenplay {
     pub(crate) actors: HashMap<String, Actor>,
     pub(crate) script: Vec<ActorOrPlayerActionJSON>,
 }
@@ -57,20 +74,14 @@ pub(crate) struct ActorAction {
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]
-pub struct PlayerAction {
-    pub id: ActionId,
-    pub choices: Vec<Choice>,
+pub(crate) struct PlayerAction {
+    pub(crate) id: ActionId,
+    pub(crate) choices: Vec<Choice>,
     pub(crate) start: Option<bool>,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Actor {
-    pub name: String,
-    pub asset: String,
-}
-
 #[derive(Debug, Default, Deserialize, Clone)]
-pub enum ActorActionKind {
+pub(crate) enum ActorActionKind {
     #[default]
     #[serde(rename = "talk")]
     Talk,
@@ -78,10 +89,4 @@ pub enum ActorActionKind {
     Enter,
     #[serde(rename = "exit")]
     Exit,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Choice {
-    pub text: String,
-    pub next: ActionId,
 }

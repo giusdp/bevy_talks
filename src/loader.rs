@@ -3,7 +3,7 @@ use bevy::{
     utils::BoxedFuture,
 };
 
-use crate::{conversation::Conversation, types::RawScript};
+use crate::{screenplay::Screenplay, types::RawScreenplay};
 
 #[derive(Default)]
 pub struct ConversationLoader;
@@ -15,8 +15,8 @@ impl AssetLoader for ConversationLoader {
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), bevy::asset::Error>> {
         Box::pin(async move {
-            let script = serde_json::from_slice::<RawScript>(bytes)?;
-            let asset = Conversation::new(script)?;
+            let script = serde_json::from_slice::<RawScreenplay>(bytes)?;
+            let asset = Screenplay::new(script)?;
             load_context.set_default_asset(LoadedAsset::new(asset));
             Ok(())
         })

@@ -2,20 +2,20 @@ use bevy::{prelude::default, reflect::TypeUuid, utils::HashMap};
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, visit::EdgeRef};
 
 use crate::{
-    errors::{ConversationError, ScriptParsingError},
-    types::{ActionId, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScript},
+    errors::{ScriptError, ScriptParsingError},
+    types::{ActionId, Actor, ActorAction, ActorOrPlayerActionJSON, Choice, RawScreenplay},
 };
 
 #[derive(Debug, TypeUuid)]
 #[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
-pub struct Conversation {
+pub struct Screenplay {
     graph: DiGraph<ActionNode, ()>,
     current: NodeIndex,
     id_to_nodeidx: HashMap<ActionId, NodeIndex>,
 }
 
-impl Conversation {
-    pub(crate) fn new(raw_script: RawScript) -> Result<Self, ScriptParsingError> {
+impl Screenplay {
+    pub(crate) fn new(raw_script: RawScreenplay) -> Result<Self, ScriptParsingError> {
         if raw_script.script.is_empty() {
             return Err(ScriptParsingError::EmptyScript);
         }
@@ -107,22 +107,22 @@ impl Conversation {
         })
     }
 
-    pub fn current_text(&self) -> &str {
+    pub fn text(&self) -> &str {
         match &self.graph[self.current].text {
             Some(t) => t,
             None => "",
         }
     }
 
-    pub fn next_action(&mut self) -> Result<(), ConversationError> {
+    pub fn next_action(&mut self) -> Result<(), ScriptError> {
         let cnode = self.graph.node_weight(self.current);
 
         // if for some magical reason the current node is not in the graph, return an error
-        let cur_dial = cnode.ok_or(ConversationError::InvalidAction)?;
+        let cur_dial = cnode.ok_or(ScriptError::InvalidAction)?;
 
         // if it's a player action, return an error
         if cur_dial.choices.is_some() {
-            return Err(ConversationError::ChoicesNotHandled);
+            return Err(ScriptError::ChoicesNotHandled);
         }
 
         // retrieve the next edge
@@ -130,37 +130,37 @@ impl Conversation {
             .graph
             .edges(self.current)
             .next()
-            .ok_or(ConversationError::NoNextAction)?;
+            .ok_or(ScriptError::NoNextAction)?;
 
         // what's this NodeId? Is it the NodeIndex? I'm not sure. Let's assign it anyway
         self.current = edge_ref.target();
         Ok(())
     }
 
-    pub fn jump_to(&mut self, id: i32) -> Result<(), ConversationError> {
+    pub fn jump_to(&mut self, id: i32) -> Result<(), ScriptError> {
         let idx = self
             .id_to_nodeidx
             .get(&id)
-            .ok_or(ConversationError::WrongJump(id))?;
+            .ok_or(ScriptError::WrongJump(id))?;
 
         self.current = *idx;
         Ok(())
     }
 
     /// Returns the choices for the current dialogue. If there are no choices, returns an error.
-    pub fn choices(&self) -> Result<Vec<Choice>, ConversationError> {
+    pub fn choices(&self) -> Result<Vec<Choice>, ScriptError> {
         let cnode = self.graph.node_weight(self.current);
         // if for some fantastic reason the current node is not in the graph, return an error
-        let cur_dial = cnode.ok_or(ConversationError::InvalidAction)?;
+        let cur_dial = cnode.ok_or(ScriptError::InvalidAction)?;
 
         if let Some(choices) = &cur_dial.choices {
             Ok(choices.clone())
         } else {
-            Err(ConversationError::NoChoices)
+            Err(ScriptError::NoChoices)
         }
     }
 
-    pub fn current_first_actor(&self) -> Option<Actor> {
+    pub fn first_actor(&self) -> Option<Actor> {
         let cnode = self.graph.node_weight(self.current)?;
         match &cnode.actors {
             Some(actors) => actors.first().cloned(),
@@ -174,6 +174,7 @@ impl Conversation {
     pub fn at_actor_action(&self) -> bool {
         !self.at_player_action()
     }
+    // pub fn action_kind(&self) -> ActionKind {}
 }
 #[derive(Debug, Default)]
 struct ActionNode {
@@ -284,7 +285,7 @@ fn validate_nexts(
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::{ActorAction, ActorOrPlayerActionJSON, PlayerAction};
+    use crate::types::{ActionKind, ActorAction, ActorOrPlayerActionJSON, PlayerAction};
     use bevy::prelude::default;
 
     fn an_actors_map(name: String) -> HashMap<String, Actor> {
@@ -302,18 +303,18 @@ mod test {
     // 'new' tests
     #[test]
     fn no_script_err() {
-        let raw_script = RawScript {
+        let raw_script = RawScreenplay {
             actors: default(),
             script: default(),
         };
 
-        let convo = Conversation::new(raw_script).err();
+        let convo = Screenplay::new(raw_script).err();
         assert_eq!(convo, Some(ScriptParsingError::EmptyScript));
     }
 
     #[test]
     fn actor_not_found_err() {
-        let raw_script = RawScript {
+        let raw_script = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 text: Some("Hello".to_string()),
@@ -323,7 +324,7 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_script).err();
+        let convo = Screenplay::new(raw_script).err();
         assert_eq!(
             convo,
             Some(ScriptParsingError::ActorNotFound(0, "Bob".to_string()))
@@ -332,7 +333,7 @@ mod test {
 
     #[test]
     fn actor_not_found_with_mismath_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: an_actors_map("Bob".to_string()),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 actors: vec!["Alice".to_string()],
@@ -341,7 +342,7 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(
             convo,
             Some(ScriptParsingError::ActorNotFound(0, "Alice".to_string()))
@@ -350,7 +351,7 @@ mod test {
 
     #[test]
     fn no_start_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: an_actors_map("Alice".to_string()),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 actors: vec!["Alice".to_string()],
@@ -359,13 +360,13 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::NoStartingAction));
     }
 
     #[test]
     fn multiple_start_actor_action_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -379,13 +380,13 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::MultipleStartingAction));
     }
 
     #[test]
     fn multiple_start_mixed_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -400,13 +401,13 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::MultipleStartingAction));
     }
 
     #[test]
     fn multiple_start_player_action_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Player(PlayerAction {
@@ -420,13 +421,13 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::MultipleStartingAction));
     }
 
     #[test]
     fn repeated_id_actor_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -445,13 +446,13 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::RepeatedId(1)));
     }
 
     #[test]
     fn repeated_id_mixed_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -465,13 +466,13 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::RepeatedId(1)));
     }
 
     #[test]
     fn repeated_id_player_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Player(PlayerAction {
@@ -483,13 +484,13 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::RepeatedId(1)));
     }
 
     #[test]
     fn next_actor_action_not_found_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 next: Some(2),
@@ -498,13 +499,13 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::NextActionNotFound(0, 2)));
     }
 
     #[test]
     fn next_not_found_in_choice_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Player(PlayerAction {
                 choices: vec![Choice {
@@ -516,13 +517,13 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).err();
+        let convo = Screenplay::new(raw_talk).err();
         assert_eq!(convo, Some(ScriptParsingError::NextActionNotFound(0, 2)));
     }
 
     #[test]
     fn new_with_one_action() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 start: Some(true),
@@ -530,7 +531,7 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(convo.graph.node_count(), 1);
         assert_eq!(convo.graph.edge_count(), 0);
         assert_eq!(convo.current, NodeIndex::new(0));
@@ -538,7 +539,7 @@ mod test {
 
     #[test]
     fn new_with_two_actor_action_nodes() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -551,14 +552,14 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(convo.graph.node_count(), 2);
         assert_eq!(convo.graph.edge_count(), 1);
     }
 
     #[test]
     fn new_with_self_loop() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 id: 1,
@@ -568,14 +569,14 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(convo.graph.node_count(), 1);
         assert_eq!(convo.graph.edge_count(), 1);
     }
 
     #[test]
     fn new_with_branching() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Player(PlayerAction {
@@ -601,7 +602,7 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(convo.graph.node_count(), 3);
         assert_eq!(convo.graph.edge_count(), 4);
         assert_eq!(convo.current, NodeIndex::new(0));
@@ -618,7 +619,7 @@ mod test {
             },
         );
 
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: actors_map,
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -638,7 +639,7 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(convo.graph.node_count(), 2);
         assert_eq!(convo.graph.edge_count(), 1);
         assert_eq!(convo.current, NodeIndex::new(0));
@@ -647,7 +648,7 @@ mod test {
     // 'current_text' tests
     #[test]
     fn current_text() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 id: 1,
@@ -658,14 +659,14 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
-        assert_eq!(convo.current_text(), "Hello");
+        let convo = Screenplay::new(raw_talk).unwrap();
+        assert_eq!(convo.text(), "Hello");
     }
 
     // 'next_line' tests
     #[test]
     fn next_no_next_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 id: 1,
@@ -675,16 +676,13 @@ mod test {
             })],
         };
 
-        let mut convo = Conversation::new(raw_talk).unwrap();
-        assert_eq!(
-            convo.next_action().err(),
-            Some(ConversationError::NoNextAction)
-        );
+        let mut convo = Screenplay::new(raw_talk).unwrap();
+        assert_eq!(convo.next_action().err(), Some(ScriptError::NoNextAction));
     }
 
     #[test]
     fn next_choices_not_handled_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Player(PlayerAction {
@@ -700,16 +698,16 @@ mod test {
             ],
         };
 
-        let mut convo = Conversation::new(raw_talk).unwrap();
+        let mut convo = Screenplay::new(raw_talk).unwrap();
         assert_eq!(
             convo.next_action().err(),
-            Some(ConversationError::ChoicesNotHandled)
+            Some(ScriptError::ChoicesNotHandled)
         );
     }
 
     #[test]
     fn next_action() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Actor(ActorAction {
@@ -726,16 +724,16 @@ mod test {
             ],
         };
 
-        let mut convo = Conversation::new(raw_talk).unwrap();
-        assert_eq!(convo.current_text(), "Hello");
+        let mut convo = Screenplay::new(raw_talk).unwrap();
+        assert_eq!(convo.text(), "Hello");
         assert!(convo.next_action().is_ok());
-        assert_eq!(convo.current_text(), "Whatup");
+        assert_eq!(convo.text(), "Whatup");
     }
 
     // 'choices' tests
     #[test]
     fn choices_no_choices_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 id: 1,
@@ -744,13 +742,13 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
-        assert_eq!(convo.choices().err(), Some(ConversationError::NoChoices));
+        let convo = Screenplay::new(raw_talk).unwrap();
+        assert_eq!(convo.choices().err(), Some(ScriptError::NoChoices));
     }
 
     #[test]
     fn choices() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Player(PlayerAction {
@@ -772,7 +770,7 @@ mod test {
             ],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
+        let convo = Screenplay::new(raw_talk).unwrap();
 
         assert_eq!(convo.choices().unwrap()[0].next, 2);
         assert_eq!(convo.choices().unwrap()[1].next, 3);
@@ -783,7 +781,7 @@ mod test {
     // 'jump_to' tests
     #[test]
     fn jump_to_no_action_err() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 id: 1,
@@ -792,16 +790,13 @@ mod test {
             })],
         };
 
-        let mut convo = Conversation::new(raw_talk).unwrap();
-        assert_eq!(
-            convo.jump_to(2).err(),
-            Some(ConversationError::WrongJump(2))
-        );
+        let mut convo = Screenplay::new(raw_talk).unwrap();
+        assert_eq!(convo.jump_to(2).err(), Some(ScriptError::WrongJump(2)));
     }
 
     #[test]
     fn jump_to() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![
                 ActorOrPlayerActionJSON::Player(PlayerAction {
@@ -828,15 +823,15 @@ mod test {
             ],
         };
 
-        let mut convo = Conversation::new(raw_talk).unwrap();
+        let mut convo = Screenplay::new(raw_talk).unwrap();
         assert!(convo.jump_to(2).is_ok());
-        assert_eq!(convo.current_text(), "I'm number 2");
+        assert_eq!(convo.text(), "I'm number 2");
     }
 
     // 'current_first_actor' tests
     #[test]
     fn first_actor_none() {
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: default(),
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 start: Some(true),
@@ -844,12 +839,12 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
-        assert!(convo.current_first_actor().is_none());
+        let convo = Screenplay::new(raw_talk).unwrap();
+        assert!(convo.first_actor().is_none());
     }
 
     #[test]
-    fn current_first_actor() {
+    fn first_actor() {
         let mut actors_map: HashMap<String, Actor> = HashMap::new();
         actors_map.insert(
             "bob".to_string(),
@@ -859,7 +854,7 @@ mod test {
             },
         );
 
-        let raw_talk = RawScript {
+        let raw_talk = RawScreenplay {
             actors: actors_map,
             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
                 actors: vec!["bob".to_string()],
@@ -868,7 +863,51 @@ mod test {
             })],
         };
 
-        let convo = Conversation::new(raw_talk).unwrap();
-        assert!(convo.current_first_actor().is_some());
+        let convo = Screenplay::new(raw_talk).unwrap();
+        assert!(convo.first_actor().is_some());
     }
+
+    #[test]
+    fn at_player_action() {
+        let raw_talk = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ActorOrPlayerActionJSON::Player(PlayerAction {
+                    id: 1,
+                    choices: vec![Choice {
+                        text: "Whatup".to_string(),
+                        next: 2,
+                    }],
+                    start: Some(true),
+                    ..default()
+                }),
+                ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
+            ],
+        };
+
+        let convo = Screenplay::new(raw_talk).unwrap();
+        assert!(convo.at_player_action());
+    }
+
+    // #[test]
+    // fn action_kind_choice() {
+    //     let raw_talk = RawScreenplay {
+    //         actors: default(),
+    //         script: vec![
+    //             ActorOrPlayerActionJSON::Player(PlayerAction {
+    //                 id: 1,
+    //                 choices: vec![Choice {
+    //                     text: "Whatup".to_string(),
+    //                     next: 2,
+    //                 }],
+    //                 start: Some(true),
+    //                 ..default()
+    //             }),
+    //             ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
+    //         ],
+    //     };
+
+    //     let convo = Screenplay::new(raw_talk).unwrap();
+    //     assert_eq!(convo.action_kind(), ActionKind::PlayerChoice);
+    // }
 }
