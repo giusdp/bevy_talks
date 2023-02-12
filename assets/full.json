@@ -1,0 +1,123 @@
+{
+  "actors": {
+    "ferris": {
+      "name": "Ferris",
+      "asset": "ferris.png"
+    },
+    "bevy": {
+      "name": "Bevy",
+      "asset": "bevy.png"
+    }
+  },
+  "script": [
+    {
+      "id": 1,
+      "action": "talk",
+      "text": "Here comes the two stars: Ferris and Bevy.",
+      "actors": [],
+      "start": true
+    },
+    {
+      "id": 90,
+      "action": "enter",
+      "actors": [
+        "ferris"
+      ]
+    },
+    {
+      "id": 2,
+      "action": "talk",
+      "actors": [
+        "ferris"
+      ],
+      "text": "Rust is awesome!!!"
+    },
+    {
+      "id": 3,
+      "action": "talk",
+      "actors": [],
+      "text": "A joyful laughter from a nowhere to be seen audience."
+    },
+    {
+      "id": 91,
+      "action": "enter",
+      "actors": [
+        "bevy"
+      ]
+    },
+    {
+      "id": 4,
+      "action": "talk",
+      "actors": [
+        "bevy"
+      ],
+      "text": "Right! I'm so happy to be here! Love you all!"
+    },
+    {
+      "id": 5,
+      "action": "talk",
+      "actors": [],
+      "text": "You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd. You follow their gaze, only a black, silent camera is there."
+    },
+    {
+      "id": 6,
+      "action": "talk",
+      "actors": [
+        "ferris"
+      ],
+      "text": "And what about you?"
+    },
+    {
+      "id": 92,
+      "choices": [
+        {
+          "text": "I love it, of course, as everyone else.",
+          "next": 7
+        },
+        {
+          "text": "Nah.",
+          "next": 8
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "action": "talk",
+      "actors": [],
+      "text": "Everyone clapped."
+    },
+    {
+      "id": 100,
+      "action": "exit",
+      "actors": [
+        "ferris",
+        "bevy"
+      ],
+      "next": 11
+    },
+    {
+      "id": 8,
+      "action": "talk",
+      "actors": [],
+      "text": "The room goes silent. No more pre-recorded crowd. Tears start forming in Ferris' eyes. Bevy looks down, the smile disappeared."
+    },
+    {
+      "id": 9,
+      "action": "talk",
+      "actors": [],
+      "text": "You hear a cracking sound. The few pieces of wood holding the fake walls start to break."
+    },
+    {
+      "id": 10,
+      "action": "talk",
+      "actors": [],
+      "text": "With loud thumps the walls hit the ground, revealing a desolate land made of mist and loneliness. Devoid of colors, and life."
+    },
+    {
+      "id": 11,
+      "action": "talk",
+      "actors": [],
+      "text": "The end."
+    }
+  ]
+}

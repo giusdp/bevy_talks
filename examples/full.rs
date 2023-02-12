@@ -20,10 +20,10 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, server: Res<AssetServer>) {
-    let handle: Handle<Screenplay> = server.load("choices.json");
+    let handle: Handle<Screenplay> = server.load("full.json");
     commands.insert_resource(ScreenplayHandle(handle));
 
-    println!("Press space to advance the conversation. And 1, 2 to pick a choice.");
+    println!("Press space to advance the conversation.");
 }
 
 fn print(
@@ -34,15 +34,31 @@ fn print(
     if !print_enabled.0 {
         return;
     }
-    let convo = screenplays.get(&sp_handle.0).unwrap();
-    if convo.at_player_action() {
-        println!("Choices:");
-        for (i, choice) in convo.choices().unwrap().iter().enumerate() {
-            println!("{}: {}", i + 1, choice.text);
+    let screenplay = screenplays.get(&sp_handle.0).unwrap();
+
+    let actors = screenplay
+        .current_actors()
+        .map(|a| a.iter().map(|a| a.name.to_owned()).collect::<Vec<String>>())
+        .and_then(|names| {
+            if names.is_empty() {
+                Some("Narrator".to_string())
+            } else {
+                Some(names.join(" and "))
+            }
+        });
+
+    match screenplay.action_kind() {
+        ActionKind::PlayerChoice => {
+            println!("Choices:");
+            for (i, choice) in screenplay.choices().unwrap().iter().enumerate() {
+                println!("{}: {}", i + 1, choice.text);
+            }
         }
-    } else {
-        println!("{}", convo.text());
-    }
+        ActionKind::ActorTalk => println!("{}: {}", actors.unwrap(), screenplay.text()),
+        ActionKind::ActorEnter => println!("--- {} enters the scene.", actors.unwrap()),
+        ActionKind::ActorExit => println!("--- {} exit the scene.", actors.unwrap()),
+    };
+
     print_enabled.0 = false;
 }
 
