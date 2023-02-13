@@ -1,9 +1,12 @@
 # Bevy Talks
 
-<!-- [![crates.io](https://img.shields.io/crates/v/bevy_talks.svg)](https://crates.io/crates/bevy_talks)
-[![docs](https://docs.rs/bevy_talks/badge.svg)](https://docs.rs/bevy_talks)
-[![license](https://img.shields.io/crates/l/bevy_talks)](https://github.com/giusdp/bevy_talks#license)
-[![crates.io](https://img.shields.io/crates/d/bevy_talks.svg)](https://crates.io/crates/bevy_talks) -->
+[![][img_bevy]][bevycrate] 
+[![][img_license]][license] 
+[![][img_tracking]][tracking] 
+<!-- [![][img_version]][crates] -->
+<!-- [![][img_doc]][doc]  -->
+<!-- [![][img_downloads]][crates] -->
+
 
 This [Bevy][bevy] plugin provides an opinionated way to create dialogues and conversations in your game. 
 It is inspiried by [Ren'Py][renpy] and its scripting system although it does not use a scripting language, instead 
@@ -24,9 +27,9 @@ Here's an example of a conversation:
         "alice": { "name": "Alice", "asset": "alice.png" }
     },
     "script": [
-        { "id": 1, "text": "Bob and Alice enter the room.", "start": true },
+        { "id": 1, "action": "talk", "actors": [] , "text": "Bob and Alice enter the room.", "start": true },
         { "id": 2, "action": "enter", "actors": [ "bob", "alice" ] },
-        { "id": 3, "actor": "bob", "text": "Hello, Alice!" },
+        { "id": 3, "actors": ["bob"], "text": "Hello, Alice!" },
         {
             "id": 4,
             "choices": [
@@ -34,15 +37,14 @@ Here's an example of a conversation:
                 { "text": "Alice ignores Bob.", "next": 6 },
             ]
         },
-        { "id": 5, "text": "Bob smiles." },
-        { "id": 6, "text": "Bob starts crying." },
-        { "id": 7, "text": "The end." }
+        { "id": 5, "action": "talk", "actors": [], "text": "Bob smiles." },
+        { "id": 6, "action": "talk", "actors": [], "text": "Bob starts crying." },
+        { "id": 7, "action": "talk", "actors": [], "text": "The end." }
     ]
 }
 ```
 
-The idea is to have a graphical editor that to create conversations, and it will generate the json files. That is a future work
- so for now we have to write the json files by hand.
+A future work is to have a graphical editor to create these files, but for now we have to write them by hand.
 
 Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
@@ -68,3 +70,16 @@ additional terms or conditions.
 
 [bevy]: https://bevyengine.org/
 [renpy]: https://www.renpy.org/
+
+[img_bevy]: https://img.shields.io/badge/Bevy-0.9-blue
+[img_version]: https://img.shields.io/crates/v/bevy_talks.svg
+[img_doc]: https://docs.rs/bevy_talks/badge.svg
+[img_license]: https://img.shields.io/badge/license-MIT%2FApache-blue.svg
+[img_downloads]:https://img.shields.io/crates/d/bevy_talks.svg
+[img_tracking]: https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue
+
+[bevycrate]: https://crates.io/crates/bevy/0.9.1
+[crates]: https://crates.io/crates/bevy_talks
+[doc]: https://docs.rs/bevy_talks/
+[license]: https://github.com/giusdp/bevy_talks#license
+[tracking]: https://github.com/bevyengine/bevy/blob/main/docs/plugins_guidelines.md#main-branch-tracking
