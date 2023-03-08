@@ -49,7 +49,7 @@ A future work is to have a graphical editor to create these files, but for now w
 Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
 | :--                 |  :--   |
-| `main`              | `0.9`  |
+| `main`              | `0.10`  |
 
 ## License
 
