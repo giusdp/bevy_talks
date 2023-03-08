@@ -1,6 +1,6 @@
 use bevy::{
     asset::{AssetLoader, LoadContext, LoadedAsset},
-    prelude::default,
+    prelude::{default, info},
     utils::{BoxedFuture, HashMap},
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
@@ -12,9 +12,9 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct ConversationLoader;
+pub struct ScreenplayLoader;
 
-impl AssetLoader for ConversationLoader {
+impl AssetLoader for ScreenplayLoader {
     fn load<'a>(
         &'a self,
         bytes: &'a [u8],
@@ -23,6 +23,10 @@ impl AssetLoader for ConversationLoader {
         Box::pin(async move {
             let script = serde_json::from_slice::<RawScreenplay>(bytes)?;
             let asset = build_screenplay(script)?;
+            info!(
+                "Loaded screenplay with {} actions.",
+                asset.graph.node_count(),
+            );
             load_context.set_default_asset(LoadedAsset::new(asset));
             Ok(())
         })
@@ -73,6 +77,7 @@ pub(crate) fn build_screenplay(
         }
 
         // 2.c add (idx, next_id) as we build the graph
+
         if id_to_nodeids_map
             .insert(
                 this_action_id,
@@ -92,24 +97,25 @@ pub(crate) fn build_screenplay(
     validate_nexts(&id_to_nodeids_map)?;
 
     // 4 Add edges to the graph
-    for (action_id, node_action) in &id_to_nodeids_map {
+    for (action_id, this_action) in &id_to_nodeids_map {
         // 4.a With the next field, add a single edge
-        if let Some(next_id) = node_action.next_action_id {
+        if let Some(next_id) = this_action.next_action_id {
             let next_node_action = id_to_nodeids_map.get(&next_id).ok_or(
                 ScreenplayParsingError::NextActionNotFound(*action_id, next_id),
             )?;
-
-            graph.add_edge(node_action.node_idx, next_node_action.node_idx, ());
-        }
-
-        // 4.b With the choices, add an edge for each choice
-        if let Some(choices) = &node_action.choices {
+            graph.add_edge(this_action.node_idx, next_node_action.node_idx, ());
+        } else if let Some(choices) = &this_action.choices {
+            // 4.b With the choices, add an edge for each choice
             for choice in choices {
-                let next_node_action = id_to_nodeids_map.get(choice).ok_or(
+                let chosen_action = id_to_nodeids_map.get(choice).ok_or(
                     ScreenplayParsingError::NextActionNotFound(*action_id, *choice),
                 )?;
 
-                graph.add_edge(node_action.node_idx, next_node_action.node_idx, ());
+                info!(
+                    "ASKJDASJDMASKLJDM {} -> {:?}",
+                    action_id, chosen_action.node_idx
+                );
+                graph.add_edge(this_action.node_idx, chosen_action.node_idx, ());
             }
         }
     }
@@ -201,6 +207,7 @@ fn add_action_node(
             node.actors = Some(extract_actors(&actor_action, actors_map)?);
             node.text = actor_action.text;
             node.kind = actor_action.action.into();
+            node.sound_effect = actor_action.sound_effect;
         }
         ActorOrPlayerActionJSON::Player(player_action) => {
             node.choices = Some(player_action.choices);

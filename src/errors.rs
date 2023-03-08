@@ -17,18 +17,20 @@ pub enum ScreenplayParsingError {
     MultipleStartingAction,
 }
 
-/// Errors when interacting with a conversation
+/// Errors when picking a choice
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ScreenplayError {
+pub enum ChoicesError {
+    #[error("current action is not a player choice")]
+    NotAChoiceAction,
+    #[error("choice points to {0}, but it does not exist")]
+    WrongId(i32),
+}
+
+/// Errors when moving to the next action
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum NextRequestError {
     #[error("current action has no next")]
     NoNextAction,
     #[error("called next_action() while in a player action")]
     ChoicesNotHandled,
-    #[error("current action is an actor action")]
-    NoChoices,
-    #[error("tried to jump to action {0}, but it does not exist")]
-    WrongJump(i32),
-
-    #[error("failed to access the current action")]
-    InvalidAction,
 }

@@ -1,8 +1,19 @@
-use bevy::utils::HashMap;
+use bevy::{prelude::Component, utils::HashMap};
 use serde::Deserialize;
 
+#[derive(Clone, Default, Eq, PartialEq, Debug, Hash)]
+pub enum ScreenplayState {
+    #[default]
+    Disabled,
+    EnterPlay,
+    Performing,
+    PlayerChoosing,
+    ExitPlay,
+}
+
 pub type ActionId = i32;
-#[derive(Debug, Deserialize, Clone)]
+
+#[derive(Debug, Deserialize, Clone, Component, PartialEq, Eq)]
 pub struct Actor {
     pub name: String,
     pub asset: String,
@@ -83,6 +94,7 @@ pub(crate) struct ActorAction {
     pub(crate) text: Option<String>,
     pub(crate) next: Option<ActionId>,
     pub(crate) start: Option<bool>,
+    pub(crate) sound_effect: Option<String>,
 }
 
 #[derive(Debug, Default, Deserialize, Clone)]

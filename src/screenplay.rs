@@ -2,10 +2,14 @@ use bevy::{reflect::TypeUuid, utils::HashMap};
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, visit::EdgeRef};
 
 use crate::{
-    errors::ScreenplayError,
+    prelude::{ChoicesError, NextRequestError},
     types::{ActionId, ActionKind, Actor, Choice},
 };
 
+/// The screenplay is the main struct that holds a conversation, which comprises of the
+/// actors (the characters), their actions (talk, enter, exit the scene), and the choices a player can pick.
+///
+/// At the heart of the screenplay is a rooted directed graph, which links the actions together.
 #[derive(Debug, TypeUuid)]
 #[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
 pub struct Screenplay {
@@ -34,52 +38,49 @@ impl Screenplay {
         }
     }
 
-    pub fn next_action(&mut self) -> Result<(), ScreenplayError> {
+    pub fn next_action(&mut self) -> Result<(), NextRequestError> {
         let cnode = self.graph.node_weight(self.current);
+        if let Some(current_act) = cnode {
+            // if it's a player action, return an error
+            if current_act.kind == ActionKind::PlayerChoice {
+                return Err(NextRequestError::ChoicesNotHandled);
+            }
 
-        // if for some magical reason the current node is not in the graph, return an error
-        let cur_dial = cnode.ok_or(ScreenplayError::InvalidAction)?;
+            // retrieve the next edge
+            let edge_ref = self
+                .graph
+                .edges(self.current)
+                .next()
+                .ok_or(NextRequestError::NoNextAction)?;
 
-        // if it's a player action, return an error
-        if cur_dial.choices.is_some() {
-            return Err(ScreenplayError::ChoicesNotHandled);
+            // what's this NodeId? Is it the NodeIndex? I'm not sure. Let's assign it anyway
+            self.current = edge_ref.target();
         }
-
-        // retrieve the next edge
-        let edge_ref = self
-            .graph
-            .edges(self.current)
-            .next()
-            .ok_or(ScreenplayError::NoNextAction)?;
-
-        // what's this NodeId? Is it the NodeIndex? I'm not sure. Let's assign it anyway
-        self.current = edge_ref.target();
         Ok(())
     }
 
-    pub fn jump_to(&mut self, id: i32) -> Result<(), ScreenplayError> {
+    pub fn jump_to(&mut self, id: i32) -> Result<(), ChoicesError> {
         let idx = self
             .id_to_nodeidx
             .get(&id)
-            .ok_or(ScreenplayError::WrongJump(id))?;
+            .ok_or(ChoicesError::WrongId(id))?;
 
         self.current = *idx;
         Ok(())
     }
 
     /// Returns the choices for the current dialogue. If there are no choices, returns an error.
-    pub fn choices(&self) -> Result<Vec<Choice>, ScreenplayError> {
-        let cnode = self.graph.node_weight(self.current);
-        // if for some fantastic reason the current node is not in the graph, return an error
-        let cur_dial = cnode.ok_or(ScreenplayError::InvalidAction)?;
-
-        if let Some(choices) = &cur_dial.choices {
-            Ok(choices.clone())
-        } else {
-            Err(ScreenplayError::NoChoices)
+    pub fn choices(&self) -> Result<Vec<Choice>, ChoicesError> {
+        if let Some(cur_act) = self.graph.node_weight(self.current) {
+            return match &cur_act.choices {
+                Some(choices) => Ok(choices.clone()),
+                None => Err(ChoicesError::NotAChoiceAction),
+            };
         }
+        Ok(vec![])
     }
 
+    /// Returns the first actor for the current action.
     pub fn first_actor(&self) -> Option<Actor> {
         let cnode = self.graph.node_weight(self.current)?;
         match &cnode.actors {
@@ -88,19 +89,29 @@ impl Screenplay {
         }
     }
 
-    pub fn current_actors(&self) -> Option<Vec<Actor>> {
+    /// Returns the actors for the current action.
+    pub fn actors(&self) -> Option<Vec<Actor>> {
         let cnode = self.graph.node_weight(self.current)?;
         cnode.actors.clone()
     }
 
+    /// Returns true if the current action is a player choice.
     pub fn at_player_action(&self) -> bool {
         self.graph[self.current].kind == ActionKind::PlayerChoice
     }
+
+    /// Returns true if the current action is an actor action.
     pub fn at_actor_action(&self) -> bool {
         !self.at_player_action()
     }
+
+    /// Returns the kind of the current action.
     pub fn action_kind(&self) -> ActionKind {
         self.graph[self.current].kind
+    }
+
+    pub(crate) fn sound_effect(&self) -> Option<String> {
+        self.graph[self.current].sound_effect.clone()
     }
 }
 
@@ -110,6 +121,7 @@ pub(crate) struct ActionNode {
     pub(crate) text: Option<String>,
     pub(crate) actors: Option<Vec<Actor>>,
     pub(crate) choices: Option<Vec<Choice>>,
+    pub(crate) sound_effect: Option<String>,
 }
 
 #[cfg(test)]
@@ -159,7 +171,7 @@ mod test {
         let mut play = build_screenplay(raw_sp).unwrap();
         assert_eq!(
             play.next_action().err(),
-            Some(ScreenplayError::NoNextAction)
+            Some(NextRequestError::NoNextAction)
         );
     }
 
@@ -184,7 +196,7 @@ mod test {
         let mut play = build_screenplay(raw_sp).unwrap();
         assert_eq!(
             play.next_action().err(),
-            Some(ScreenplayError::ChoicesNotHandled)
+            Some(NextRequestError::ChoicesNotHandled)
         );
     }
 
@@ -226,7 +238,7 @@ mod test {
         };
 
         let play = build_screenplay(raw_sp).unwrap();
-        assert_eq!(play.choices().err(), Some(ScreenplayError::NoChoices));
+        assert_eq!(play.choices().err(), Some(ChoicesError::NotAChoiceAction));
     }
 
     #[test]
@@ -274,7 +286,7 @@ mod test {
         };
 
         let mut play = build_screenplay(raw_sp).unwrap();
-        assert_eq!(play.jump_to(2).err(), Some(ScreenplayError::WrongJump(2)));
+        assert_eq!(play.jump_to(2).err(), Some(ChoicesError::WrongId(2)));
     }
 
     #[test]
@@ -378,7 +390,7 @@ mod test {
         };
 
         let play = build_screenplay(raw_sp).unwrap();
-        assert_eq!(play.current_actors().unwrap().len(), 2);
+        assert_eq!(play.actors().unwrap().len(), 2);
     }
 
     #[test]

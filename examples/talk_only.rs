@@ -34,16 +34,17 @@ fn print(
     if !print_enabled.0 {
         return;
     }
-    let conversation = screenplays.get(&sp_handle.0).unwrap();
-    println!(
-        "{}: {}",
-        conversation
-            .first_actor()
-            .map(|a| a.name)
-            .unwrap_or("Narrator".to_string()),
-        conversation.text()
-    );
-    print_enabled.0 = false;
+    if let Some(conversation) = screenplays.get(&sp_handle.0) {
+        println!(
+            "{}: {}",
+            conversation
+                .first_actor()
+                .map(|a| a.name)
+                .unwrap_or("Narrator".to_string()),
+            conversation.text()
+        );
+        print_enabled.0 = false;
+    }
 }
 
 fn interact(
@@ -52,9 +53,8 @@ fn interact(
     mut screenplays: ResMut<Assets<Screenplay>>,
     mut print_enabled: ResMut<PrintEnabled>,
 ) {
-    let script = screenplays.get_mut(&sp_handle.0).unwrap();
-
     if input.just_pressed(KeyCode::Space) {
+        let script = screenplays.get_mut(&sp_handle.0).unwrap();
         match script.next_action() {
             Ok(_) => print_enabled.0 = true,
             Err(e) => {

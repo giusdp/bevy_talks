@@ -37,7 +37,7 @@ fn print(
     let screenplay = screenplays.get(&sp_handle.0).unwrap();
 
     let actors = screenplay
-        .current_actors()
+        .actors()
         .map(|a| a.iter().map(|a| a.name.to_owned()).collect::<Vec<String>>())
         .and_then(|names| {
             if names.is_empty() {
