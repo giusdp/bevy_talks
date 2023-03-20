@@ -16,6 +16,6 @@ log = "0.4.17"
 petgraph = "0.6.3"
 
 [dev-dependencies]
-assert_fs = "1.0.10"
+assert_fs = "1.0.12"
 predicates = "2.1.5"
 
