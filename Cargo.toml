@@ -17,5 +17,5 @@ petgraph = "0.6.3"
 
 [dev-dependencies]
 assert_fs = "1.0.10"
-predicates = "2.1.5"
+predicates = "3.0.3"
 
