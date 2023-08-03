@@ -1,1 +1,2 @@
-pub use super::{errors::*, events::*, screenplay::Screenplay, types::*, TalksPlugin};
+pub use super::TalksPlugin;
+pub use super::{errors::*, events::*, types::*};
