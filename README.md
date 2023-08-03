@@ -22,9 +22,9 @@ This library provides a set of built-in components that you can use to create yo
 
 ### Built-in Action Components
 
-- `Text`: a line of text that can be displayed on the screen. It only has a `text`. It can be useful to display
+- `Talk`: a line of text that can be displayed on the screen. It only has a `text`. It can be useful to display
   a line of text that is not spoken by any character. 
-- `Talk`: a line of conversation that can be displayed on the screen. It has a `text` field and a `speaker` field.
+- `SpeakerTalk`: a line of conversation that can be displayed on the screen. It has a `text` field and a `speaker` field.
 <!-- 
 It is inspiried by [Ren'Py][renpy] and its scripting system although it does not use a scripting language, instead 
 it uses json files. With a json file you can define the actors and the script of the conversation. In the script you can

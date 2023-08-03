@@ -1,18 +1,15 @@
-use bevy::prelude::Handle;
-
 use crate::{
     prelude::{ChoicesError, NextRequestError},
-    screenplay::Screenplay,
     types::{Actor, Choice},
 };
 
-/// Event that the plugin can receive to move the screenplay to the next action.
-#[derive(Debug)]
-pub struct RequestNextActionEvent(pub Handle<Screenplay>);
+// /// Event that the plugin can receive to move the screenplay to the next action.
+// #[derive(Debug)]
+// pub struct RequestNextActionEvent(pub Handle<Screenplay>);
 
-/// Event that the plugin can receive following a player choice.
-#[derive(Debug)]
-pub struct ChoicePickedEvent(pub Handle<Screenplay>, pub i32);
+// /// Event that the plugin can receive following a player choice.
+// #[derive(Debug)]
+// pub struct ChoicePickedEvent(pub Handle<Screenplay>, pub i32);
 
 /// Event that the plugin can send to notify that the screenplay has moved to a talk action.
 #[derive(Debug)]
