@@ -1,22 +1,48 @@
-use bevy::{
-    a11y::accesskit::Action,
-    prelude::{Commands, Component, Entity},
-};
-use petgraph::prelude::DiGraph;
+//! The main module of the crate. It contains the Screenplay struct and its
+//! builder.
+use bevy::prelude::{Commands, Component, Entity};
+use petgraph::visit::EdgeRef;
+use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-#[derive(Component)]
+use crate::prelude::NextActionError;
+
+/// A screenplay is a directed graph of actions.
+/// The nodes of the graph are the actions, which are
+/// bevy entities with specific bevy_talks components.
+/// The Screenplay struct keeps track of the current action
+/// and provides functions to move to the next action.
+#[derive(Debug, Component)]
 pub struct Screenplay {
     pub(crate) graph: DiGraph<ActionNode, ()>,
+    pub(crate) current_node: NodeIndex,
 }
 
 // Public API
 impl Screenplay {
-    // This method will help users to discover the builder
+    /// Create a new ScreenplayBuilder with default values.
     pub fn builder() -> ScreenplayBuilder {
         ScreenplayBuilder::default()
     }
+
+    /// Move to the next action. Returns an error if the current action
+    /// has no next action.
+    pub fn next_action(&mut self) -> Result<(), NextActionError> {
+        if let Some(_) = self.graph.node_weight(self.current_node) {
+            // retrieve the next edge
+            let edge_ref = self
+                .graph
+                .edges(self.current_node)
+                .next()
+                .ok_or(NextActionError::NoNextAction)?;
+
+            self.current_node = edge_ref.target();
+        }
+        Ok(())
+    }
 }
 
+/// The ScreenplayBuilder is used to construct a Screenplay.
+/// It is a builder pattern implementation.
 #[derive(Default)]
 pub struct ScreenplayBuilder {
     // Probably lots of optional fields.
@@ -24,34 +50,64 @@ pub struct ScreenplayBuilder {
 }
 
 impl ScreenplayBuilder {
-    pub fn new(/* ... */) -> ScreenplayBuilder {
+    /// Create a new ScreenplayBuilder with default values.
+    pub fn new() -> ScreenplayBuilder {
         // Set the minimally required fields of Foo.
         ScreenplayBuilder { nodes: vec![] }
     }
 
+    /// Add an action node to the screenplay.
     pub fn add_action_node(mut self, action: ActionNode) -> ScreenplayBuilder {
         self.nodes.push(action);
         self
     }
 
-    // If we can get away with not consuming the Builder here, that is an
-    // advantage. It means we can use the Screenplay as a template for constructing
-    // many Foos.
+    /// Build the screenplay.
     pub fn build(self) -> Screenplay {
+        if self.nodes.is_empty() {
+            return Screenplay {
+                graph: DiGraph::new(),
+                current_node: 0.into(),
+            };
+        }
+
+        // 1. Create the graph
+        let mut graph: DiGraph<ActionNode, ()> = DiGraph::new();
+
+        let first_action = self.nodes[0];
+        let mut prev_node = graph.add_node(first_action);
+        let current_node = prev_node;
+
+        // 2. Add all actions as nodes and connect them linearly
+        for action in self.nodes[1..].iter() {
+            let curr_node = graph.add_node(*action);
+            graph.add_edge(prev_node, curr_node, ());
+            prev_node = curr_node;
+        }
+
         Screenplay {
-            graph: DiGraph::new(),
+            graph,
+            current_node: current_node,
         }
     }
 }
 
 type ActionNode = Entity;
 
+/// A component that indicates that the entity is a "talk".
+/// It contains only the text to be displayed, without any
+/// information about the speaker.
+/// For example, it can be used to display text said by a narrator
+/// and no speaker name is needed.
+/// Use SpeakerTalkComp to have text and speaker.
 #[derive(Component)]
-struct TalkComp {
+pub struct TalkComp {
+    /// The text to be displayed.
     pub text: String,
 }
 
-fn new_talk(commands: &mut Commands, text: String) -> ActionNode {
+/// Spawn a new entity with a TalkComp component attached.
+pub fn new_talk(commands: &mut Commands, text: String) -> ActionNode {
     let c = commands.spawn(TalkComp { text });
     c.id()
 }
@@ -61,26 +117,47 @@ mod test {
     use super::*;
 
     #[test]
-    fn builder_test() {
-        let sp_from_builder: Screenplay = ScreenplayBuilder::new().build();
-        assert_eq!(sp_from_builder.graph.node_count(), 0);
+    fn build_empty_screenplay() {
+        let sp: Screenplay = ScreenplayBuilder::new().build();
+        assert_eq!(sp.graph.node_count(), 0);
+        assert_eq!(sp.current_node.index(), 0);
     }
 
-    // #[test]
-    // fn new_with_one_action() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-    //             start: Some(true),
-    //             ..default() // end: None,
-    //         })],
-    //     };
-    //     let play = build_screenplay(raw_sp).unwrap();
+    #[test]
+    fn build_one_action_screenplay() {
+        let sp: Screenplay = ScreenplayBuilder::new()
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .build();
 
-    //     assert_eq!(play.graph.node_count(), 1);
-    //     assert_eq!(play.graph.edge_count(), 0);
-    //     assert_eq!(play.current, NodeIndex::new(0));
-    // }
+        assert_eq!(sp.graph.node_count(), 1);
+        assert_eq!(sp.graph.edge_count(), 0);
+        assert!(sp.current_node.index() == 0);
+    }
+
+    #[test]
+    fn build_two_action_screenplay() {
+        let sp: Screenplay = ScreenplayBuilder::new()
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .build();
+
+        assert_eq!(sp.graph.node_count(), 2);
+        assert_eq!(sp.graph.edge_count(), 1);
+        assert!(sp.current_node.index() == 0);
+    }
+
+    #[test]
+    fn build_three_action_screenplay() {
+        let sp: Screenplay = ScreenplayBuilder::new()
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .build();
+
+        assert_eq!(sp.graph.node_count(), 3);
+        assert_eq!(sp.graph.edge_count(), 2);
+        assert!(sp.current_node.index() == 0);
+    }
 
     // #[test]
     // fn new_with_two_actor_action_nodes() {
@@ -189,451 +266,26 @@ mod test {
     //     assert_eq!(play.graph.edge_count(), 1);
     //     assert_eq!(play.current, NodeIndex::new(0));
     // }
+
+    #[test]
+    fn next_no_next_err() {
+        let mut sp: Screenplay = ScreenplayBuilder::new()
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .build();
+
+        assert_eq!(sp.next_action().err(), Some(NextActionError::NoNextAction));
+    }
+
+    #[test]
+    fn next_action() {
+        let mut sp: Screenplay = ScreenplayBuilder::new()
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .add_action_node(ActionNode::PLACEHOLDER)
+            .build();
+
+        assert!(sp.next_action().is_ok());
+    }
 }
-
-// impl Screenplay {
-//     pub(crate) fn new(
-//         graph: DiGraph<ActionNode, ()>,
-//         current: NodeIndex,
-//         id_to_nodeidx: HashMap<ActionId, NodeIndex>,
-//     ) -> Self {
-//         Self {
-//             graph,
-//             current,
-//             id_to_nodeidx,
-//         }
-//     }
-
-//     pub fn text(&self) -> &str {
-//         match &self.graph[self.current].text {
-//             Some(t) => t,
-//             None => "",
-//         }
-//     }
-
-//     pub fn next_action(&mut self) -> Result<(), NextRequestError> {
-//         let cnode = self.graph.node_weight(self.current);
-//         if let Some(current_act) = cnode {
-//             // if it's a player action, return an error
-//             if current_act.kind == ActionKind::PlayerChoice {
-//                 return Err(NextRequestError::ChoicesNotHandled);
-//             }
-
-//             // retrieve the next edge
-//             let edge_ref = self
-//                 .graph
-//                 .edges(self.current)
-//                 .next()
-//                 .ok_or(NextRequestError::NoNextAction)?;
-
-//             // what's this NodeId? Is it the NodeIndex? I'm not sure. Let's assign it anyway
-//             self.current = edge_ref.target();
-//         }
-//         Ok(())
-//     }
-
-//     pub fn jump_to(&mut self, id: i32) -> Result<(), ChoicesError> {
-//         let idx = self
-//             .id_to_nodeidx
-//             .get(&id)
-//             .ok_or(ChoicesError::WrongId(id))?;
-
-//         self.current = *idx;
-//         Ok(())
-//     }
-
-//     /// Returns the choices for the current dialogue. If there are no choices, returns an error.
-//     pub fn choices(&self) -> Result<Vec<Choice>, ChoicesError> {
-//         if let Some(cur_act) = self.graph.node_weight(self.current) {
-//             return match &cur_act.choices {
-//                 Some(choices) => Ok(choices.clone()),
-//                 None => Err(ChoicesError::NotAChoiceAction),
-//             };
-//         }
-//         Ok(vec![])
-//     }
-
-//     /// Returns the first actor for the current action.
-//     pub fn first_actor(&self) -> Option<Actor> {
-//         let cnode = self.graph.node_weight(self.current)?;
-//         match &cnode.actors {
-//             Some(actors) => actors.first().cloned(),
-//             None => None,
-//         }
-//     }
-
-//     /// Returns the actors for the current action.
-//     pub fn actors(&self) -> Option<Vec<Actor>> {
-//         let cnode = self.graph.node_weight(self.current)?;
-//         cnode.actors.clone()
-//     }
-
-//     /// Returns true if the current action is a player choice.
-//     pub fn at_player_action(&self) -> bool {
-//         self.graph[self.current].kind == ActionKind::PlayerChoice
-//     }
-
-//     /// Returns true if the current action is an actor action.
-//     pub fn at_actor_action(&self) -> bool {
-//         !self.at_player_action()
-//     }
-
-//     /// Returns the kind of the current action.
-//     pub fn action_kind(&self) -> ActionKind {
-//         self.graph[self.current].kind
-//     }
-
-//     pub(crate) fn sound_effect(&self) -> Option<String> {
-//         self.graph[self.current].sound_effect.clone()
-//     }
-// }
-
-// #[derive(Debug, Default)]
-// pub(crate) struct ActionNode {
-//     pub(crate) kind: ActionKind,
-//     pub(crate) text: Option<String>,
-//     pub(crate) actors: Option<Vec<Actor>>,
-//     pub(crate) choices: Option<Vec<Choice>>,
-//     pub(crate) sound_effect: Option<String>,
-// }
-
-// #[cfg(test)]
-// mod test {
-//     use bevy::prelude::default;
-
-//     use crate::{
-//         loader::build_screenplay,
-//         types::{
-//             ActorAction, ActorActionKind, ActorOrPlayerActionJSON, PlayerAction, RawScreenplay,
-//         },
-//     };
-
-//     use super::*;
-
-//     // 'current_text' tests
-//     #[test]
-//     fn current_text() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 id: 1,
-//                 text: Some("Hello".to_string()),
-//                 next: None,
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.text(), "Hello");
-//     }
-
-//     // 'next_line' tests
-//     #[test]
-//     fn next_no_next_err() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 id: 1,
-//                 text: Some("Hello".to_string()),
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let mut play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(
-//             play.next_action().err(),
-//             Some(NextRequestError::NoNextAction)
-//         );
-//     }
-
-//     #[test]
-//     fn next_choices_not_handled_err() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Player(PlayerAction {
-//                     id: 1,
-//                     choices: vec![Choice {
-//                         text: "Whatup".to_string(),
-//                         next: 2,
-//                     }],
-//                     start: Some(true),
-//                     ..default()
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-//             ],
-//         };
-
-//         let mut play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(
-//             play.next_action().err(),
-//             Some(NextRequestError::ChoicesNotHandled)
-//         );
-//     }
-
-//     #[test]
-//     fn next_action() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Actor(ActorAction {
-//                     next: Some(2),
-//                     start: Some(true),
-//                     text: Some("Hello".to_string()),
-//                     ..default()
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction {
-//                     id: 2,
-//                     text: Some("Whatup".to_string()),
-//                     ..default()
-//                 }),
-//             ],
-//         };
-
-//         let mut play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.text(), "Hello");
-//         assert!(play.next_action().is_ok());
-//         assert_eq!(play.text(), "Whatup");
-//     }
-
-//     // 'choices' tests
-//     #[test]
-//     fn choices_no_choices_err() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 id: 1,
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.choices().err(), Some(ChoicesError::NotAChoiceAction));
-//     }
-
-//     #[test]
-//     fn choices() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Player(PlayerAction {
-//                     id: 1,
-//                     choices: vec![
-//                         Choice {
-//                             text: "Choice 1".to_string(),
-//                             next: 2,
-//                         },
-//                         Choice {
-//                             text: "Choice 2".to_string(),
-//                             next: 3,
-//                         },
-//                     ],
-//                     start: Some(true),
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction { id: 3, ..default() }),
-//             ],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-
-//         assert_eq!(play.choices().unwrap()[0].next, 2);
-//         assert_eq!(play.choices().unwrap()[1].next, 3);
-//         assert_eq!(play.choices().unwrap()[0].text, "Choice 1");
-//         assert_eq!(play.choices().unwrap()[1].text, "Choice 2");
-//     }
-
-//     // 'jump_to' tests
-//     #[test]
-//     fn jump_to_no_action_err() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 id: 1,
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let mut play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.jump_to(2).err(), Some(ChoicesError::WrongId(2)));
-//     }
-
-//     #[test]
-//     fn jump_to() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Player(PlayerAction {
-//                     id: 1,
-//                     choices: vec![
-//                         Choice {
-//                             text: "Choice 1".to_string(),
-//                             next: 2,
-//                         },
-//                         Choice {
-//                             text: "Choice 2".to_string(),
-//                             next: 3,
-//                         },
-//                     ],
-//                     start: Some(true),
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction {
-//                     id: 2,
-//                     text: Some("I'm number 2".to_string()),
-//                     next: Some(3),
-//                     ..default()
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction { id: 3, ..default() }),
-//             ],
-//         };
-
-//         let mut play = build_screenplay(raw_sp).unwrap();
-//         assert!(play.jump_to(2).is_ok());
-//         assert_eq!(play.text(), "I'm number 2");
-//     }
-
-//     // 'current_first_actor' tests
-//     #[test]
-//     fn first_actor_none() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert!(play.first_actor().is_none());
-//     }
-
-//     #[test]
-//     fn first_actor() {
-//         let mut actors = HashMap::new();
-//         actors.insert(
-//             "bob".to_string(),
-//             Actor {
-//                 name: "Bob".to_string(),
-//                 asset: "bob.png".to_string(),
-//             },
-//         );
-
-//         let raw_sp = RawScreenplay {
-//             actors,
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 actors: vec!["bob".to_string()],
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert!(play.first_actor().is_some());
-//     }
-
-//     #[test]
-//     fn current_actors() {
-//         let mut actors = HashMap::new();
-//         actors.insert(
-//             "bob".to_string(),
-//             Actor {
-//                 name: "Bob".to_string(),
-//                 asset: "bob.png".to_string(),
-//             },
-//         );
-//         actors.insert(
-//             "alice".to_string(),
-//             Actor {
-//                 name: "alice".to_string(),
-//                 asset: "alice".to_string(),
-//             },
-//         );
-
-//         let raw_sp = RawScreenplay {
-//             actors,
-//             script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-//                 actors: vec!["bob".to_string(), "alice".to_string()],
-//                 start: Some(true),
-//                 ..default()
-//             })],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.actors().unwrap().len(), 2);
-//     }
-
-//     #[test]
-//     fn at_player_action() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Player(PlayerAction {
-//                     id: 1,
-//                     choices: vec![Choice {
-//                         text: "Whatup".to_string(),
-//                         next: 2,
-//                     }],
-//                     start: Some(true),
-//                     ..default()
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-//             ],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert!(play.at_player_action());
-//     }
-
-//     #[test]
-//     fn action_kind_player() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Player(PlayerAction {
-//                     id: 1,
-//                     choices: vec![Choice {
-//                         text: "Whatup".to_string(),
-//                         next: 2,
-//                     }],
-//                     start: Some(true),
-//                     ..default()
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-//             ],
-//         };
-
-//         let play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.action_kind(), ActionKind::PlayerChoice);
-//     }
-
-//     #[test]
-//     fn action_kind_actor() {
-//         let raw_sp = RawScreenplay {
-//             actors: default(),
-//             script: vec![
-//                 ActorOrPlayerActionJSON::Actor(ActorAction {
-//                     id: 1,
-//                     start: Some(true),
-//                     ..default()
-//                 }),
-//                 ActorOrPlayerActionJSON::Actor(ActorAction {
-//                     id: 2,
-//                     action: ActorActionKind::Enter,
-//                     ..default()
-//                 }),
-//             ],
-//         };
-
-//         let mut play = build_screenplay(raw_sp).unwrap();
-//         assert_eq!(play.action_kind(), ActionKind::ActorTalk);
-//         play.next_action().unwrap();
-//         assert_eq!(play.action_kind(), ActionKind::ActorEnter);
-//     }
-// }
 
 // BUILDER STUFF --------------------------------------------------------------
 
