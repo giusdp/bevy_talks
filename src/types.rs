@@ -1,8 +1,10 @@
 //! Types used in the plugin.
-use bevy::prelude::Component;
+use bevy::prelude::{Entity, Event, Resource};
 
-/// Marker component for screenplay entities to
-/// indicate to move to the next action
-#[derive(Component)]
-#[component(storage = "SparseSet")]
-pub struct ScreenplayNextAction;
+/// Event to request the next action for the active screenplay.
+#[derive(Event)]
+pub struct ScreenplayNextActionRequest;
+
+/// Resource that keeps track of the currently active screenplay.
+#[derive(Resource, Default)]
+pub struct ActiveScreenplay(pub Option<Entity>);
