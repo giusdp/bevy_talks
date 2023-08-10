@@ -38,11 +38,14 @@ fn next_action_request_handler(
     for _ev in next_requests.iter() {
         if let Some(e) = sp_res.e {
             if let Ok((_, mut sp)) = sp_comps.get_mut(e) {
-                if let Ok(()) = sp.next_action() {
-                    info!("Next action for {:?} set!", e);
-                    sp_res.changed = true;
-                } else {
-                    error!("Next action for {:?} could not be set!", e);
+                match sp.next_action() {
+                    Ok(()) => {
+                        info!("Next action for Active Screenplay set!");
+                        sp_res.changed = true;
+                    }
+                    Err(err) => {
+                        error!("Next action in active screenplay could not be set: {}", err);
+                    }
                 }
             }
         } else {
