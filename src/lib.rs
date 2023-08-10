@@ -29,21 +29,24 @@ impl Plugin for TalksPlugin {
     }
 }
 
+/// TODO: refactor in multiple systems
 fn next_action_request_handler(
     mut next_requests: EventReader<ScreenplayNextActionRequest>,
     mut sp_comps: Query<(Entity, &mut Screenplay)>,
-    sp_res: Res<ActiveScreenplay>,
+    mut sp_res: ResMut<ActiveScreenplay>,
 ) {
     for _ev in next_requests.iter() {
-        if let Some(e) = sp_res.0 {
-            let a = sp_comps.get_mut(e);
-
-            if let Ok((_, mut sp)) = a {
-                info!("Requested next action for {:?} !", e);
-                let _ = sp.next_action();
+        if let Some(e) = sp_res.e {
+            if let Ok((_, mut sp)) = sp_comps.get_mut(e) {
+                if let Ok(()) = sp.next_action() {
+                    info!("Next action for {:?} set!", e);
+                    sp_res.changed = true;
+                } else {
+                    error!("Next action for {:?} could not be set!", e);
+                }
             }
         } else {
-            info!("No active screenplay!");
+            error!("Next Action Request received but no active screenplay set!");
         }
     }
 }
@@ -75,7 +78,7 @@ mod test {
             .build();
 
         let e = app.world.spawn(sp).id();
-        app.world.get_resource_mut::<ActiveScreenplay>().unwrap().0 = Some(e);
+        app.world.get_resource_mut::<ActiveScreenplay>().unwrap().e = Some(e);
 
         app.update();
 
@@ -86,5 +89,12 @@ mod test {
         let sp_spawned = app.world.get::<Screenplay>(e).unwrap();
 
         assert_eq!(sp_spawned.current_node.index(), 1);
+        assert_eq!(
+            app.world
+                .get_resource::<ActiveScreenplay>()
+                .unwrap()
+                .changed,
+            true
+        );
     }
 }
