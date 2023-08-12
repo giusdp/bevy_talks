@@ -19,6 +19,7 @@ pub mod loader;
 pub mod prelude;
 pub mod raw_screenplay_json;
 pub mod screenplay;
+pub mod screenplay_builder;
 pub mod types;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
@@ -34,7 +35,7 @@ impl Plugin for TalksPlugin {
     }
 }
 
-/// TODO: refactor in multiple systems
+/// TODO: refactor in multiple systems (one system return Result, other system handles it)
 fn next_action_request_handler(
     mut next_requests: EventReader<ScreenplayNextActionRequest>,
     mut sp_comps: Query<(Entity, &mut Screenplay)>,
@@ -64,7 +65,8 @@ mod test {
     use bevy::prelude::*;
 
     use crate::{
-        screenplay::{Screenplay, ScreenplayBuilder},
+        prelude::ScreenplayBuilder,
+        screenplay::Screenplay,
         types::{ActiveScreenplay, ScreenplayNextActionRequest},
         TalksPlugin,
     };
