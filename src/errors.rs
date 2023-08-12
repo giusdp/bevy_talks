@@ -12,11 +12,19 @@ pub enum NextActionError {
 
 /// Errors when parsing a screenplay json
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ScreenplayJSONError {
+pub enum JsonError {
     /// Serde failed to parse the json
     #[error("serde failed to parse the json: {0}")]
     BadParse(String),
     /// The screenplay json is not valid
     #[error("the script is not valid: {0:?}")]
     JSONValidation(Vec<String>),
+}
+
+/// Errors when parsing a screenplay json
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum ScreenplayError {
+    /// Multiple actions have same id
+    #[error("multiple actions have same id: {0}")]
+    DuplicateActionId(String),
 }

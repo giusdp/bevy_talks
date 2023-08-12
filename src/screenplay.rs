@@ -1,10 +1,10 @@
 //! The main module of the crate. It contains the Screenplay struct and its
 //! builder.
-use bevy::prelude::{Commands, Component, Entity};
+use bevy::prelude::Component;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::prelude::{NextActionError, ScreenplayBuilder};
+use crate::prelude::{ActionNode, NextActionError, ScreenplayBuilder};
 
 /// A screenplay is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
@@ -50,32 +50,10 @@ impl Screenplay {
     }
 }
 
-/// An `ActionNode` is an entity that represents an action in a screenplay.
-///
-/// Action nodes are used to define the actions that characters perform in a screenplay. They can be
-/// linked together to create a sequence of actions that make up a scene or an entire screenplay.
-pub(crate) type ActionNode = Entity;
-
-/// A component that indicates that the entity is a "talk".
-/// It contains only the text to be displayed, without any
-/// information about the speaker.
-/// For example, it can be used to display text said by a narrator
-/// and no speaker name is needed.
-/// Use [`SpeakerTalkComp`] to have text and speaker.
-#[derive(Component)]
-pub struct TalkComp {
-    /// The text to be displayed.
-    pub text: String,
-}
-
-/// Spawn a new entity with a [`TalkComp`] component attached.
-pub fn new_talk(commands: &mut Commands, text: String) -> ActionNode {
-    let c = commands.spawn(TalkComp { text });
-    c.id()
-}
-
 #[cfg(test)]
 mod test {
+    use crate::prelude::ActionNode;
+
     use super::*;
 
     #[test]
