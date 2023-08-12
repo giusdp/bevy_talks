@@ -14,6 +14,7 @@ use bevy::prelude::*;
 use prelude::{ActiveScreenplay, RawScreenplay, ScreenplayLoader, ScreenplayNextActionRequest};
 use screenplay::Screenplay;
 
+pub mod action;
 pub mod errors;
 pub mod loader;
 pub mod prelude;
