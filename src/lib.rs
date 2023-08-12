@@ -1,5 +1,3 @@
-//! bevy_talks is a Bevy plugin that provides
-//! the basics to build and handle dialogues in games.
 #![deny(missing_docs)]
 #![deny(clippy::missing_docs_in_private_items)]
 #![forbid(unsafe_code)]
@@ -9,12 +7,17 @@
 // Unhelpful for systems
 #![allow(clippy::too_many_arguments)]
 
+//! [`bevy_talks`] is a Bevy plugin that provides
+//! the basics to build and handle dialogues in games.
+
 use bevy::prelude::*;
-use prelude::{ActiveScreenplay, ScreenplayNextActionRequest};
+use prelude::{ActiveScreenplay, RawScreenplay, ScreenplayLoader, ScreenplayNextActionRequest};
 use screenplay::Screenplay;
 
 pub mod errors;
+pub mod loader;
 pub mod prelude;
+pub mod raw_screenplay_json;
 pub mod screenplay;
 pub mod types;
 
@@ -24,6 +27,8 @@ pub struct TalksPlugin;
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ActiveScreenplay>()
+            .add_asset::<RawScreenplay>()
+            .init_asset_loader::<ScreenplayLoader>()
             .add_event::<ScreenplayNextActionRequest>()
             .add_systems(Update, next_action_request_handler);
     }
