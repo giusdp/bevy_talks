@@ -9,3 +9,14 @@ pub enum NextActionError {
     #[error("current action has no next")]
     NoNextAction,
 }
+
+/// Errors when parsing a screenplay json
+#[derive(Error, Debug, PartialEq, Eq)]
+pub enum ScreenplayJSONError {
+    /// Serde failed to parse the json
+    #[error("serde failed to parse the json: {0}")]
+    BadParse(String),
+    /// The screenplay json is not valid
+    #[error("the script is not valid: {0:?}")]
+    JSONValidation(Vec<String>),
+}

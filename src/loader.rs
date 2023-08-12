@@ -1,42 +1,174 @@
-// use bevy::{
-//     asset::{AssetLoader, LoadContext, LoadedAsset},
-//     prelude::{default, info},
-//     utils::{BoxedFuture, HashMap},
-// };
-// use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
+//! Asset loader for screenplays with json format.
+use bevy::{
+    asset::{AssetLoader, LoadContext, LoadedAsset},
+    reflect::{Reflect, TypeUuid},
+    utils::BoxedFuture,
+};
+use jsonschema::JSONSchema;
+use serde_json::{json, Value};
 
-// use crate::{
-//     prelude::ScreenplayParsingError,
-//     screenplay::{ActionNode, Screenplay},
-//     types::{ActionId, ActionKind, Actor, ActorAction, ActorOrPlayerActionJSON, RawScreenplay},
-// };
+use crate::{prelude::ScreenplayJSONError, raw_screenplay_json::RawScreenplayJSON};
 
-// #[derive(Default)]
-// pub struct ScreenplayLoader;
+/// The raw screenplay asset. It contains the json data loaded from the asset.
+#[derive(Debug, Clone, Reflect, TypeUuid)]
+#[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
+#[reflect_value]
+pub struct RawScreenplay(RawScreenplayJSON);
 
-// impl AssetLoader for ScreenplayLoader {
-//     fn load<'a>(
-//         &'a self,
-//         bytes: &'a [u8],
-//         load_context: &'a mut LoadContext,
-//     ) -> BoxedFuture<'a, Result<(), bevy::asset::Error>> {
-//         Box::pin(async move {
-//             let script = serde_json::from_slice::<RawScreenplay>(bytes)?;
-//             let asset = build_screenplay(script)?;
-//             info!(
-//                 "Loaded screenplay with {} actions.",
-//                 asset.graph.node_count(),
-//             );
-//             load_context.set_default_asset(LoadedAsset::new(asset));
-//             Ok(())
-//         })
-//     }
+/// Load screenplays from json assets.
+#[derive(Default)]
+pub struct ScreenplayLoader;
 
-//     fn extensions(&self) -> &[&str] {
-//         &["json"]
-//     }
-// }
+impl AssetLoader for ScreenplayLoader {
+    fn load<'a>(
+        &'a self,
+        bytes: &'a [u8],
+        load_context: &'a mut LoadContext,
+    ) -> BoxedFuture<'a, Result<(), bevy::asset::Error>> {
+        Box::pin(async move {
+            let script = serde_json::from_slice(bytes)?;
+            let res = build_raw_screenplay(script)?;
+            load_context.set_default_asset(LoadedAsset::new(res));
+            Ok(())
+        })
+    }
 
+    fn extensions(&self) -> &[&str] {
+        &["json"]
+    }
+}
+
+/// Validates a JSON value representing a screenplay.
+///
+/// This function takes a JSON value representing a screenplay and validates its structure. The
+/// function checks that the JSON value contains the required fields for a screenplay, and that
+/// the values of those fields are of the correct type.
+///
+/// # Errors
+///
+/// This function returns a `ScreenplayJSONError` if the JSON value is not a valid screenplay.
+fn validate_screenplay_json(script: &Value) -> Result<(), ScreenplayJSONError> {
+    let schema = json_schema();
+    let compiled = JSONSchema::compile(&schema).expect("A valid schema");
+    let result = compiled.validate(script);
+    if let Err(errors) = result {
+        let error_strings = errors.map(|e| e.to_string()).collect();
+        return Err(ScreenplayJSONError::JSONValidation(error_strings));
+    }
+
+    // TODO: add more validation (unique ids, empty json, etc)
+
+    Ok(())
+}
+
+/// Builds a `RawScreenplay` from a JSON value.
+///
+/// This function takes a JSON value representing a screenplay and returns a `RawScreenplay` object
+/// that can be used to build a `Screenplay` object. The function validates the structure of the
+/// JSON value and converts it to a `RawScreenplay` object.
+///
+/// # Errors
+///
+/// This function returns a `ScreenplayParsingError` if the JSON value is not a valid screenplay.
+fn build_raw_screenplay(script: Value) -> Result<RawScreenplay, ScreenplayJSONError> {
+    validate_screenplay_json(&script)?;
+    let raw_sp_json = serde_json::from_value::<RawScreenplayJSON>(script)
+        .map_err(|e| ScreenplayJSONError::BadParse(e.to_string()))?;
+    Ok(RawScreenplay(raw_sp_json))
+}
+
+/// Returns the JSON schema for a screenplay.
+///
+/// The schema is used to validate the structure of the screenplay JSON file.
+fn json_schema() -> Value {
+    json!({
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Generated schema for Root",
+      "type": "object",
+      "properties": {
+        "actors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "actor_id": {
+                "type": "string"
+              },
+              "character_name": {
+                "type": "string"
+              },
+              "asset": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "actor_id",
+              "character_name",
+              "asset"
+            ]
+          }
+        },
+        "script": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "number"
+              },
+              "action": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              },
+              "actors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "start": {
+                "type": "boolean"
+              },
+              "sound_effect": {
+                "type": "string"
+              },
+              "choices": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "text": {
+                      "type": "string"
+                    },
+                    "next": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "text",
+                    "next"
+                  ]
+                }
+              },
+              "next": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "id",
+              "action",
+            ]
+          }
+        }
+      },
+      "required": [
+        "actors",
+        "script"
+      ]
+    })
+}
 // pub(crate) fn build_screenplay(
 //     raw_script: RawScreenplay,
 // ) -> Result<Screenplay, ScreenplayParsingError> {

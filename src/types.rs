@@ -1,6 +1,5 @@
 //! Types used in the plugin.
 use bevy::prelude::{Entity, Event, Resource};
-
 /// Event to request the next action for the active screenplay.
 #[derive(Event)]
 pub struct ScreenplayNextActionRequest;
