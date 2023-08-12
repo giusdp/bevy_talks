@@ -7,7 +7,7 @@ use bevy::{
 use jsonschema::JSONSchema;
 use serde_json::{json, Value};
 
-use crate::{prelude::ScreenplayJSONError, raw_screenplay_json::RawScreenplayJSON};
+use crate::{prelude::JsonError, raw_screenplay_json::RawScreenplayJSON};
 
 /// The raw screenplay asset. It contains the json data loaded from the asset.
 #[derive(Debug, Clone, Reflect, TypeUuid)]
@@ -47,13 +47,13 @@ impl AssetLoader for ScreenplayLoader {
 /// # Errors
 ///
 /// This function returns a `ScreenplayJSONError` if the JSON value is not a valid screenplay.
-fn validate_screenplay_json(script: &Value) -> Result<(), ScreenplayJSONError> {
+fn validate_screenplay_json(script: &Value) -> Result<(), JsonError> {
     let schema = json_schema();
     let compiled = JSONSchema::compile(&schema).expect("A valid schema");
     let result = compiled.validate(script);
     if let Err(errors) = result {
         let error_strings = errors.map(|e| e.to_string()).collect();
-        return Err(ScreenplayJSONError::JSONValidation(error_strings));
+        return Err(JsonError::JSONValidation(error_strings));
     }
 
     // TODO: add more validation (unique ids, empty json, etc)
@@ -70,10 +70,10 @@ fn validate_screenplay_json(script: &Value) -> Result<(), ScreenplayJSONError> {
 /// # Errors
 ///
 /// This function returns a `ScreenplayParsingError` if the JSON value is not a valid screenplay.
-fn build_raw_screenplay(script: Value) -> Result<RawScreenplay, ScreenplayJSONError> {
+fn build_raw_screenplay(script: Value) -> Result<RawScreenplay, JsonError> {
     validate_screenplay_json(&script)?;
     let raw_sp_json = serde_json::from_value::<RawScreenplayJSON>(script)
-        .map_err(|e| ScreenplayJSONError::BadParse(e.to_string()))?;
+        .map_err(|e| JsonError::BadParse(e.to_string()))?;
     Ok(RawScreenplay(raw_sp_json))
 }
 
