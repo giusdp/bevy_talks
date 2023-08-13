@@ -1,13 +1,16 @@
 #![allow(dead_code)]
 //! This module contains the raw JSON data structures to load a screenplay from a JSON file.
+use bevy::reflect::{Reflect, TypeUuid};
 use serde::Deserialize;
 
 /// A struct that represents a raw screenplay in JSON format.
 ///
 /// This struct is used to represent a raw screenplay in JSON format. It contains a list of actors
 /// that appear in the screenplay, and a list of actions that make up the screenplay.
-#[derive(Debug, Deserialize, Clone)]
-pub(crate) struct RawScreenplayJSON {
+#[derive(Debug, Deserialize, Clone, Reflect, TypeUuid)]
+#[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
+#[reflect_value]
+pub(crate) struct RawScreenplay {
     /// The list of actors that appear in the screenplay.
     pub(crate) actors: Vec<ActorJSON>,
     /// The list of actions that make up the screenplay.

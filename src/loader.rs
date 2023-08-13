@@ -1,19 +1,12 @@
 //! Asset loader for screenplays with json format.
 use bevy::{
     asset::{AssetLoader, LoadContext, LoadedAsset},
-    reflect::{Reflect, TypeUuid},
     utils::BoxedFuture,
 };
 use jsonschema::JSONSchema;
 use serde_json::{json, Value};
 
-use crate::{prelude::JsonError, raw_screenplay_json::RawScreenplayJSON};
-
-/// The raw screenplay asset. It contains the json data loaded from the asset.
-#[derive(Debug, Clone, Reflect, TypeUuid)]
-#[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
-#[reflect_value]
-pub struct RawScreenplay(RawScreenplayJSON);
+use crate::{prelude::JsonError, raw_screenplay::RawScreenplay};
 
 /// Load screenplays from json assets.
 #[derive(Default)]
@@ -70,9 +63,9 @@ fn validate(script: &Value) -> Result<(), JsonError> {
 /// This function returns a `JsonError` if the JSON value is not a valid screenplay.
 fn build_raw(script: Value) -> Result<RawScreenplay, JsonError> {
     validate(&script)?;
-    let raw_sp_json = serde_json::from_value::<RawScreenplayJSON>(script)
+    let raw_sp_json = serde_json::from_value::<RawScreenplay>(script)
         .map_err(|e| JsonError::BadParse(e.to_string()))?;
-    Ok(RawScreenplay(raw_sp_json))
+    Ok(raw_sp_json)
 }
 
 /// Returns the JSON schema for a screenplay.

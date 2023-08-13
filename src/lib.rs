@@ -11,14 +11,15 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use prelude::{ActiveScreenplay, RawScreenplay, ScreenplayLoader, ScreenplayNextActionRequest};
+use prelude::{ActiveScreenplay, ScreenplayLoader, ScreenplayNextActionRequest};
+use raw_screenplay::RawScreenplay;
 use screenplay::Screenplay;
 
 pub mod action;
 pub mod errors;
 pub mod loader;
 pub mod prelude;
-pub mod raw_screenplay_json;
+pub mod raw_screenplay;
 pub mod screenplay;
 pub mod screenplay_builder;
 pub mod types;
