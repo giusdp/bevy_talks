@@ -18,7 +18,7 @@ pub enum JsonError {
     BadParse(String),
     /// The screenplay json is not valid
     #[error("the script is not valid: {0:?}")]
-    JSONValidation(Vec<String>),
+    Validation(Vec<String>),
 }
 
 /// Errors when parsing a screenplay json
