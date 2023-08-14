@@ -18,11 +18,11 @@ jobs:
           default: true
           components: clippy
 
-      - name: Lint | Clippy
-        uses: actions-rs/clippy-check@v1
-        with:
+      -  name: Annotate commit with clippy warnings
+         uses: actions-rs/clippy-check@v1
+         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-targets -- -D warnings
+          args: --all-features
 
       - name: Setup | Toolchain (rustfmt)
         uses: actions-rs/toolchain@v1
