@@ -28,6 +28,7 @@ pub struct Screenplay {
     pub(crate) current_node: NodeIndex,
 
     /// The map tracking the action ids to the node indexes in the graph.
+    #[allow(dead_code)]
     pub(crate) action_node_map: HashMap<ActionId, NodeIndex>,
 }
 
