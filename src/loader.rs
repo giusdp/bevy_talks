@@ -6,7 +6,7 @@ use bevy::{
 use jsonschema::JSONSchema;
 use serde_json::{json, Value};
 
-use crate::{prelude::JsonError, raw_screenplay::RawScreenplay};
+use crate::prelude::{JsonError, RawScreenplay};
 
 /// Load screenplays from json assets.
 #[derive(Default)]

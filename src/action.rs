@@ -1,28 +1,82 @@
-//! Action nodes are used to define the actions that characters perform in a screenplay.
-//! An action node is ultimately a [`bevy::ecs::Entity`], with [`bevy_talks`] components
-//! attached that define the action.
-use bevy::prelude::{Commands, Component, Entity};
+//! Screenplay action definitions.
 
-/// An `ActionNode` is an entity that represents an action in a screenplay.
+use serde::Deserialize;
+
+/// A unique identifier for an action in a screenplay.
 ///
-/// Action nodes are used to define the actions that characters perform in a screenplay. They can be
-/// linked together to create a sequence of actions that make up a scene or an entire screenplay.
-pub(crate) type ActionNode = Entity;
+/// This type alias is used to define a unique identifier for an action in a screenplay. Each action
+/// in the screenplay is assigned a unique ID, which is used to link the actions together in the
+/// screenplay graph.
+pub(crate) type ActionId = i32;
 
-/// A component that indicates that the entity is a "talk".
-/// It contains only the text to be displayed, without any
-/// information about the speaker.
-/// For example, it can be used to display text said by a narrator
-/// and no speaker name is needed.
-/// Use [`SpeakerTalkComp`] to have text and speaker.
-#[derive(Component)]
-pub struct TalkComp {
-    /// The text to be displayed.
-    pub text: String,
+/// A struct that represents an action in a screenplay.
+///
+/// This struct is used to define an action in a screenplay. It contains the ID of the action, the
+/// kind of action, the actors involved in the action, any choices that the user can make during
+/// the action, the text of the action, the ID of the next action to perform, whether the action is
+/// the start of the screenplay, and any sound effect associated with the action.
+#[derive(Debug, Default, Deserialize, Clone)]
+pub struct ScriptAction {
+    /// The ID of the action.
+    pub id: ActionId,
+    /// The kind of action.
+    pub action: ActionKind,
+    /// The actors involved in the action.
+    pub actors: Vec<String>,
+    /// Any choices that the user can make during the action.
+    pub choices: Option<Vec<Choice>>,
+    /// The text of the action.
+    pub text: Option<String>,
+    /// The ID of the next action to perform.
+    pub next: Option<ActionId>,
+    /// Any sound effect associated with the action.
+    pub sound_effect: Option<String>,
 }
 
-/// Spawn a new entity with a [`TalkComp`] component attached.
-pub fn new_talk(commands: &mut Commands, text: String) -> ActionNode {
-    let c = commands.spawn(TalkComp { text });
-    c.id()
+/// A struct that represents an actor in a screenplay.
+///
+/// This struct is used to define an actor in a screenplay. It contains the ID of the actor, the
+/// name of the character that the actor plays, and an optional asset that represents the actor's
+/// appearance or voice.
+#[derive(Debug, Deserialize, Clone, Default)]
+pub(crate) struct Actor {
+    /// The ID of the actor.
+    pub actor_id: String,
+    /// The name of the character that the actor plays.
+    pub character_name: String,
+    /// An optional asset that represents the actor's appearance or voice.
+    pub asset: Option<String>,
+}
+/// A struct that represents a choice in a screenplay.
+///
+/// This struct is used to define a choice in a screenplay. It contains the text of the choice and
+/// the ID of the next action to perform if the choice is selected.
+#[derive(Debug, Deserialize, Clone)]
+pub struct Choice {
+    /// The text of the choice.
+    pub text: String,
+    /// The ID of the next action to perform if the choice is selected.
+    pub next: ActionId,
+}
+
+/// An enumeration of the different kinds of actions that can be performed in a screenplay.
+///
+/// This enumeration is used to define the different kinds of actions that can be performed in a
+/// screenplay. Each variant of the enumeration represents a different kind of action, such as
+/// talking, entering, exiting, or making a choice.
+#[derive(Debug, Default, Deserialize, Clone)]
+pub enum ActionKind {
+    /// A talk action, where a character speaks dialogue.
+    #[default]
+    #[serde(rename = "talk")]
+    Talk,
+    /// An enter action, where a character enters a scene.
+    #[serde(rename = "enter")]
+    Enter,
+    /// An exit action, where a character exits a scene.
+    #[serde(rename = "exit")]
+    Exit,
+    /// A choice action, where the user is presented with a choice.
+    #[serde(rename = "choice")]
+    Choice,
 }

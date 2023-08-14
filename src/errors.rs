@@ -1,8 +1,6 @@
 //! Errors that can happen while using the library
 use thiserror::Error;
 
-use crate::raw_screenplay::ActionId;
-
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
