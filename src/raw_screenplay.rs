@@ -3,18 +3,17 @@
 use bevy::reflect::{Reflect, TypeUuid};
 use serde::Deserialize;
 
-/// A struct that represents a raw screenplay in JSON format.
+/// A struct that represents a raw screenplay (as from the json format).
 ///
-/// This struct is used to represent a raw screenplay in JSON format. It contains a list of actors
-/// that appear in the screenplay, and a list of actions that make up the screenplay.
+/// It contains a list of actors that appear in the screenplay, and a list of actions that make up the screenplay.
 #[derive(Debug, Deserialize, Clone, Reflect, TypeUuid)]
 #[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
 #[reflect_value]
-pub(crate) struct RawScreenplay {
+pub struct RawScreenplay {
     /// The list of actors that appear in the screenplay.
-    pub(crate) actors: Vec<ActorJSON>,
+    pub(crate) actors: Vec<RawActor>,
     /// The list of actions that make up the screenplay.
-    pub(crate) script: Vec<ActionJSON>,
+    pub(crate) script: Vec<RawAction>,
 }
 
 /// A struct that represents an actor in a screenplay.
@@ -23,7 +22,7 @@ pub(crate) struct RawScreenplay {
 /// name of the character that the actor plays, and an optional asset that represents the actor's
 /// appearance or voice.
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct ActorJSON {
+pub(crate) struct RawActor {
     /// The ID of the actor.
     pub actor_id: String,
     /// The name of the character that the actor plays.
@@ -46,7 +45,7 @@ pub(crate) type ActionId = i32;
 /// the action, the text of the action, the ID of the next action to perform, whether the action is
 /// the start of the screenplay, and any sound effect associated with the action.
 #[derive(Debug, Default, Deserialize, Clone)]
-pub(crate) struct ActionJSON {
+pub(crate) struct RawAction {
     /// The ID of the action.
     pub id: ActionId,
     /// The kind of action.
@@ -54,13 +53,11 @@ pub(crate) struct ActionJSON {
     /// The actors involved in the action.
     pub actors: Vec<String>,
     /// Any choices that the user can make during the action.
-    pub choices: Option<Vec<ChoiceJSON>>,
+    pub choices: Option<Vec<RawChoice>>,
     /// The text of the action.
     pub text: Option<String>,
     /// The ID of the next action to perform.
     pub next: Option<ActionId>,
-    /// Whether the action is the start of the screenplay.
-    pub start: Option<bool>,
     /// Any sound effect associated with the action.
     pub sound_effect: Option<String>,
 }
@@ -70,7 +67,7 @@ pub(crate) struct ActionJSON {
 /// This struct is used to define a choice in a screenplay. It contains the text of the choice and
 /// the ID of the next action to perform if the choice is selected.
 #[derive(Debug, Deserialize, Clone)]
-pub(crate) struct ChoiceJSON {
+pub(crate) struct RawChoice {
     /// The text of the choice.
     pub text: String,
     /// The ID of the next action to perform if the choice is selected.

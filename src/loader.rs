@@ -119,9 +119,6 @@ fn json_schema() -> Value {
                   "type": "string"
                 }
               },
-              "start": {
-                "type": "boolean"
-              },
               "sound_effect": {
                 "type": "string"
               },
@@ -166,8 +163,18 @@ mod test {
     use super::*;
 
     #[test]
+    fn build_empty_raw_ok() {
+        let j = json!({
+          "actors":[],
+          "script":[]
+        });
+
+        assert!(build_raw(j).is_ok());
+    }
+
+    #[test]
     fn build_raw_err_when_invalid_json() {
-        assert!(build_raw(json!({})).is_err())
+        assert!(build_raw(json!({})).is_err());
     }
 
     #[test]
