@@ -1,6 +1,8 @@
 //! Errors that can happen while using the library
 use thiserror::Error;
 
+use crate::raw_screenplay::ActionId;
+
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
@@ -24,7 +26,13 @@ pub enum JsonError {
 /// Errors when parsing a screenplay json
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ScreenplayError {
-    /// Multiple actions have same id
+    /// An action has a non-existent actor
+    #[error("the action {0} has specified a non existent actor {1}")]
+    InvalidActor(i32, String),
+    /// An action has the next field pointing to a non-existent action
+    #[error("the action {0} is pointing to id {1} which was not found")]
+    InvalidNextAction(i32, i32),
+    /// Multiple actions have same id error
     #[error("multiple actions have same id: {0}")]
-    DuplicateActionId(String),
+    DuplicateActionId(i32),
 }
