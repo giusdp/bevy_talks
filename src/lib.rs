@@ -11,15 +11,13 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use prelude::{ActiveScreenplay, ScreenplayLoader, ScreenplayNextActionRequest};
-use raw_screenplay::RawScreenplay;
+use prelude::{ActiveScreenplay, RawScreenplay, ScreenplayLoader, ScreenplayNextActionRequest};
 use screenplay::Screenplay;
 
 pub mod action;
 pub mod errors;
 pub mod loader;
 pub mod prelude;
-pub mod raw_screenplay;
 pub mod screenplay;
 pub mod screenplay_builder;
 pub mod types;
@@ -64,10 +62,10 @@ fn next_action_request_handler(
 
 #[cfg(test)]
 mod test {
-    use bevy::prelude::*;
+    use bevy::{ecs::system::CommandQueue, prelude::*};
 
     use crate::{
-        prelude::ScreenplayBuilder,
+        prelude::{ScreenplayBuilder, ScriptAction},
         screenplay::Screenplay,
         types::{ActiveScreenplay, ScreenplayNextActionRequest},
         TalksPlugin,
@@ -85,11 +83,13 @@ mod test {
         let mut app = minimal_app();
 
         let sp = ScreenplayBuilder::new()
-            .add_action_node(Entity::PLACEHOLDER)
-            .add_action_node(Entity::PLACEHOLDER)
+            .add_action_node(ScriptAction { ..default() })
+            .add_action_node(ScriptAction { ..default() })
             .build();
 
-        let e = app.world.spawn(sp).id();
+        assert!(sp.is_ok());
+
+        let e = app.world.spawn(sp.unwrap()).id();
         app.world.get_resource_mut::<ActiveScreenplay>().unwrap().e = Some(e);
 
         app.update();
