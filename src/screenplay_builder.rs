@@ -71,6 +71,8 @@ impl ScreenplayBuilder {
 
         let mut input_nodes = self.nodes;
 
+        // TODO: the input nodes have some validation over duplicate IDs and nexts
+
         // 2.a If the graph from raw is empty, add the first node separately
         if self.graph.node_count() == 0 && !input_nodes.is_empty() {
             let new_idx = self.graph.add_node(input_nodes[0].to_owned());

@@ -59,29 +59,31 @@ impl Screenplay {
 #[cfg(test)]
 mod test {
 
+    use bevy::prelude::default;
+
     use super::*;
 
-    // #[test]
-    // fn next_no_next_err() {
-    //     let mut sp = ScreenplayBuilder::new()
-    //         .add_action_node(ActionNode::PLACEHOLDER)
-    //         .build();
+    #[test]
+    fn next_no_next_err() {
+        let res = ScreenplayBuilder::new()
+            .add_action_node(ScriptAction { ..default() })
+            .build();
 
-    //     assert!(sp.is_ok());
-    //     assert_eq!(
-    //         sp.unwrap().next_action().err(),
-    //         Some(NextActionError::NoNextAction)
-    //     );
-    // }
+        assert!(res.is_ok());
+        let mut sp = res.unwrap();
+        assert_eq!(sp.next_action().err(), Some(NextActionError::NoNextAction));
+    }
 
-    // #[test]
-    // fn next_action() {
-    //     let mut sp = ScreenplayBuilder::new()
-    //         .add_action_node(ActionNode::PLACEHOLDER)
-    //         .add_action_node(ActionNode::PLACEHOLDER)
-    //         .build();
+    #[test]
+    fn next_action() {
+        // TODO: this should fail after adding validation dynamic nodes on the builder
+        let res = ScreenplayBuilder::new()
+            .add_action_node(ScriptAction { ..default() })
+            .add_action_node(ScriptAction { ..default() })
+            .build();
 
-    //     assert!(sp.is_ok());
-    //     assert!(sp.unwrap().next_action().is_ok());
-    // }
+        assert!(res.is_ok());
+        let mut sp = res.unwrap();
+        assert!(sp.next_action().is_ok());
+    }
 }
