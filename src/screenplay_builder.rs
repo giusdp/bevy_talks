@@ -1,12 +1,11 @@
 //! The main module of the crate. It contains the Screenplay struct and its
 //! builder.
 use bevy::{
-    input,
-    prelude::{default, Commands},
+    prelude::default,
     reflect::{Reflect, TypeUuid},
     utils::HashMap,
 };
-use petgraph::{data::Build, prelude::DiGraph, stable_graph::NodeIndex};
+use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 use serde::Deserialize;
 
 use crate::prelude::{ActionId, Actor, Screenplay, ScreenplayError, ScriptAction};
@@ -30,8 +29,11 @@ pub struct RawScreenplay {
 pub struct ScreenplayBuilder {
     /// The nodes of the screenplay.
     nodes: Vec<ScriptAction>,
+    /// The RawScreenplay to be used to build the screenplay.
     raw_sp: Option<RawScreenplay>,
+    /// The graph of the screenplay.
     graph: DiGraph<ScriptAction, ()>,
+    /// The map tracking the action ids to the node indexes in the graph.
     action_node_map: HashMap<ActionId, NodeIndex>,
 }
 
@@ -90,6 +92,7 @@ impl ScreenplayBuilder {
         })
     }
 
+    /// Build the screenplay from the raw screenplay.
     fn build_from_raw(&mut self) -> Result<(), ScreenplayError> {
         if self.raw_sp.is_none() {
             return Ok(()); // nothing to do
@@ -159,6 +162,7 @@ impl ScreenplayBuilder {
     }
 }
 
+/// Validate that all the nexts point to existing actions
 fn validate_nexts(id_nexts_map: &HashMap<i32, StrippedAction>) -> Result<(), ScreenplayError> {
     for (id, stripped_action) in id_nexts_map {
         if let Some(next_id) = stripped_action.next_action {
@@ -176,6 +180,7 @@ fn validate_nexts(id_nexts_map: &HashMap<i32, StrippedAction>) -> Result<(), Scr
     Ok(())
 }
 
+/// Build a map of `ActionId` => `next_id`
 fn action_next_map(
     script: &Vec<ScriptAction>,
 ) -> Result<HashMap<ActionId, ActionId>, ScreenplayError> {
@@ -202,12 +207,10 @@ fn action_next_map(
     Ok(m)
 }
 
-fn valdidate_actors(action: &ScriptAction, actors: &Vec<Actor>) -> Result<(), ScreenplayError> {
+/// Validate that all the actors in the action are present in the actors list
+fn valdidate_actors(action: &ScriptAction, actors: &[Actor]) -> Result<(), ScreenplayError> {
     for actor_key in action.actors.iter() {
-        if !actors
-            .iter()
-            .any(|a: &Actor| a.actor_id == actor_key.to_string())
-        {
+        if !actors.iter().any(|a: &Actor| a.actor_id == *actor_key) {
             return Err(ScreenplayError::InvalidActor(
                 action.id,
                 actor_key.to_string(),
@@ -217,6 +220,7 @@ fn valdidate_actors(action: &ScriptAction, actors: &Vec<Actor>) -> Result<(), Sc
     Ok(())
 }
 
+/// Connect the actions in the graph by adding edges based on the nexts and choices
 fn connect_actions(
     graph: &mut petgraph::Graph<ScriptAction, ()>,
     this_action: &StrippedAction,
@@ -245,8 +249,11 @@ fn connect_actions(
 /// A minimal representation of a convo node for validation purposes
 #[derive(Debug)]
 struct StrippedAction {
+    /// The index of the node in the graph
     node_idx: NodeIndex,
+    /// The next action id
     next_action: Option<ActionId>,
+    /// The nexts in the choices
     choices: Option<Vec<ActionId>>,
 }
 
