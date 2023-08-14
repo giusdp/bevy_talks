@@ -28,8 +28,8 @@ pub struct TalksPlugin;
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ActiveScreenplay>()
-            .add_asset::<RawScreenplay>()
             .init_asset_loader::<ScreenplayLoader>()
+            .add_asset::<RawScreenplay>()
             .add_event::<ScreenplayNextActionRequest>()
             .add_systems(Update, next_action_request_handler);
     }
@@ -61,20 +61,21 @@ fn next_action_request_handler(
 }
 
 #[cfg(test)]
-mod test {
-    use bevy::{ecs::system::CommandQueue, prelude::*};
+mod tests {
+    use bevy::prelude::*;
 
     use crate::{
-        prelude::{ScreenplayBuilder, ScriptAction},
-        screenplay::Screenplay,
-        types::{ActiveScreenplay, ScreenplayNextActionRequest},
+        prelude::{
+            ActiveScreenplay, Screenplay, ScreenplayBuilder, ScreenplayNextActionRequest,
+            ScriptAction,
+        },
         TalksPlugin,
     };
 
-    /// Just [`MinimalPlugins`].
+    /// A minimal Bevy app with the Talks plugin.
     pub fn minimal_app() -> App {
         let mut app = App::new();
-        app.add_plugins(MinimalPlugins).add_plugins(TalksPlugin);
+        app.add_plugins((MinimalPlugins, AssetPlugin { ..default() }, TalksPlugin));
         app
     }
 
@@ -90,12 +91,9 @@ mod test {
         assert!(sp.is_ok());
 
         let e = app.world.spawn(sp.unwrap()).id();
+
         app.world.get_resource_mut::<ActiveScreenplay>().unwrap().e = Some(e);
-
-        app.update();
-
         app.world.send_event(ScreenplayNextActionRequest);
-
         app.update();
 
         let sp_spawned = app.world.get::<Screenplay>(e).unwrap();
