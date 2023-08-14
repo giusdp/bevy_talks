@@ -554,7 +554,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_talks"
-version = "0.2.0-dev"
+version = "0.1.1-dev"
 dependencies = [
  "assert_fs",
  "bevy",
