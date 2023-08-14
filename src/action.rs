@@ -39,7 +39,7 @@ pub struct ScriptAction {
 /// name of the character that the actor plays, and an optional asset that represents the actor's
 /// appearance or voice.
 #[derive(Debug, Deserialize, Clone, Default)]
-pub(crate) struct Actor {
+pub struct Actor {
     /// The ID of the actor.
     pub actor_id: String,
     /// The name of the character that the actor plays.
