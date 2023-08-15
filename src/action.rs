@@ -1,6 +1,21 @@
 //! Screenplay action definitions.
-
 use serde::Deserialize;
+
+/// An action node in a screenplay.
+#[derive(Debug, Default)]
+#[allow(dead_code)]
+pub(crate) struct ActionNode {
+    /// The kind of action.
+    pub(crate) kind: ActionKind,
+    /// The text of the action.
+    pub(crate) text: Option<String>,
+    /// The actors involved in the action.
+    pub(crate) actors: Vec<Actor>,
+    /// The choices available after the action.
+    pub(crate) choices: Option<Vec<Choice>>,
+    /// The sound effect associated with the action.
+    pub(crate) sound_effect: Option<String>,
+}
 
 /// A unique identifier for an action in a screenplay.
 ///
@@ -20,7 +35,7 @@ pub struct ScriptAction {
     /// The ID of the action.
     pub id: ActionId,
     /// The kind of action.
-    pub action: ActionKind,
+    pub kind: ActionKind,
     /// The actors involved in the action.
     pub actors: Vec<String>,
     /// Any choices that the user can make during the action.
@@ -40,10 +55,8 @@ pub struct ScriptAction {
 /// appearance or voice.
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Actor {
-    /// The ID of the actor.
-    pub actor_id: String,
     /// The name of the character that the actor plays.
-    pub character_name: String,
+    pub name: String,
     /// An optional asset that represents the actor's appearance or voice.
     pub asset: Option<String>,
 }

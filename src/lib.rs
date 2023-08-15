@@ -62,11 +62,11 @@ fn next_action_request_handler(
 
 #[cfg(test)]
 mod tests {
-    use bevy::prelude::*;
+    use bevy::{prelude::*, utils::HashMap};
 
     use crate::{
         prelude::{
-            ActiveScreenplay, RawScreenplay, Screenplay, ScreenplayBuilder,
+            ActiveScreenplay, Actor, RawScreenplay, Screenplay, ScreenplayBuilder,
             ScreenplayNextActionRequest, ScriptAction,
         },
         TalksPlugin,
@@ -77,6 +77,11 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin { ..default() }, TalksPlugin));
         app
+    }
+    pub fn test_actors_map(name: String) -> HashMap<String, Actor> {
+        let mut actors = HashMap::new();
+        actors.insert(name, Actor { ..default() });
+        actors
     }
 
     #[test]
