@@ -66,8 +66,8 @@ mod tests {
 
     use crate::{
         prelude::{
-            ActiveScreenplay, Screenplay, ScreenplayBuilder, ScreenplayNextActionRequest,
-            ScriptAction,
+            ActiveScreenplay, RawScreenplay, Screenplay, ScreenplayBuilder,
+            ScreenplayNextActionRequest, ScriptAction,
         },
         TalksPlugin,
     };
@@ -82,12 +82,15 @@ mod tests {
     #[test]
     fn next_action_request_handler() {
         let mut app = minimal_app();
+        let raw_sp = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ScriptAction { ..default() },
+                ScriptAction { id: 2, ..default() },
+            ],
+        };
 
-        let sp = ScreenplayBuilder::new()
-            .add_action_node(ScriptAction { ..default() })
-            .add_action_node(ScriptAction { ..default() })
-            .build();
-
+        let sp = ScreenplayBuilder::raw_build(&raw_sp);
         assert!(sp.is_ok());
 
         let e = app.world.spawn(sp.unwrap()).id();

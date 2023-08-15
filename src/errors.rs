@@ -33,4 +33,7 @@ pub enum ScreenplayError {
     /// Multiple actions have same id error
     #[error("multiple actions have same id: {0}")]
     DuplicateActionId(i32),
+    /// The Handle did not have a screenplay loaded
+    #[error("the handle did not have a screenplay loaded")]
+    RawScreenplayNotLoaded,
 }
