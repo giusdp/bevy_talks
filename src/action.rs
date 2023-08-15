@@ -35,6 +35,7 @@ pub struct ScriptAction {
     /// The ID of the action.
     pub id: ActionId,
     /// The kind of action.
+    #[serde(default)]
     pub action: ActionKind,
     /// The actors involved in the action.
     pub actors: Vec<String>,
@@ -78,18 +79,15 @@ pub struct Choice {
 /// screenplay. Each variant of the enumeration represents a different kind of action, such as
 /// talking, entering, exiting, or making a choice.
 #[derive(Debug, Default, Deserialize, Clone)]
+#[serde(rename_all = "snake_case")]
 pub enum ActionKind {
     /// A talk action, where a character speaks dialogue.
     #[default]
-    #[serde(rename = "talk")]
     Talk,
     /// An enter action, where a character enters a scene.
-    #[serde(rename = "enter")]
     Enter,
     /// An exit action, where a character exits a scene.
-    #[serde(rename = "exit")]
     Exit,
     /// A choice action, where the user is presented with a choice.
-    #[serde(rename = "choice")]
     Choice,
 }

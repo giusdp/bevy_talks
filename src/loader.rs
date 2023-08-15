@@ -140,8 +140,7 @@ fn json_schema() -> Value {
               }
             },
             "required": [
-              "id",
-              "action"
+              "id"
             ]
           }
         }
