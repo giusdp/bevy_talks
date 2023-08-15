@@ -63,9 +63,7 @@ fn validate(script: &Value) -> Result<(), JsonError> {
 /// This function returns a `JsonError` if the JSON value is not a valid screenplay.
 fn build_raw(script: Value) -> Result<RawScreenplay, JsonError> {
     validate(&script)?;
-    let raw_sp_json = serde_json::from_value::<RawScreenplay>(script)
-        .map_err(|e| JsonError::BadParse(e.to_string()))?;
-    Ok(raw_sp_json)
+    serde_json::from_value::<RawScreenplay>(script).map_err(|e| JsonError::BadParse(e.to_string()))
 }
 
 /// Returns the JSON schema for a screenplay.
@@ -179,7 +177,7 @@ mod tests {
         let j = json!(
           {
             "actors": {
-                "bob": { "name": "Bob", "asset": "bob.png"}
+                "bob": { "name": "Bob", "asset": "bob.png" }
               },
             "script": [
               {

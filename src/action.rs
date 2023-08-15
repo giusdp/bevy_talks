@@ -35,7 +35,7 @@ pub struct ScriptAction {
     /// The ID of the action.
     pub id: ActionId,
     /// The kind of action.
-    pub kind: ActionKind,
+    pub action: ActionKind,
     /// The actors involved in the action.
     pub actors: Vec<String>,
     /// Any choices that the user can make during the action.

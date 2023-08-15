@@ -244,7 +244,7 @@ fn insert_action_node(
     actors: Vec<Actor>,
 ) -> NodeIndex {
     let mut node = ActionNode {
-        kind: action.kind,
+        kind: action.action,
         choices: action.choices,
         text: action.text,
         sound_effect: action.sound_effect,
