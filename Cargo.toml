@@ -17,3 +17,8 @@ petgraph = "0.6"
 jsonschema = "0.17"
 
 [dev-dependencies]
+bevy = "0.11"
+
+[[example]]
+name = "simple"
+path = "examples/simple.rs"

@@ -49,14 +49,13 @@ impl ScreenplayBuilder {
 
     /// Build the screenplay.
     pub fn build(
-        mut self,
+        self,
         raw_sp_assets: &Assets<RawScreenplay>,
     ) -> Result<Screenplay, ScreenplayError> {
-        let mut sp = Screenplay { ..default() };
+        let mut sp = Screenplay::default();
 
         // 1. Build from raw if present
-        if self.raw_sp.is_some() {
-            let raw_handle = self.raw_sp.take().unwrap();
+        if let Some(raw_handle) = self.raw_sp {
             let raw = raw_sp_assets
                 .get(&raw_handle)
                 .ok_or(ScreenplayError::RawScreenplayNotLoaded)?;

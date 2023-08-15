@@ -11,20 +11,37 @@ enum AppState {
 #[derive(Resource)]
 struct PrintEnabled(bool);
 
+#[derive(Resource)]
+struct SimpleScreenplayAsset {
+    handle: Handle<RawScreenplay>,
+}
+
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, TalksPlugin))
         .add_state::<AppState>()
         .insert_resource(PrintEnabled(true))
-        .add_systems(Update, load_talks.run_if(in_state(AppState::LoadAssets)))
+        .add_systems(
+            OnEnter(AppState::LoadAssets),
+            load_talks.run_if(in_state(AppState::LoadAssets)),
+        )
+        .add_systems(Update, check_loading.run_if(in_state(AppState::LoadAssets)))
         .add_systems(OnEnter(AppState::Loaded), setup_screenplay)
         .add_systems(Update, (interact, print, bevy::window::close_on_esc))
         .run();
 }
 
-fn load_talks(server: Res<AssetServer>, mut next_state: ResMut<NextState<AppState>>) {
+fn load_talks(mut commands: Commands, server: Res<AssetServer>) {
     let h: Handle<RawScreenplay> = server.load("simple.json");
-    let load_state = server.get_load_state(h);
+    commands.insert_resource(SimpleScreenplayAsset { handle: h });
+}
+
+fn check_loading(
+    server: Res<AssetServer>,
+    simple_sp_asset: Res<SimpleScreenplayAsset>,
+    mut next_state: ResMut<NextState<AppState>>,
+) {
+    let load_state = server.get_load_state(&simple_sp_asset.handle);
     if load_state == LoadState::Loaded {
         next_state.set(AppState::Loaded);
     }
@@ -32,15 +49,13 @@ fn load_talks(server: Res<AssetServer>, mut next_state: ResMut<NextState<AppStat
 
 fn setup_screenplay(
     mut commands: Commands,
-    server: Res<AssetServer>,
     raws: Res<Assets<RawScreenplay>>,
+    simple_sp_asset: Res<SimpleScreenplayAsset>,
 ) {
-    let handle: Handle<RawScreenplay> = server.load("talk_only.json");
     let screenplay = ScreenplayBuilder::new()
-        .with_raw_screenplay(handle)
+        .with_raw_screenplay(simple_sp_asset.handle.clone())
         .build(&raws)
         .unwrap();
-
     commands.spawn(screenplay);
 
     println!("Press space to advance the conversation.");
