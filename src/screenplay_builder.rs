@@ -8,7 +8,9 @@ use bevy::{
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 use serde::Deserialize;
 
-use crate::prelude::{ActionId, Actor, Screenplay, ScreenplayError, ScriptAction};
+use crate::prelude::{
+    ActionId, ActionKind, ActionNode, Actor, Screenplay, ScreenplayError, ScriptAction,
+};
 
 /// A struct that represents a raw screenplay (as from the json format).
 ///
@@ -18,7 +20,7 @@ use crate::prelude::{ActionId, Actor, Screenplay, ScreenplayError, ScriptAction}
 #[reflect_value]
 pub struct RawScreenplay {
     /// The list of actors that appear in the screenplay.
-    pub(crate) actors: Vec<Actor>,
+    pub(crate) actors: HashMap<String, Actor>,
     /// The list of actions that make up the screenplay.
     pub(crate) script: Vec<ScriptAction>,
 }
@@ -71,7 +73,8 @@ impl ScreenplayBuilder {
             return Ok(Screenplay { ..default() });
         }
 
-        let mut graph = DiGraph::with_capacity(raw.script.len(), raw.script.len());
+        let mut graph: DiGraph<ActionNode, ()> =
+            DiGraph::with_capacity(raw.script.len(), raw.script.len());
 
         // 1. Build auxiliary maps (I'm bad at naming maps)
 
@@ -96,7 +99,8 @@ impl ScreenplayBuilder {
             valdidate_actors(action, &raw.actors)?;
 
             // 2.b add the node to the graph
-            let node_idx = graph.add_node(action.clone());
+            let actors = extract_actors(action, &raw.actors)?;
+            let node_idx = insert_action_node(&mut graph, action.clone(), actors);
 
             // 2.c add (idx, next_id) as we build the graph
             if id_nexts_map
@@ -182,9 +186,12 @@ fn action_next_map(
 }
 
 /// Validate that all the actors in the action are present in the actors list
-fn valdidate_actors(action: &ScriptAction, actors: &[Actor]) -> Result<(), ScreenplayError> {
+fn valdidate_actors(
+    action: &ScriptAction,
+    actors_map: &HashMap<String, Actor>,
+) -> Result<(), ScreenplayError> {
     for actor_key in action.actors.iter() {
-        if !actors.iter().any(|a: &Actor| a.actor_id == *actor_key) {
+        if !actors_map.contains_key(actor_key) {
             return Err(ScreenplayError::InvalidActor(
                 action.id,
                 actor_key.to_string(),
@@ -196,7 +203,7 @@ fn valdidate_actors(action: &ScriptAction, actors: &[Actor]) -> Result<(), Scree
 
 /// Connect the actions in the graph by adding edges based on the nexts and choices
 fn connect_actions(
-    graph: &mut petgraph::Graph<ScriptAction, ()>,
+    graph: &mut petgraph::Graph<ActionNode, ()>,
     this_action: &StrippedAction,
     id_nexts_map: &bevy::utils::hashbrown::HashMap<i32, StrippedAction>,
     action_id: &i32,
@@ -220,6 +227,66 @@ fn connect_actions(
     Ok(())
 }
 
+/// Inserts an action node into a screenplay graph.
+///
+/// # Arguments
+///
+/// * `graph` - The graph to insert the action node into.
+/// * `action` - The script action to create the action node from.
+/// * `actors` - The actors involved in the script action.
+///
+/// # Returns
+///
+/// Returns the index of the newly created action node in the graph.
+fn insert_action_node(
+    graph: &mut DiGraph<ActionNode, ()>,
+    action: ScriptAction,
+    actors: Vec<Actor>,
+) -> NodeIndex {
+    let mut node = ActionNode {
+        kind: action.kind,
+        choices: action.choices,
+        text: action.text,
+        sound_effect: action.sound_effect,
+        actors,
+    };
+    if node.choices.is_some() {
+        node.kind = ActionKind::Choice;
+    }
+
+    graph.add_node(node)
+}
+
+/// Extracts the actors involved in a script action from an actors map.
+///
+/// # Arguments
+///
+/// * `action` - The script action to extract actors from.
+/// * `actors_map` - The map of actors to retrieve from.
+///
+/// # Errors
+///
+/// Returns a `ScreenplayError::InvalidActor` error if an actor is not found in the actors map.
+///
+/// # Returns
+///
+/// Returns a vector of actors involved in the script action.
+fn extract_actors(
+    action: &ScriptAction,
+    actors_map: &HashMap<String, Actor>,
+) -> Result<Vec<Actor>, ScreenplayError> {
+    // Retrieve the actors from the actors map. In case one is not found, return an error.
+    let mut actors = Vec::with_capacity(1);
+    for actor_key in action.actors.iter() {
+        let retrieved_actor = actors_map
+            .get(actor_key)
+            .ok_or_else(|| ScreenplayError::InvalidActor(action.id, actor_key.to_string()))?
+            .to_owned();
+        actors.push(retrieved_actor);
+    }
+    Ok(actors)
+}
+
 /// A minimal representation of a node for validation purposes
 #[derive(Debug)]
 struct StrippedAction {
@@ -234,7 +301,10 @@ struct StrippedAction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{prelude::Choice, tests::minimal_app};
+    use crate::{
+        prelude::Choice,
+        tests::{minimal_app, test_actors_map},
+    };
     use bevy::prelude::default;
 
     #[test]
@@ -390,22 +460,15 @@ mod tests {
 
     #[test]
     fn new_with_actors() {
+        let mut actors = test_actors_map("bob".to_owned());
+        actors.insert("alice".to_owned(), Actor::default());
         let mut app = minimal_app();
         let mut assets = app
             .world
             .get_resource_mut::<Assets<RawScreenplay>>()
             .unwrap();
         let raw_sp = RawScreenplay {
-            actors: vec![
-                Actor {
-                    actor_id: "bob".to_string(),
-                    ..default()
-                },
-                Actor {
-                    actor_id: "alice".to_string(),
-                    ..default()
-                },
-            ],
+            actors: actors,
             script: vec![
                 ScriptAction {
                     id: 1,
@@ -457,11 +520,9 @@ mod tests {
 
     #[test]
     fn build_from_raw_invalid_actor_mismath() {
+        let actor_map = test_actors_map("bob".to_owned());
         let raw_sp = RawScreenplay {
-            actors: vec![Actor {
-                actor_id: "bob".to_string(),
-                ..default()
-            }],
+            actors: actor_map,
             script: vec![ScriptAction {
                 actors: vec!["alice".to_string()],
                 ..default()
@@ -519,8 +580,8 @@ mod tests {
     #[test]
     fn build_from_raw_with_empty_ok() {
         let raw = RawScreenplay {
-            actors: vec![],
-            script: vec![],
+            actors: default(),
+            script: default(),
         };
 
         let sp = ScreenplayBuilder::raw_build(&raw);
