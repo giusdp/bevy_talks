@@ -58,32 +58,39 @@ impl Screenplay {
 
 #[cfg(test)]
 mod test {
-
     use bevy::prelude::default;
+
+    use crate::prelude::RawScreenplay;
 
     use super::*;
 
-    // #[test]
-    // fn next_no_next_err() {
-    //     let res = ScreenplayBuilder::new()
-    //         .add_action_node(ScriptAction { ..default() })
-    //         .build();
+    #[test]
+    fn next_no_next_err() {
+        let raw = RawScreenplay {
+            actors: default(),
+            script: vec![ScriptAction { ..default() }],
+        };
 
-    //     assert!(res.is_ok());
-    //     let mut sp = res.unwrap();
-    //     assert_eq!(sp.next_action().err(), Some(NextActionError::NoNextAction));
-    // }
+        let res = ScreenplayBuilder::raw_build(&raw);
 
-    // #[test]
-    // fn next_action() {
-    //     // TODO: this should fail after adding validation dynamic nodes on the builder
-    //     let res = ScreenplayBuilder::new()
-    //         .add_action_node(ScriptAction { ..default() })
-    //         .add_action_node(ScriptAction { ..default() })
-    //         .build();
+        assert!(res.is_ok());
+        let mut sp = res.unwrap();
+        assert_eq!(sp.next_action().err(), Some(NextActionError::NoNextAction));
+    }
 
-    //     assert!(res.is_ok());
-    //     let mut sp = res.unwrap();
-    //     assert!(sp.next_action().is_ok());
-    // }
+    #[test]
+    fn next_action() {
+        let raw = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ScriptAction { ..default() },
+                ScriptAction { id: 2, ..default() },
+            ],
+        };
+        let res = ScreenplayBuilder::raw_build(&raw);
+
+        assert!(res.is_ok());
+        let mut sp = res.unwrap();
+        assert!(sp.next_action().is_ok());
+    }
 }
