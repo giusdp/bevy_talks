@@ -1,14 +1,16 @@
 {
-  "actors": {
-    "ferris": {
-      "name": "Ferris",
+  "actors": [
+    {
+      "actor_id": "ferris",
+      "character_name": "Ferris",
       "asset": "ferris.png"
     },
-    "bevy": {
-      "name": "Bevy",
+    {
+      "actor_id": "bevy",
+      "character_name": "Bevy",
       "asset": "bevy.png"
     }
-  },
+  ],
   "script": [
     {
       "id": 1,
