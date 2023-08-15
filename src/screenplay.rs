@@ -5,7 +5,7 @@ use bevy::utils::HashMap;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::prelude::{ActionId, ActionNode, Actor, NextActionError, ScreenplayBuilder};
+use crate::prelude::{ActionId, ActionKind, ActionNode, Actor, NextActionError, ScreenplayBuilder};
 
 /// A screenplay is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
@@ -37,6 +37,11 @@ impl Screenplay {
     /// Create a new [`ScreenplayBuilder`] with default values.
     pub fn builder() -> ScreenplayBuilder {
         ScreenplayBuilder::default()
+    }
+
+    /// Returns the kind of the current action.
+    pub fn action_kind(&self) -> ActionKind {
+        self.graph[self.current_node].kind.clone()
     }
 
     /// Move to the next action. Returns an error if the current action has no next action.
@@ -179,29 +184,25 @@ mod test {
     //     assert_eq!(play.text(), "I'm number 2");
     // }
 
-    // #[test]
-    // fn action_kind_actor() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![
-    //             ActorOrPlayerActionJSON::Actor(ActorAction {
-    //                 id: 1,
-    //                 start: Some(true),
-    //                 ..default()
-    //             }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction {
-    //                 id: 2,
-    //                 action: ActorActionKind::Enter,
-    //                 ..default()
-    //             }),
-    //         ],
-    //     };
+    #[test]
+    fn action_kind_returns_current_kind() {
+        let raw_sp = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ScriptAction { ..default() },
+                ScriptAction {
+                    id: 2,
+                    action: ActionKind::Enter,
+                    ..default()
+                },
+            ],
+        };
 
-    //     let mut play = build_screenplay(raw_sp).unwrap();
-    //     assert_eq!(play.action_kind(), ActionKind::ActorTalk);
-    //     play.next_action().unwrap();
-    //     assert_eq!(play.action_kind(), ActionKind::ActorEnter);
-    // }
+        let mut sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
+        assert_eq!(sp.action_kind(), ActionKind::Talk);
+        sp.next_action().unwrap();
+        assert_eq!(sp.action_kind(), ActionKind::Enter);
+    }
     // ______________------------------------____________________----------____---___---___-
 
     #[test]

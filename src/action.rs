@@ -78,7 +78,7 @@ pub struct Choice {
 /// This enumeration is used to define the different kinds of actions that can be performed in a
 /// screenplay. Each variant of the enumeration represents a different kind of action, such as
 /// talking, entering, exiting, or making a choice.
-#[derive(Debug, Default, Deserialize, Clone)]
+#[derive(Debug, Default, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum ActionKind {
     /// A talk action, where a character speaks dialogue.
