@@ -67,13 +67,24 @@ fn print(mut print_enabled: ResMut<PrintEnabled>, sp_query: Query<&Screenplay>) 
     }
 
     for sp in &sp_query {
-        let actors = sp.actors();
+        // extract actors names into a vector
+        let actors = sp
+            .actors()
+            .iter()
+            .map(|a| a.name.to_owned())
+            .collect::<Vec<String>>();
+
         let mut speaker = "Narrator";
         if actors.len() > 0 {
-            speaker = actors[0].name.as_str();
+            speaker = actors[0].as_str();
         }
 
-        println!("{}: {}", speaker, sp.text());
+        match sp.action_kind() {
+            ActionKind::Talk => println!("{}: {}", speaker, sp.text()),
+            ActionKind::Enter => println!("--- {actors:?} enters the scene."),
+            ActionKind::Exit => println!("--- {actors:?} exit the scene."),
+            ActionKind::Choice => todo!(),
+        };
         print_enabled.0 = false;
     }
 }
