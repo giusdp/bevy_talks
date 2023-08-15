@@ -74,29 +74,26 @@ fn build_raw(script: Value) -> Result<RawScreenplay, JsonError> {
 fn json_schema() -> Value {
     json!({
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Generated schema for Root",
+      "title": "Schema for bevy_talk jsons",
       "type": "object",
       "properties": {
         "actors": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "properties": {
-              "actor_id": {
-                "type": "string"
+          "type": "object",
+          "patternProperties": {
+            "^[A-Za-z0-9]$": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "asset": {
+                  "type": "string"
+                }
               },
-              "character_name": {
-                "type": "string"
-              },
-              "asset": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "actor_id",
-              "character_name",
-              "asset"
-            ]
+              "required": [
+                "name"
+              ]
+            }
           }
         },
         "script": {
@@ -146,7 +143,7 @@ fn json_schema() -> Value {
             },
             "required": [
               "id",
-              "action",
+              "action"
             ]
           }
         }
@@ -159,13 +156,13 @@ fn json_schema() -> Value {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use super::*;
 
     #[test]
     fn build_empty_raw_ok() {
         let j = json!({
-          "actors":[],
+          "actors":{},
           "script":[]
         });
 
@@ -181,13 +178,9 @@ mod test {
     fn build_raw_success() {
         let j = json!(
           {
-            "actors": [
-              {
-                "actor_id": "bob",
-                "character_name": "Bob",
-                "asset": "bob.png"
-              }
-            ],
+            "actors": {
+                "bob": { "name": "Bob", "asset": "bob.png"}
+              },
             "script": [
               {
                 "id": 1,
@@ -210,7 +203,7 @@ mod test {
     #[test]
     fn missing_required_fails_validate() {
         let j = json!({
-          "actors": [],
+          "actors": {},
           "script": [
             {
               "text": "Hello",
@@ -226,13 +219,9 @@ mod test {
     fn correct_json_passes_validate() {
         let j = json!(
           {
-            "actors": [
-              {
-                "actor_id": "bob",
-                "character_name": "Bob",
-                "asset": "bob.png"
-              }
-            ],
+            "actors": {
+              "bob": { "name": "Bob", "asset": "bob.png" }
+            },
             "script": [
               {
                 "id": 1,
