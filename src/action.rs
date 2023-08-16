@@ -38,6 +38,7 @@ pub(crate) struct ScriptAction {
     #[serde(default)]
     pub action: ActionKind,
     /// The actors involved in the action.
+    #[serde(default)]
     pub actors: Vec<String>,
     /// Any choices that the user can make during the action.
     pub choices: Option<Vec<Choice>>,
