@@ -8,34 +8,61 @@
 <!-- [![][img_downloads]][crates] -->
 
 
-This [Bevy][bevy] plugin provides an opinionated way to create dialogues and conversations in your game, or
-*screenplay* as we called it. 
+This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game, a *screenplay* as we called it. 
 A *screenplay* is a directed graph where each node is an *action* that can happen.
-An action is user-defined and can be anything, like a character entering the scene, a character saying something,
-a choice that the player can make, moving the conversation to another node, playing a sound, etc.
+An action is usually something that an *actor* can do, such as saying a line, entering/exiting the scene, or even a choice 
+the player can make, etc.
 
-You can imagine the most common action is text being displayed on the screen, and the most basic
-*screenplay* is a sequence of text being displayed on the screen, represented by a linear graph of actions.
+As the most most common action is text being displayed on the screen, the most basic
+*screenplay* is a sequence of texts forming a conversation between actors, which results in a linear graph of actions.
 
-Actions are composable via Bevy components. By default an action is just an entity with no components attached.
-This library provides a set of built-in components that you can use to create your own actions.
+A *screenplay* is a Bevy component that can be attached to an entity. This way you can have multiple entities 
+each with its own *screenplay*, so each entity has its own dialog. Or, you to make a VN-like game, you can 
+have one single screenplay in the game.
 
-### Built-in Action Components
+The heart of the screenplay is a directed graph where each node is an `ActionNode`:
 
-- `Talk`: a line of text that can be displayed on the screen. It only has a `text`. It can be useful to display
-  a line of text that is not spoken by any character. 
-- `SpeakerTalk`: a line of conversation that can be displayed on the screen. It has a `text` field and a `speaker` field.
-<!-- 
-It is inspiried by [Ren'Py][renpy] and its scripting system although it does not use a scripting language, instead 
-it uses json files. With a json file you can define the actors and the script of the conversation. In the script you can
-specify actions that your actors can do (like enter the scene, exit the scene, change their expression, etc.) and you 
-choices that the player can make. 
+```rust
+struct ActionNode {
+    /// The kind of action.
+    kind: ActionKind,
+    /// The text of the action.
+    text: Option<String>,
+    /// The actors involved in the action.
+    actors: Vec<Actor>,
+    /// The choices available after the action.
+    choices: Option<Vec<Choice>>,
+    /// The sound effect associated with the action.
+    sound_effect: Option<String>,
+}
+```
 
-The plugin will parse this json file and build a conversation graph. TODO -->
+This struct defines an action that can happen. 
+- `kind` field defines the kind of action (Talk, Enter, Exit, Choice). 
+- `text` field is the text that to display on the screen.
+- `actors` field is the list of actors involved in the action.
+- `choices` field is the list of choices available to present to the player.
+- `sound_effect` field is an extra field to specify a sound effect to play when the action is reached.
 
-### Usage
-TODO
-<!-- Here's an example of a conversation:
+The `Actor` struct is a simple struct that contains the name of the actor and the asset to display on the screen.
+
+```rust
+struct Actor {
+    /// The name of the character that the actor plays.
+    name: String,
+    /// An optional asset that represents the actor's appearance or voice.
+    asset: Option<String>,
+}
+```
+
+If an action has one or more actors defined, they can be accessed to get the names (and the assets) to be 
+displayed together with the text.
+
+### Build Screenplay from json
+
+The plugin can parse json files that create `RawScreenplay` assets, which can then be used to build a `Screenplay` component.
+
+Here's an example:
 
 ```json
 
@@ -45,7 +72,7 @@ TODO
         "alice": { "name": "Alice", "asset": "alice.png" }
     },
     "script": [
-        { "id": 1, "action": "talk", "actors": [] , "text": "Bob and Alice enter the room.", "start": true },
+        { "id": 1, "action": "talk", "text": "Bob and Alice enter the room." },
         { "id": 2, "action": "enter", "actors": [ "bob", "alice" ] },
         { "id": 3, "actors": ["bob"], "text": "Hello, Alice!" },
         {
@@ -55,14 +82,57 @@ TODO
                 { "text": "Alice ignores Bob.", "next": 6 },
             ]
         },
-        { "id": 5, "action": "talk", "actors": [], "text": "Bob smiles." },
-        { "id": 6, "action": "talk", "actors": [], "text": "Bob starts crying." },
-        { "id": 7, "action": "talk", "actors": [], "text": "The end." }
+        { "id": 5, "text": "Bob smiles." },
+        { "id": 6, "text": "Bob starts crying." },
+        { "id": 7, "text": "The end." }
     ]
 }
 ```
 
-A future work is to have a graphical editor to create these files, but for now we have to write them by hand. -->
+Note the last 3 actions have no `actors` nor `action` fields. This is because the `talk` action is the default action, so it can be omitted.
+And if there are no actors, the `actors` field can be omitted too.
+
+The plugin adds an `AssetLoader` for these json files, so it's as easy as: 
+
+```rust
+let handle: Handle<RawScreenplay> = server.load("simple.json");
+```
+
+Then you can use the `ScreenplayBuilder` to build a `Screenplay` component from the `RawScreenplay` asset. 
+You also need to pass the `RawScreenplay` assets collection `raws: Res<Assets<RawScreenplay>>`.
+
+```rust
+ScreenplayBuilder::new().with_raw_screenplay(handle.clone()).build(&raws)
+```
+
+Or if you have hold of the `RawScreenplay` directly, you can use `raw_build` directly:
+
+```rust
+ScreenplayBuilder::raw_build(&raw_screenplay);
+```
+
+### Usage
+
+Once you have a `Screenplay` component attached to an entity, you can use the usual queires to access it.
+The component offers a public API to interact with graph and the current action.
+
+- `next_action` moves the screenplay to the next action.
+- `actors` returns the list of actors involved in the current action.
+- `choices` returns the list of choices available in the current action.
+- `text` returns the text of the current action.
+- `action_kind` returns the kind of the current action.
+- `jump_to` jumps to a specific action by id (usually used to jump to the action pointed by a choice).
+
+You can check out the example in the `examples` folder to see how to use the plugin.
+
+- [simple.rs](examples/simple.rs) shows how to use the plugin to create a simple, linear conversation. 
+- [choices.rs](examples/choices.rs) shows how to use the plugin to create a conversation with choices.
+- [full.rs](examples/full.rs) shows a screenplay where all the action kinds are used.
+
+### Other Things
+
+A future work is to have a graphical editor to create these files, but for now we have to write them by hand.
+Any contributions are welcome!
 
 Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
@@ -83,8 +153,6 @@ at your option.
 Unless you explicitly state otherwise, any contribution intentionally submitted
 for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any
 additional terms or conditions.
-
-
 
 [bevy]: https://bevyengine.org/
 [renpy]: https://www.renpy.org/
