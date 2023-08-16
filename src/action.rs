@@ -1,6 +1,13 @@
 //! Screenplay action definitions.
 use serde::Deserialize;
 
+/// A unique identifier for an action in a screenplay.
+///
+/// This type alias is used to define a unique identifier for an action in a screenplay. Each action
+/// in the screenplay is assigned a unique ID, which is used to link the actions together in the
+/// screenplay graph.
+pub type ActionId = i32;
+
 /// An action node in a screenplay.
 #[derive(Debug, Default)]
 #[allow(dead_code)]
@@ -17,13 +24,6 @@ pub(crate) struct ActionNode {
     pub(crate) sound_effect: Option<String>,
 }
 
-/// A unique identifier for an action in a screenplay.
-///
-/// This type alias is used to define a unique identifier for an action in a screenplay. Each action
-/// in the screenplay is assigned a unique ID, which is used to link the actions together in the
-/// screenplay graph.
-pub(crate) type ActionId = i32;
-
 /// A struct that represents an action in a screenplay.
 ///
 /// This struct is used to define an action in a screenplay. It contains the ID of the action, the
@@ -31,7 +31,7 @@ pub(crate) type ActionId = i32;
 /// the action, the text of the action, the ID of the next action to perform, whether the action is
 /// the start of the screenplay, and any sound effect associated with the action.
 #[derive(Debug, Default, Deserialize, Clone)]
-pub struct ScriptAction {
+pub(crate) struct ScriptAction {
     /// The ID of the action.
     pub id: ActionId,
     /// The kind of action.
