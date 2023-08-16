@@ -8,6 +8,10 @@ pub enum NextActionError {
     /// where the current action has no next action.
     #[error("current action has no next")]
     NoNextAction,
+    /// Screenplay::next_action() was called on a screenplay
+    /// where the current action is a choice action.
+    #[error("cannot just move to next action as the current one is a choice action")]
+    ChoicesNotHandled,
 }
 
 /// Errors when parsing a screenplay json
@@ -21,7 +25,7 @@ pub enum JsonError {
     Validation(Vec<String>),
 }
 
-/// Errors when parsing a screenplay json
+/// Errors when building a screenplay
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ScreenplayError {
     /// An action has a non-existent actor

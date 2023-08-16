@@ -5,7 +5,9 @@ use bevy::utils::HashMap;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::prelude::{ActionId, ActionKind, ActionNode, Actor, NextActionError, ScreenplayBuilder};
+use crate::prelude::{
+    ActionId, ActionKind, ActionNode, Actor, Choice, NextActionError, ScreenplayBuilder,
+};
 
 /// A screenplay is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
@@ -46,16 +48,17 @@ impl Screenplay {
 
     /// Move to the next action. Returns an error if the current action has no next action.
     pub fn next_action(&mut self) -> Result<(), NextActionError> {
-        if self.graph.node_weight(self.current_node).is_some() {
-            // retrieve the next edge
-            let edge_ref = self
-                .graph
-                .edges(self.current_node)
-                .next()
-                .ok_or(NextActionError::NoNextAction)?;
-
-            self.current_node = edge_ref.target();
+        if self.graph[self.current_node].kind == ActionKind::Choice {
+            return Err(NextActionError::ChoicesNotHandled);
         }
+        // retrieve the next edge
+        let edge_ref = self
+            .graph
+            .edges(self.current_node)
+            .next()
+            .ok_or(NextActionError::NoNextAction)?;
+
+        self.current_node = edge_ref.target();
         Ok(())
     }
 
@@ -70,6 +73,15 @@ impl Screenplay {
     /// Returns the current action's actors. Returns an empty vector if the current action has no actors.
     pub fn actors(&self) -> Vec<Actor> {
         self.graph[self.current_node].actors.clone()
+    }
+
+    /// Returns an option containing the choices for the current action. Returns None if the action kind is not Choice.
+    pub fn choices(&self) -> Option<Vec<Choice>> {
+        let cnode = &self.graph[self.current_node];
+        if cnode.kind != ActionKind::Choice {
+            return None;
+        }
+        cnode.choices.clone()
     }
 }
 
@@ -86,53 +98,51 @@ mod test {
 
     // ______________------------------------____________________----------____---___---___-
 
-    // // 'choices' tests
-    // #[test]
-    // fn choices_no_choices_err() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-    //             id: 1,
-    //             start: Some(true),
-    //             ..default()
-    //         })],
-    //     };
+    // 'choices' tests
+    #[test]
+    fn choice_action_but_no_choices() {
+        let raw_sp = RawScreenplay {
+            actors: default(),
+            script: vec![ScriptAction {
+                action: ActionKind::Choice,
+                ..default()
+            }],
+        };
 
-    //     let play = build_screenplay(raw_sp).unwrap();
-    //     assert_eq!(play.choices().err(), Some(ChoicesError::NotAChoiceAction));
-    // }
+        let sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
+        assert!(sp.choices().is_none());
+    }
 
-    // #[test]
-    // fn choices() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![
-    //             ActorOrPlayerActionJSON::Player(PlayerAction {
-    //                 id: 1,
-    //                 choices: vec![
-    //                     Choice {
-    //                         text: "Choice 1".to_string(),
-    //                         next: 2,
-    //                     },
-    //                     Choice {
-    //                         text: "Choice 2".to_string(),
-    //                         next: 3,
-    //                     },
-    //                 ],
-    //                 start: Some(true),
-    //             }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction { id: 3, ..default() }),
-    //         ],
-    //     };
+    #[test]
+    fn choices() {
+        let raw_sp = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ScriptAction {
+                    choices: Some(vec![
+                        Choice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        Choice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ]),
+                    ..default()
+                },
+                ScriptAction { id: 2, ..default() },
+                ScriptAction { id: 3, ..default() },
+            ],
+        };
 
-    //     let play = build_screenplay(raw_sp).unwrap();
+        let sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
 
-    //     assert_eq!(play.choices().unwrap()[0].next, 2);
-    //     assert_eq!(play.choices().unwrap()[1].next, 3);
-    //     assert_eq!(play.choices().unwrap()[0].text, "Choice 1");
-    //     assert_eq!(play.choices().unwrap()[1].text, "Choice 2");
-    // }
+        assert_eq!(sp.choices().unwrap()[0].next, 2);
+        assert_eq!(sp.choices().unwrap()[0].text, "Choice 1");
+        assert_eq!(sp.choices().unwrap()[1].next, 3);
+        assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
+    }
 
     // // 'jump_to' tests
     // #[test]
@@ -183,6 +193,7 @@ mod test {
     //     assert!(play.jump_to(2).is_ok());
     //     assert_eq!(play.text(), "I'm number 2");
     // }
+    // ______________------------------------____________________----------____---___---___-
 
     #[test]
     fn action_kind_returns_current_kind() {
@@ -203,7 +214,6 @@ mod test {
         sp.next_action().unwrap();
         assert_eq!(sp.action_kind(), ActionKind::Enter);
     }
-    // ______________------------------------____________________----------____---___---___-
 
     #[test]
     fn actors_returns_array_of_current_actors() {
@@ -264,30 +274,29 @@ mod test {
         );
     }
 
-    // #[test]
-    // fn next_choices_not_handled_err() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![
-    //             ActorOrPlayerActionJSON::Player(PlayerAction {
-    //                 id: 1,
-    //                 choices: vec![Choice {
-    //                     text: "Whatup".to_string(),
-    //                     next: 2,
-    //                 }],
-    //                 start: Some(true),
-    //                 ..default()
-    //             }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction { id: 2, ..default() }),
-    //         ],
-    //     };
+    #[test]
+    fn next_action_choices_not_handled_err() {
+        let raw = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ScriptAction {
+                    choices: Some(vec![Choice {
+                        text: "Whatup".to_string(),
+                        next: 2,
+                    }]),
+                    ..default()
+                },
+                ScriptAction { id: 2, ..default() },
+            ],
+        };
 
-    //     let mut play = build_screenplay(raw_sp).unwrap();
-    //     assert_eq!(
-    //         play.next_action().err(),
-    //         Some(NextRequestError::ChoicesNotHandled)
-    //     );
-    // }
+        let sp = ScreenplayBuilder::raw_build(&raw);
+        assert!(sp.is_ok());
+        assert_eq!(
+            sp.unwrap().next_action().err(),
+            Some(NextActionError::ChoicesNotHandled)
+        );
+    }
 
     #[test]
     fn next_action_success() {
