@@ -12,6 +12,11 @@ pub enum NextActionError {
     /// where the current action is a choice action.
     #[error("cannot just move to next action as the current one is a choice action")]
     ChoicesNotHandled,
+
+    /// Screenplay::jump_to(id) was called on a screenplay
+    /// where an action with given id does not exist.
+    #[error("jumped to action {0}, but it does not exist")]
+    WrongJump(i32),
 }
 
 /// Errors when parsing a screenplay json

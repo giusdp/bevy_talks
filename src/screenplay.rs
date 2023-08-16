@@ -83,6 +83,29 @@ impl Screenplay {
         }
         cnode.choices.clone()
     }
+
+    /// Jumps to a specific action node in the screenplay.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the action node to jump to.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NextActionError::WrongJump` error if the specified ID is not found in the action node map.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the jump was successful.
+    pub fn jump_to(&mut self, id: i32) -> Result<(), NextActionError> {
+        let idx = self
+            .action_node_map
+            .get(&id)
+            .ok_or(NextActionError::WrongJump(id))?;
+
+        self.current_node = *idx;
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -96,9 +119,6 @@ mod test {
 
     use super::*;
 
-    // ______________------------------------____________________----------____---___---___-
-
-    // 'choices' tests
     #[test]
     fn choice_action_but_no_choices() {
         let raw_sp = RawScreenplay {
@@ -144,56 +164,49 @@ mod test {
         assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
     }
 
-    // // 'jump_to' tests
-    // #[test]
-    // fn jump_to_no_action_err() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![ActorOrPlayerActionJSON::Actor(ActorAction {
-    //             id: 1,
-    //             start: Some(true),
-    //             ..default()
-    //         })],
-    //     };
+    #[test]
+    fn jump_to_no_action_err() {
+        let raw_sp = RawScreenplay {
+            actors: default(),
+            script: vec![ScriptAction { ..default() }],
+        };
 
-    //     let mut play = build_screenplay(raw_sp).unwrap();
-    //     assert_eq!(play.jump_to(2).err(), Some(ChoicesError::WrongId(2)));
-    // }
+        let mut sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
+        assert_eq!(sp.jump_to(2).err(), Some(NextActionError::WrongJump(2)));
+    }
 
-    // #[test]
-    // fn jump_to() {
-    //     let raw_sp = RawScreenplay {
-    //         actors: default(),
-    //         script: vec![
-    //             ActorOrPlayerActionJSON::Player(PlayerAction {
-    //                 id: 1,
-    //                 choices: vec![
-    //                     Choice {
-    //                         text: "Choice 1".to_string(),
-    //                         next: 2,
-    //                     },
-    //                     Choice {
-    //                         text: "Choice 2".to_string(),
-    //                         next: 3,
-    //                     },
-    //                 ],
-    //                 start: Some(true),
-    //             }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction {
-    //                 id: 2,
-    //                 text: Some("I'm number 2".to_string()),
-    //                 next: Some(3),
-    //                 ..default()
-    //             }),
-    //             ActorOrPlayerActionJSON::Actor(ActorAction { id: 3, ..default() }),
-    //         ],
-    //     };
+    #[test]
+    fn jump_to() {
+        let raw_sp = RawScreenplay {
+            actors: default(),
+            script: vec![
+                ScriptAction {
+                    choices: Some(vec![
+                        Choice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        Choice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ]),
+                    ..default()
+                },
+                ScriptAction {
+                    id: 2,
+                    text: Some("I'm number 2".to_string()),
+                    next: Some(3),
+                    ..default()
+                },
+                ScriptAction { id: 3, ..default() },
+            ],
+        };
 
-    //     let mut play = build_screenplay(raw_sp).unwrap();
-    //     assert!(play.jump_to(2).is_ok());
-    //     assert_eq!(play.text(), "I'm number 2");
-    // }
-    // ______________------------------------____________________----------____---___---___-
+        let mut sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
+        assert!(sp.jump_to(2).is_ok());
+        assert_eq!(sp.text(), "I'm number 2");
+    }
 
     #[test]
     fn action_kind_returns_current_kind() {
