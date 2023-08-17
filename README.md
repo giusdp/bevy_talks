@@ -3,7 +3,7 @@
 [![][img_bevy]][bevycrate] 
 [![][img_license]][license] 
 [![][img_tracking]][tracking] 
-<!-- [![][img_version]][crates] -->
+[![][img_version]][crates]
 <!-- [![][img_doc]][doc]  -->
 <!-- [![][img_downloads]][crates] -->
 
