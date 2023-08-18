@@ -27,7 +27,7 @@ impl AssetLoader for ScreenplayLoader {
     }
 
     fn extensions(&self) -> &[&str] {
-        &["json"]
+        &["screenplay.json"]
     }
 }
 

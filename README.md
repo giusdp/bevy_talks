@@ -58,9 +58,10 @@ struct Actor {
 If an action has one or more actors defined, they can be accessed to get the names (and the assets) to be 
 displayed together with the text.
 
-### Build Screenplay from json
+### Build Screenplay from screenplay.json files
 
-The plugin can parse json files that create `RawScreenplay` assets, which can then be used to build a `Screenplay` component.
+The plugin can parse json files to create `RawScreenplay` assets, which can then be used to build a `Screenplay` component. 
+The files must have the extension: `screenplay.json`.
 
 Here's an example:
 
