@@ -40,29 +40,33 @@
     ),
     (
       id: 5,
-      text: Some("You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd. You follow their gaze, only a black, silent camera is there.")
+      text: Some("You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd.")
     ),
     (
       id: 6,
+      text: Some("You follow their gaze. Only a black, silent camera is there.")
+    ),
+    (
+      id: 7,
       actors: [ "ferris" ],
       text: Some("And what about you?")
     ),
     (
-      id: 100,
+      id: 8,
       text: Some("You quicky say that you love it, of course, as everyone else.")
     ),
     (
-      id: 7,
+      id: 9,
       text: Some("Everyone clapped.")
     ),
     (
-      id: 8,
+      id: 10,
       action: Exit,
       actors: [ "ferris", "bevy" ]
     ),
     (
-      id: 9,
-      text: Some("The end.")
+      id: 11,
+      text: Some("The END.")
     )
   ]
 )

@@ -35,7 +35,7 @@ fn main() {
 }
 
 fn load_talks(mut commands: Commands, server: Res<AssetServer>) {
-    let h: Handle<RawScreenplay> = server.load("full.screenplay.json");
+    let h: Handle<RawScreenplay> = server.load("full.screenplay.ron");
     commands.insert_resource(SimpleScreenplayAsset { handle: h });
 }
 

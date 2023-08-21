@@ -1,0 +1,82 @@
+(
+    actors: [ 
+      ( id: "ferris", name: "Ferris", asset: Some("ferris.png") ),
+      ( id: "bevy", name: "Bevy", asset: Some("bevy.png") ),
+    ],
+    script: [
+        (
+          id: 1,
+          text: Some("Here comes the two stars: Ferris and Bevy."),
+        ),
+        (
+          id: 90,
+          action: Enter,
+          actors: ["ferris"],
+        ),
+        (
+          id: 2,
+          actors: ["ferris"],
+          text: Some("Rust is awesome!!!"),
+        ),
+        (
+          id: 3,
+          text: Some("A joyful laughter from a nowhere to be seen audience."),
+        ),
+        (
+          id: 91,
+          action: Enter,
+          actors: ["bevy"],
+        ),
+        (
+          id: 4,
+          actors: ["bevy"],
+          text: Some("Right! I'm so happy to be here! Love you all!"),
+        ),
+        (
+          id: 5,
+          text: Some("You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd."),
+        ),
+        (
+          id: 6,
+          text: Some("You follow their gaze. Only a black, silent camera is there.")
+        ),
+        (
+          id: 7,
+          actors: ["ferris"],
+          text: Some("And what about you?"),
+        ),
+        (
+          id: 92,
+          choices: Some([
+            ( text: "I love it, of course, as everyone else.", next: 8 ),
+            ( text: "Nah.", next: 9 )
+          ])
+        ),
+        (
+            id: 8,
+            text: Some("Everyone clapped."),
+        ),
+        (
+            id: 100,
+            action: Exit,
+            actors: ["ferris", "bevy"],
+            next: Some(11),
+        ),
+        (
+            id: 9,
+            text: Some("The room goes silent. No more pre-recorded crowd. Tears start forming in Ferris' eyes. Bevy looks down, the smile disappeared."),
+        ),
+        (
+            id: 10,
+            text: Some("You hear a cracking sound. The few pieces of wood holding the fake walls start to break."),
+        ),
+        (
+            id: 11,
+            text: Some("With loud thumps the walls hit the ground, revealing a desolate land made of mist and loneliness. Devoid of colors, and life."),
+        ),
+        (
+            id: 12,
+            text: Some("The END."),
+        ),
+    ],
+)
