@@ -11,7 +11,7 @@ use crate::prelude::{
 
 /// A screenplay is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
-/// bevy entities with specific [`bevy_talks`] components.
+/// bevy entities with specific [`bevy_screenplay`] components.
 /// The Screenplay struct keeps track of the current action
 /// and provides functions to move to the next action.
 #[derive(Debug, Component, Default)]
