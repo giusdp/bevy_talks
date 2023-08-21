@@ -112,10 +112,7 @@ impl Screenplay {
 mod test {
     use bevy::prelude::default;
 
-    use crate::{
-        prelude::{Actor, RawScreenplay, ScriptAction},
-        tests::test_actors_map,
-    };
+    use crate::prelude::{Actor, RawScreenplay, ScriptAction};
 
     use super::*;
 
@@ -230,11 +227,18 @@ mod test {
 
     #[test]
     fn actors_returns_array_of_current_actors() {
-        let mut actor_map = test_actors_map("bob".to_owned());
-        actor_map.insert("alice".to_owned(), Actor::default());
-
+        let actors = vec![
+            Actor {
+                id: "bob".to_owned(),
+                ..default()
+            },
+            Actor {
+                id: "alice".to_owned(),
+                ..default()
+            },
+        ];
         let raw = RawScreenplay {
-            actors: actor_map,
+            actors,
             script: vec![ScriptAction {
                 actors: vec!["bob".to_string(), "alice".to_string()],
                 ..default()

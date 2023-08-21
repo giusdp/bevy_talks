@@ -8,6 +8,13 @@ use serde::Deserialize;
 /// screenplay graph.
 pub type ActionId = i32;
 
+/// A unique identifier for an actor in a screenplay.
+///
+/// An `ActorId` is a `String` that uniquely identifies an actor in a screenplay. It is used to
+/// associate actions with the actors that perform them.
+///
+pub type ActorId = String;
+
 /// An action node in a screenplay.
 #[derive(Debug, Default)]
 #[allow(dead_code)]
@@ -31,7 +38,7 @@ pub(crate) struct ActionNode {
 /// the action, the text of the action, the ID of the next action to perform, whether the action is
 /// the start of the screenplay, and any sound effect associated with the action.
 #[derive(Debug, Default, Deserialize, Clone)]
-pub(crate) struct ScriptAction {
+pub struct ScriptAction {
     /// The ID of the action.
     pub id: ActionId,
     /// The kind of action.
@@ -57,6 +64,8 @@ pub(crate) struct ScriptAction {
 /// appearance or voice.
 #[derive(Debug, Deserialize, Clone, Default)]
 pub struct Actor {
+    /// A string identifying uniquely the actor.
+    pub id: ActorId,
     /// The name of the character that the actor plays.
     pub name: String,
     /// An optional asset that represents the actor's appearance or voice.
