@@ -3,13 +3,13 @@
 use bevy::{
     prelude::{default, Assets, Handle},
     reflect::{Reflect, TypeUuid},
-    utils::HashMap,
+    utils::{HashMap, HashSet},
 };
-use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
+use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 use serde::Deserialize;
 
 use crate::prelude::{
-    ActionId, ActionKind, ActionNode, Actor, Screenplay, ScreenplayError, ScriptAction,
+    ActionId, ActionKind, ActionNode, Actor, ActorId, Screenplay, ScreenplayError, ScriptAction,
 };
 
 /// A struct that represents a raw screenplay (as from the json format).
@@ -20,9 +20,9 @@ use crate::prelude::{
 #[reflect_value]
 pub struct RawScreenplay {
     /// The list of actors that appear in the screenplay.
-    pub(crate) actors: HashMap<String, Actor>,
+    pub actors: Vec<Actor>,
     /// The list of actions that make up the screenplay.
-    pub(crate) script: Vec<ScriptAction>,
+    pub script: Vec<ScriptAction>,
 }
 
 /// The [`ScreenplayBuilder`] is used to construct a [`Screenplay`].
@@ -34,7 +34,7 @@ pub struct ScreenplayBuilder {
 }
 
 impl ScreenplayBuilder {
-    /// Create a new [`ScreenplayBuilder`] with default values.
+    /// Creates a new `ScreenplayBuilder` instance with default values.
     pub fn new() -> ScreenplayBuilder {
         // Set the minimally required fields of Foo.
         ScreenplayBuilder { ..default() }
@@ -66,7 +66,64 @@ impl ScreenplayBuilder {
         Ok(sp)
     }
 
-    /// Build the screenplay from the raw screenplay.
+    /// Builds a `Screenplay` instance from a `RawScreenplay` instance.
+    ///
+    /// This function performs two passes over the `RawScreenplay` instance: a validation pass and a graph build pass.
+    /// In the validation pass, it checks that there are no duplicate ids both in actors and actions,
+    /// that all the actors in the actions are present in the actors list,
+    /// and that all the `next` fields and `choice.next` fields in the actions point to existing actions.
+    /// In the graph build pass, it adds all the action nodes to a new `DiGraph`,
+    /// and then adds edges to the graph to connect the nodes according to the `next` and `choice.next` fields in the actions.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw` - A reference to a `RawScreenplay` instance to build a `Screenplay` from.
+    ///
+    /// # Returns
+    ///
+    /// A `Result` containing the `Screenplay` instance if the build was successful,
+    /// or a `ScreenplayError` if there was an error during validation or graph building.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_talks::prelude::{Actor, RawScreenplay, ScriptAction, Screenplay, ScreenplayBuilder};
+    ///
+    /// let raw = RawScreenplay {
+    ///     script: vec![
+    ///         ScriptAction {
+    ///             id: 1,
+    ///             text: Some("Action 1".to_string()),
+    ///             actors: vec!["actor1".to_string()],
+    ///             next: Some(2),
+    ///             ..Default::default()
+    ///         },
+    ///         ScriptAction {
+    ///             id: 2,
+    ///             text: Some("Action 2".to_string()),
+    ///             actors: vec!["actor2".to_string()],
+    ///             ..Default::default()
+    ///         },
+    ///     ],
+    ///     actors: vec![
+    ///         Actor {
+    ///             id: "actor1".to_string(),
+    ///             name: "Actor 1".to_string(),
+    ///             ..Default::default()
+    ///         },
+    ///         Actor {
+    ///             id: "actor2".to_string(),
+    ///             name: "Actor 2".to_string(),
+    ///             ..Default::default()
+    ///         },
+    ///     ],
+    /// };
+    ///
+    /// let result = ScreenplayBuilder::raw_build(&raw);
+    ///
+    /// assert!(result.is_ok());
+    /// ```
+    ///
     pub fn raw_build(raw: &RawScreenplay) -> Result<Screenplay, ScreenplayError> {
         if raw.script.is_empty() {
             return Ok(Screenplay { ..default() });
@@ -75,122 +132,157 @@ impl ScreenplayBuilder {
         let mut graph: DiGraph<ActionNode, ()> =
             DiGraph::with_capacity(raw.script.len(), raw.script.len());
 
-        // 1. Build auxiliary maps (I'm bad at naming maps)
+        // # Validation Pass
+        // Check that there are no duplicate ids both in actors and actions
+        check_duplicate_action_ids(&raw.script)?;
+        check_duplicate_actor_ids(&raw.actors)?;
 
-        // ActionId => next_id map, so we can fill the next when it's None
-        // (it means point to the next action) and throw duplicate id error
-        let tmp_action_next_map = action_next_map(&raw.script)?;
+        // Check that all the actors in the actions are present in the actors list
+        validate_actors_in_actions(&raw.script, &raw.actors)?;
 
-        // ActionId => (NodeIndex, Next, Choices) map so we can keep track of what we added in the graph.
-        let mut id_nexts_map = HashMap::with_capacity(raw.script.len());
+        // Check all the nexts and choice.next (they should point to existing actions)
+        validate_all_nexts(&raw.script)?;
 
-        // 2. Add all actions as nodes with some validation
-        for action in &raw.script {
-            let this_action_id = action.id;
+        // # Graph build Pass
+        // 1. Add all action nodes
+        let id_nodeidx_map = add_action_nodes(&mut graph, &raw.script, &raw.actors);
 
-            // Grab the nexts in the choices for later validation
-            let c_nexts = action
-                .choices
-                .clone()
-                .map(|cs| cs.iter().map(|c| c.next).collect::<Vec<ActionId>>());
-
-            // 2.a validate actors
-            valdidate_actors(action, &raw.actors)?;
-
-            // 2.b add the node to the graph
-            let actors = extract_actors(action, &raw.actors)?;
-            let node_idx = insert_action_node(&mut graph, action.clone(), actors);
-
-            // 2.c add (idx, next_id) as we build the graph
-            if id_nexts_map
-                .insert(
-                    this_action_id,
-                    StrippedAction {
-                        node_idx,
-                        next_action: tmp_action_next_map.get(&this_action_id).copied(),
-                        choices: c_nexts,
-                    },
-                )
-                .is_some()
-            {
-                return Err(ScreenplayError::DuplicateActionId(this_action_id));
-            };
-        }
-
-        // 3 Validate all the nexts (they should point to existing actions)
-        validate_nexts(&id_nexts_map)?;
-
-        // 4 Add edges to the graph
-        for (action_id, this_action) in &id_nexts_map {
-            connect_actions(&mut graph, this_action, &id_nexts_map, action_id)?;
-        }
-
-        // 5. We can drop the next/choices now and just keep action_id => NodeIndex
-        let action_node_map = id_nexts_map
-            .into_iter()
-            .map(|(id, stripped_act)| (id, stripped_act.node_idx))
-            .collect();
+        // 2. Add edges to the graph
+        connect_action_nodes(&mut graph, &raw.script, &id_nodeidx_map);
 
         Ok(Screenplay {
             graph,
             current_node: NodeIndex::new(0),
-            action_node_map,
+            action_node_map: id_nodeidx_map,
         })
     }
 }
 
-/// Validate that all the nexts point to existing actions
-fn validate_nexts(id_nexts_map: &HashMap<i32, StrippedAction>) -> Result<(), ScreenplayError> {
-    for (id, stripped_action) in id_nexts_map {
-        if let Some(next_id) = stripped_action.next_action {
-            if !id_nexts_map.contains_key(&next_id) {
-                return Err(ScreenplayError::InvalidNextAction(*id, next_id));
+/// Connects all the action nodes in the graph based on the `next`
+/// and `choices` fields of each `ScriptAction` instance. If both fields are None,
+/// the next action in the `actions` slice is connected (unless it's the last one).
+///
+/// # Arguments
+///
+/// * `graph` - A mutable reference to a `Graph` instance.
+/// * `actions` - A slice of `ScriptAction` instances to connect in the graph.
+/// * `id_nodeidx_map` - A `HashMap` that maps `ActionId` values to `NodeIndex` values in the graph.
+fn connect_action_nodes(
+    graph: &mut Graph<ActionNode, ()>,
+    actions: &[ScriptAction],
+    id_nodeidx_map: &HashMap<ActionId, NodeIndex>,
+) {
+    for (i, action) in actions.iter().enumerate() {
+        let current_node_idx = id_nodeidx_map.get(&action.id).unwrap();
+        if let Some(choices) = &action.choices {
+            for choice in choices {
+                let choice_node_idx = id_nodeidx_map.get(&choice.next).unwrap();
+                graph.add_edge(*current_node_idx, *choice_node_idx, ());
             }
-        } else if let Some(vc) = &stripped_action.choices {
-            for c in vc {
-                if !id_nexts_map.contains_key(c) {
-                    return Err(ScreenplayError::InvalidNextAction(*id, *c));
-                }
-            }
+        } else if let Some(next_id) = &action.next {
+            let next_node_idx = id_nodeidx_map.get(next_id).unwrap();
+            graph.add_edge(*current_node_idx, *next_node_idx, ());
+        } else if i < actions.len() - 1 {
+            let next_node_idx = id_nodeidx_map.get(&actions[i + 1].id).unwrap();
+            graph.add_edge(*current_node_idx, *next_node_idx, ());
         }
+    }
+}
+
+/// Adds all the action nodes to a graph.
+///
+/// # Arguments
+///
+/// * `graph` - A mutable reference to a `Graph` instance.
+/// * `actions` - A slice of `ScriptAction` instances.
+/// * `actors` - A slice of `Actor` instances.
+///
+/// # Returns
+///
+/// A `HashMap` that maps `ActionId` values to `NodeIndex` values in the graph.
+fn add_action_nodes(
+    graph: &mut Graph<ActionNode, ()>,
+    actions: &[ScriptAction],
+    actors: &[Actor],
+) -> HashMap<ActionId, NodeIndex> {
+    let mut id_nodeidx_map = HashMap::new();
+
+    for action in actions {
+        let action_actors = retrieve_actors(&action.actors, actors);
+        let mut node = ActionNode {
+            kind: action.action.clone(),
+            choices: action.choices.clone(),
+            text: action.text.clone(),
+            sound_effect: action.sound_effect.clone(),
+            actors: action_actors,
+        };
+        // If the action has choices, hardwire the kind to Choice
+        if node.choices.is_some() && node.kind != ActionKind::Choice {
+            node.kind = ActionKind::Choice;
+        }
+
+        let node_idx = graph.add_node(node);
+
+        id_nodeidx_map.insert(action.id, node_idx);
+    }
+
+    id_nodeidx_map
+}
+
+/// Retrieve the `Actor`s corresponding to the given actor IDs.
+///
+/// # Arguments
+///
+/// * `actor_ids` - A slice of actor IDs to retrieve.
+/// * `actors` - A slice of `Actor` instances to search for the given actor IDs.
+///
+/// # Returns
+///
+/// A vector of `Actor` instances corresponding to the given actor IDs.
+fn retrieve_actors(actor_ids: &[ActorId], actors: &[Actor]) -> Vec<Actor> {
+    actors
+        .iter()
+        .filter(|actor| actor_ids.contains(&actor.id))
+        .cloned()
+        .collect()
+}
+
+/// Validate that all the actors in the actions are present in the actors list.
+///
+/// # Arguments
+///
+/// * `actions` - A slice of `ScriptAction` structs to validate.
+/// * `actors` - A slice of `Actor` structs representing the available actors.
+///
+/// # Errors
+///
+/// Returns a `ScreenplayError::InvalidActor` error if any of the actors in any of the actions are not present in the actors list.
+fn validate_actors_in_actions(
+    actions: &[ScriptAction],
+    actors: &[Actor],
+) -> Result<(), ScreenplayError> {
+    for action in actions {
+        validate_actors_in_single_action(action, actors)?;
     }
     Ok(())
 }
 
-/// Build a map of `ActionId` => `next_id`
-fn action_next_map(
-    script: &Vec<ScriptAction>,
-) -> Result<HashMap<ActionId, ActionId>, ScreenplayError> {
-    let mut m: HashMap<ActionId, ActionId> = HashMap::with_capacity(script.len() - 1);
-
-    for (i, action) in script.iter().enumerate() {
-        match action.next {
-            Some(next_id) => {
-                if m.insert(action.id, next_id).is_some() {
-                    // if already present, then the id is repeated
-                    return Err(ScreenplayError::DuplicateActionId(action.id));
-                }
-            }
-            None => {
-                // if next not defined:
-                // either action with choices or action pointing to the one below it
-                // NOTE: we are not adding the last action (if next: None) as it can't have a next
-                if i + 1 < script.len() {
-                    m.insert(action.id, script[i + 1].id);
-                }
-            }
-        };
-    }
-    Ok(m)
-}
-
-/// Validate that all the actors in the action are present in the actors list
-fn valdidate_actors(
+/// Validate that all the actors in the action are present in the actors list.
+///
+/// # Arguments
+///
+/// * `action` - A reference to the `ScriptAction` to validate.
+/// * `actors` - A slice of `Actor` structs representing the available actors.
+///
+/// # Errors
+///
+/// Returns a `ScreenplayError::InvalidActor` error if any of the actors in the action are not present in the actors list.
+fn validate_actors_in_single_action(
     action: &ScriptAction,
-    actors_map: &HashMap<String, Actor>,
+    actors: &[Actor],
 ) -> Result<(), ScreenplayError> {
     for actor_key in action.actors.iter() {
-        if !actors_map.contains_key(actor_key) {
+        if !actors.iter().any(|a| a.id == *actor_key) {
             return Err(ScreenplayError::InvalidActor(
                 action.id,
                 actor_key.to_string(),
@@ -200,110 +292,74 @@ fn valdidate_actors(
     Ok(())
 }
 
-/// Connect the actions in the graph by adding edges based on the nexts and choices
-fn connect_actions(
-    graph: &mut petgraph::Graph<ActionNode, ()>,
-    this_action: &StrippedAction,
-    id_nexts_map: &bevy::utils::hashbrown::HashMap<i32, StrippedAction>,
-    action_id: &i32,
-) -> Result<(), ScreenplayError> {
-    // 4.a If choices are present, add an edge for each choice and skip the next field
-    if let Some(choices) = &this_action.choices {
-        for choice in choices {
-            let chosen_action = id_nexts_map
-                .get(choice)
-                .ok_or(ScreenplayError::InvalidNextAction(*action_id, *choice))?;
-
-            graph.add_edge(this_action.node_idx, chosen_action.node_idx, ());
+/// Check that there are no duplicate `id` values in the given `actions` vector.
+///
+/// # Arguments
+///
+/// * `actions` - A slice of `ScriptAction` structs to check for duplicate `id` values.
+///
+/// # Errors
+///
+/// Returns a `ScreenplayError::DuplicateActionId` error if any `id` value appears more than once in the `actions` vector.
+fn check_duplicate_action_ids(actions: &[ScriptAction]) -> Result<(), ScreenplayError> {
+    let mut seen_ids = HashSet::new();
+    for action in actions {
+        if !seen_ids.insert(action.id) {
+            return Err(ScreenplayError::DuplicateActionId(action.id));
         }
-    } else if let Some(next_id) = this_action.next_action {
-        // 4.b With the next field, add a single edge
-        let next_node_action = id_nexts_map
-            .get(&next_id)
-            .ok_or(ScreenplayError::InvalidNextAction(*action_id, next_id))?;
-        graph.add_edge(this_action.node_idx, next_node_action.node_idx, ());
     }
     Ok(())
 }
 
-/// Inserts an action node into a screenplay graph.
+/// Check that there are no duplicate `actor_id` values in the given `actors` vector.
 ///
 /// # Arguments
 ///
-/// * `graph` - The graph to insert the action node into.
-/// * `action` - The script action to create the action node from.
-/// * `actors` - The actors involved in the script action.
-///
-/// # Returns
-///
-/// Returns the index of the newly created action node in the graph.
-fn insert_action_node(
-    graph: &mut DiGraph<ActionNode, ()>,
-    action: ScriptAction,
-    actors: Vec<Actor>,
-) -> NodeIndex {
-    let mut node = ActionNode {
-        kind: action.action,
-        choices: action.choices,
-        text: action.text,
-        sound_effect: action.sound_effect,
-        actors,
-    };
-    if node.choices.is_some() {
-        node.kind = ActionKind::Choice;
-    }
-
-    graph.add_node(node)
-}
-
-/// Extracts the actors involved in a script action from an actors map.
-///
-/// # Arguments
-///
-/// * `action` - The script action to extract actors from.
-/// * `actors_map` - The map of actors to retrieve from.
+/// * `actors` - A slice of `Actor` structs to check for duplicate `actor_id` values.
 ///
 /// # Errors
 ///
-/// Returns a `ScreenplayError::InvalidActor` error if an actor is not found in the actors map.
-///
-/// # Returns
-///
-/// Returns a vector of actors involved in the script action.
-fn extract_actors(
-    action: &ScriptAction,
-    actors_map: &HashMap<String, Actor>,
-) -> Result<Vec<Actor>, ScreenplayError> {
-    // Retrieve the actors from the actors map. In case one is not found, return an error.
-    let mut actors = Vec::with_capacity(1);
-    for actor_key in action.actors.iter() {
-        let retrieved_actor = actors_map
-            .get(actor_key)
-            .ok_or_else(|| ScreenplayError::InvalidActor(action.id, actor_key.to_string()))?
-            .to_owned();
-        actors.push(retrieved_actor);
+/// Returns a `ScreenplayError::DuplicateActorId` error if any `actor_id` value appears more than once in the `actors` vector.
+fn check_duplicate_actor_ids(actors: &[Actor]) -> Result<(), ScreenplayError> {
+    let mut seen_ids = HashSet::new();
+    for actor in actors {
+        if !seen_ids.insert(&actor.id) {
+            return Err(ScreenplayError::DuplicateActorId(actor.id.clone()));
+        }
     }
-    Ok(actors)
+    Ok(())
 }
-
-/// A minimal representation of a node for validation purposes
-#[derive(Debug)]
-struct StrippedAction {
-    /// The index of the node in the graph
-    node_idx: NodeIndex,
-    /// The next action id
-    next_action: Option<ActionId>,
-    /// The nexts in the choices
-    choices: Option<Vec<ActionId>>,
+/// Check if all `next` fields and `Choice` `next` fields in a `Vec<ScriptAction>` point to real actions.
+///
+/// # Arguments
+///
+/// * `actions` - A slice of `ScriptAction` structs representing the available actions.
+///
+/// # Errors
+///
+/// Returns a `ScreenplayError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `ScriptAction`s do not point to real actions.
+fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), ScreenplayError> {
+    let id_set = actions.iter().map(|a| a.id).collect::<HashSet<ActionId>>();
+    for action in actions {
+        if let Some(choices) = &action.choices {
+            for choice in choices {
+                if !id_set.contains(&choice.next) {
+                    return Err(ScreenplayError::InvalidNextAction(action.id, choice.next));
+                }
+            }
+        } else if let Some(next_id) = &action.next {
+            if !id_set.contains(next_id) {
+                return Err(ScreenplayError::InvalidNextAction(action.id, *next_id));
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        prelude::Choice,
-        tests::{minimal_app, test_actors_map},
-    };
+    use crate::{prelude::Choice, tests::minimal_app};
     use bevy::prelude::default;
 
     #[test]
@@ -459,8 +515,16 @@ mod tests {
 
     #[test]
     fn new_with_actors() {
-        let mut actors = test_actors_map("bob".to_owned());
-        actors.insert("alice".to_owned(), Actor::default());
+        let actors = vec![
+            Actor {
+                id: "bob".to_owned(),
+                ..default()
+            },
+            Actor {
+                id: "alice".to_owned(),
+                ..default()
+            },
+        ];
         let mut app = minimal_app();
         let mut assets = app
             .world
@@ -519,9 +583,12 @@ mod tests {
 
     #[test]
     fn build_from_raw_invalid_actor_mismath() {
-        let actor_map = test_actors_map("bob".to_owned());
+        let actor_vec = vec![Actor {
+            id: "bob".to_string(),
+            ..default()
+        }];
         let raw_sp = RawScreenplay {
-            actors: actor_map,
+            actors: actor_vec,
             script: vec![ScriptAction {
                 actors: vec!["alice".to_string()],
                 ..default()
