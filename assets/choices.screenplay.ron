@@ -1,0 +1,29 @@
+(
+  actors: [],
+  script: [
+    (
+      id: 1,
+      text: Some("What's 2+2?")
+    ),
+    (
+      id: 92,
+      choices: Some([
+        ( text: "4.", next: 96 ),
+        ( text: "Idk.", next: 420)
+      ])
+    ),
+    (
+      id: 96,
+      text: Some("Bravo."),
+      next: Some(999)
+    ),
+    (
+      id: 420,
+      text: Some("You high or something?")
+    ),
+    (
+      id: 999,
+      text: Some("The END.")
+    )
+  ]
+)
