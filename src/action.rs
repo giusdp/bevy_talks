@@ -89,7 +89,6 @@ pub struct Choice {
 /// screenplay. Each variant of the enumeration represents a different kind of action, such as
 /// talking, entering, exiting, or making a choice.
 #[derive(Debug, Default, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "snake_case")]
 pub enum ActionKind {
     /// A talk action, where a character speaks dialogue.
     #[default]
