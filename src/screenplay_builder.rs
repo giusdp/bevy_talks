@@ -129,9 +129,6 @@ impl ScreenplayBuilder {
             return Ok(Screenplay { ..default() });
         }
 
-        let mut graph: DiGraph<ActionNode, ()> =
-            DiGraph::with_capacity(raw.script.len(), raw.script.len());
-
         // # Validation Pass
         // Check that there are no duplicate ids both in actors and actions
         check_duplicate_action_ids(&raw.script)?;
@@ -144,6 +141,9 @@ impl ScreenplayBuilder {
         validate_all_nexts(&raw.script)?;
 
         // # Graph build Pass
+        let mut graph: DiGraph<ActionNode, ()> =
+            DiGraph::with_capacity(raw.script.len(), raw.script.len());
+
         // 1. Add all action nodes
         let id_nodeidx_map = add_action_nodes(&mut graph, &raw.script, &raw.actors);
 
