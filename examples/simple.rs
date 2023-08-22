@@ -55,10 +55,8 @@ fn setup_screenplay(
     raws: Res<Assets<RawScreenplay>>,
     simple_sp_asset: Res<SimpleScreenplayAsset>,
 ) {
-    let screenplay = ScreenplayBuilder::new()
-        .with_raw_screenplay(simple_sp_asset.handle.clone())
-        .build(&raws)
-        .unwrap();
+    let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
+    let screenplay = ScreenplayBuilder::new().build(&raw_sp).unwrap();
     commands.spawn(screenplay);
 
     println!("Press space to advance the conversation.");

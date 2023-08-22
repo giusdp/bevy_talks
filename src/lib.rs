@@ -30,12 +30,10 @@ impl Plugin for TalksPlugin {
         app.init_resource::<ActiveScreenplay>()
             .init_asset_loader::<ScreenplayLoader>()
             .add_asset::<RawScreenplay>()
-            .add_event::<ScreenplayNextActionRequest>()
             .add_systems(Update, next_action_request_handler);
     }
 }
 
-/// TODO: refactor in multiple systems (one system return Result, other system handles it)
 fn next_action_request_handler(
     mut next_requests: EventReader<ScreenplayNextActionRequest>,
     mut sp_comps: Query<(Entity, &mut Screenplay)>,
@@ -90,7 +88,7 @@ mod tests {
             ],
         };
 
-        let sp = ScreenplayBuilder::raw_build(&raw_sp);
+        let sp = ScreenplayBuilder::new().build(&raw_sp);
         assert!(sp.is_ok());
 
         let e = app.world.spawn(sp.unwrap()).id();

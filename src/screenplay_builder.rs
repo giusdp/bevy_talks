@@ -1,7 +1,7 @@
 //! The main module of the crate. It contains the Screenplay struct and its
 //! builder.
 use bevy::{
-    prelude::{default, Assets, Handle},
+    prelude::default,
     reflect::{Reflect, TypeUuid},
     utils::{HashMap, HashSet},
 };
@@ -15,7 +15,7 @@ use crate::prelude::{
 /// A struct that represents a raw screenplay (as from the json format).
 ///
 /// It contains a list of actors that appear in the screenplay, and a list of actions that make up the screenplay.
-#[derive(Debug, Deserialize, Clone, Reflect, TypeUuid)]
+#[derive(Debug, Deserialize, Default, Clone, Reflect, TypeUuid)]
 #[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
 #[reflect_value]
 pub struct RawScreenplay {
@@ -28,42 +28,12 @@ pub struct RawScreenplay {
 /// The [`ScreenplayBuilder`] is used to construct a [`Screenplay`].
 /// A [`RawScreenplay`] can be used to build the Screenplay component.
 #[derive(Default)]
-pub struct ScreenplayBuilder {
-    /// The RawScreenplay to be used to build the screenplay.
-    raw_sp: Option<Handle<RawScreenplay>>,
-}
+pub struct ScreenplayBuilder;
 
 impl ScreenplayBuilder {
     /// Creates a new `ScreenplayBuilder` instance with default values.
     pub fn new() -> ScreenplayBuilder {
-        // Set the minimally required fields of Foo.
-        ScreenplayBuilder { ..default() }
-    }
-
-    /// Set the [`RawScreenplay`] to be used to build the screenplay.
-    /// If there are other action nodes defined, they will be appended at the end.
-    pub fn with_raw_screenplay(mut self, sp: Handle<RawScreenplay>) -> ScreenplayBuilder {
-        self.raw_sp = Some(sp);
-        self
-    }
-
-    /// Build the screenplay.
-    pub fn build(
-        self,
-        raw_sp_assets: &Assets<RawScreenplay>,
-    ) -> Result<Screenplay, ScreenplayError> {
-        let mut sp = Screenplay::default();
-
-        // 1. Build from raw if present
-        if let Some(raw_handle) = self.raw_sp {
-            let raw = raw_sp_assets
-                .get(&raw_handle)
-                .ok_or(ScreenplayError::RawScreenplayNotLoaded)?;
-
-            sp = Self::raw_build(raw)?;
-        }
-
-        Ok(sp)
+        ScreenplayBuilder
     }
 
     /// Builds a `Screenplay` instance from a `RawScreenplay` instance.
@@ -124,7 +94,7 @@ impl ScreenplayBuilder {
     /// assert!(result.is_ok());
     /// ```
     ///
-    pub fn raw_build(raw: &RawScreenplay) -> Result<Screenplay, ScreenplayError> {
+    pub fn build(self, raw: &RawScreenplay) -> Result<Screenplay, ScreenplayError> {
         if raw.script.is_empty() {
             return Ok(Screenplay { ..default() });
         }
@@ -364,10 +334,7 @@ mod tests {
 
     #[test]
     fn build_empty_screenplay() {
-        let app = minimal_app();
-        let assets = app.world.get_resource::<Assets<RawScreenplay>>().unwrap();
-
-        let res = ScreenplayBuilder::new().build(assets);
+        let res = ScreenplayBuilder::new().build(&RawScreenplay::default());
         assert!(res.is_ok());
         let sp = res.unwrap();
         assert_eq!(sp.graph.node_count(), 0);
@@ -376,23 +343,12 @@ mod tests {
 
     #[test]
     fn simple_build() {
-        let mut app = minimal_app();
-        let mut assets = app
-            .world
-            .get_resource_mut::<Assets<RawScreenplay>>()
-            .unwrap();
-
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![ScriptAction { ..default() }],
         };
 
-        let raw_handle = assets.add(raw_sp);
-
-        let res = ScreenplayBuilder::new()
-            .with_raw_screenplay(raw_handle)
-            .build(&assets);
-
+        let res = ScreenplayBuilder::new().build(&raw_sp);
         assert!(res.is_ok());
 
         let sp = res.unwrap();
@@ -404,12 +360,6 @@ mod tests {
 
     #[test]
     fn new_with_self_loop() {
-        let mut app = minimal_app();
-        let mut assets = app
-            .world
-            .get_resource_mut::<Assets<RawScreenplay>>()
-            .unwrap();
-
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![ScriptAction {
@@ -419,11 +369,7 @@ mod tests {
             }],
         };
 
-        let raw_handle = assets.add(raw_sp);
-
-        let res = ScreenplayBuilder::new()
-            .with_raw_screenplay(raw_handle)
-            .build(&assets);
+        let res = ScreenplayBuilder::new().build(&raw_sp);
 
         assert!(res.is_ok());
         let sp = res.unwrap();
@@ -435,12 +381,6 @@ mod tests {
 
     #[test]
     fn new_with_two_actor_action_nodes() {
-        let mut app = minimal_app();
-        let mut assets = app
-            .world
-            .get_resource_mut::<Assets<RawScreenplay>>()
-            .unwrap();
-
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![
@@ -453,11 +393,7 @@ mod tests {
             ],
         };
 
-        let raw_handle = assets.add(raw_sp);
-
-        let res = ScreenplayBuilder::new()
-            .with_raw_screenplay(raw_handle)
-            .build(&assets);
+        let res = ScreenplayBuilder::new().build(&raw_sp);
 
         assert!(res.is_ok());
         let sp = res.unwrap();
@@ -468,12 +404,6 @@ mod tests {
 
     #[test]
     fn new_with_branching() {
-        let mut app = minimal_app();
-        let mut assets = app
-            .world
-            .get_resource_mut::<Assets<RawScreenplay>>()
-            .unwrap();
-
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![
@@ -499,12 +429,7 @@ mod tests {
             ],
         };
 
-        let raw_handle = assets.add(raw_sp);
-
-        let res = ScreenplayBuilder::new()
-            .with_raw_screenplay(raw_handle)
-            .build(&assets);
-
+        let res = ScreenplayBuilder::new().build(&raw_sp);
         assert!(res.is_ok());
         let sp = res.unwrap();
 
@@ -525,13 +450,8 @@ mod tests {
                 ..default()
             },
         ];
-        let mut app = minimal_app();
-        let mut assets = app
-            .world
-            .get_resource_mut::<Assets<RawScreenplay>>()
-            .unwrap();
         let raw_sp = RawScreenplay {
-            actors: actors,
+            actors,
             script: vec![
                 ScriptAction {
                     id: 1,
@@ -549,11 +469,7 @@ mod tests {
             ],
         };
 
-        let raw_handle = assets.add(raw_sp);
-
-        let res = ScreenplayBuilder::new()
-            .with_raw_screenplay(raw_handle)
-            .build(&assets);
+        let res = ScreenplayBuilder::new().build(&raw_sp);
 
         assert!(res.is_ok());
         let sp = res.unwrap();
@@ -564,7 +480,7 @@ mod tests {
     }
 
     #[test]
-    fn build_from_raw_invalid_actor() {
+    fn build_missing_actor() {
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![ScriptAction {
@@ -573,7 +489,7 @@ mod tests {
             }],
         };
 
-        let res = ScreenplayBuilder::raw_build(&raw_sp).err();
+        let res = ScreenplayBuilder::new().build(&raw_sp).err();
 
         assert_eq!(
             res,
@@ -582,7 +498,7 @@ mod tests {
     }
 
     #[test]
-    fn build_from_raw_invalid_actor_mismath() {
+    fn build_actor_mismath() {
         let actor_vec = vec![Actor {
             id: "bob".to_string(),
             ..default()
@@ -594,7 +510,7 @@ mod tests {
                 ..default()
             }],
         };
-        let res = ScreenplayBuilder::raw_build(&raw_sp).err();
+        let res = ScreenplayBuilder::new().build(&raw_sp).err();
         assert_eq!(
             res,
             Some(ScreenplayError::InvalidActor(0, String::from("alice")))
@@ -602,7 +518,7 @@ mod tests {
     }
 
     #[test]
-    fn build_from_raw_with_invalid_next_action() {
+    fn build_with_invalid_next_action() {
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![ScriptAction {
@@ -610,12 +526,12 @@ mod tests {
                 ..default()
             }],
         };
-        let res = ScreenplayBuilder::raw_build(&raw_sp).err();
+        let res = ScreenplayBuilder::new().build(&raw_sp).err();
         assert_eq!(res, Some(ScreenplayError::InvalidNextAction(0, 2)));
     }
 
     #[test]
-    fn next_not_found_in_choice_err() {
+    fn build_not_found_in_choice() {
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![ScriptAction {
@@ -626,12 +542,12 @@ mod tests {
                 ..default()
             }],
         };
-        let res = ScreenplayBuilder::raw_build(&raw_sp).err();
+        let res = ScreenplayBuilder::new().build(&raw_sp).err();
         assert_eq!(res, Some(ScreenplayError::InvalidNextAction(0, 2)));
     }
 
     #[test]
-    fn build_from_raw_duplicate_id() {
+    fn build_duplicate_id() {
         let raw_sp = RawScreenplay {
             actors: default(),
             script: vec![
@@ -639,18 +555,7 @@ mod tests {
                 ScriptAction { id: 1, ..default() },
             ],
         };
-        let res = ScreenplayBuilder::raw_build(&raw_sp).err();
+        let res = ScreenplayBuilder::new().build(&raw_sp).err();
         assert_eq!(res, Some(ScreenplayError::DuplicateActionId(1)));
-    }
-
-    #[test]
-    fn build_from_raw_with_empty_ok() {
-        let raw = RawScreenplay {
-            actors: default(),
-            script: default(),
-        };
-
-        let sp = ScreenplayBuilder::raw_build(&raw);
-        assert!(sp.is_ok())
     }
 }
