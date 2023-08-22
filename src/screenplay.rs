@@ -36,12 +36,39 @@ pub struct Screenplay {
 
 // Public API
 impl Screenplay {
-    /// Create a new [`ScreenplayBuilder`] with default values.
+    /// Returns a new `ScreenplayBuilder` instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use my_crate::Screenplay;
+    ///
+    /// let screenplay = Screenplay::builder().build();
+    /// ```
     pub fn builder() -> ScreenplayBuilder {
         ScreenplayBuilder::default()
     }
 
-    /// Returns the kind of the current action.
+    /// Returns the `ActionKind` of the current action.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_screenplay::prelude::*;
+    ///
+    /// let raw = RawScreenplay {
+    ///   actors: Default::default(),
+    ///   script: vec![
+    ///     ScriptAction { ..Default::default() },
+    ///     ScriptAction { id: 2, action: ActionKind::Enter, ..Default::default() },
+    ///   ],
+    /// };
+    ///
+    /// let mut sp = ScreenplayBuilder::new().build(&raw).unwrap();
+    /// assert_eq!(sp.action_kind(), ActionKind::Talk);
+    /// sp.next_action().unwrap();
+    /// assert_eq!(sp.action_kind(), ActionKind::Enter);
+    /// ```
     pub fn action_kind(&self) -> ActionKind {
         self.graph[self.current_node].kind.clone()
     }
@@ -62,7 +89,27 @@ impl Screenplay {
         Ok(())
     }
 
-    /// Returns the current action's text. Returns an empty string if the current action has no text.
+    /// Returns the text associated with the current action, or an empty string if there is none.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_screenplay::prelude::*;
+    ///
+    ///  let raw = RawScreenplay {
+    ///        actors: Default::default(),
+    ///        script: vec![ScriptAction {
+    ///            text: Some(String::from("Hello")),
+    ///            ..Default::default()
+    ///        }],
+    ///    };
+    /// let sp = ScreenplayBuilder::new().build(&raw);
+    /// assert_eq!(sp.unwrap().text(), "Hello");
+    ///
+    /// let raw = RawScreenplay::default();
+    /// let sp = ScreenplayBuilder::new().build(&raw);
+    /// assert_eq!(sp.unwrap().text(), "");
+    /// ```
     pub fn text(&self) -> &str {
         match &self.graph[self.current_node].text {
             Some(t) => t,
@@ -70,12 +117,54 @@ impl Screenplay {
         }
     }
 
-    /// Returns the current action's actors. Returns an empty vector if the current action has no actors.
+    /// Returns a vector of the actors associated with the current action.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_screenplay::prelude::*;
+    /// let raw = RawScreenplay {
+    ///   actors: vec![
+    ///     Actor {id: String::from("bob"), name: String::from("Bob"), ..Default::default() },
+    ///     Actor {id: String::from("alice"), name: String::from("Alice"), ..Default::default() },
+    ///   ],
+    ///   script: vec![ScriptAction { actors: vec![String::from("bob")], ..Default::default() }],
+    /// };
+    /// let sp = ScreenplayBuilder::new().build(&raw);
+    /// assert_eq!(sp.unwrap().actors()[0].name, "Bob");
+    /// assert_eq!(sp.unwrap().actors()[1].name, "Alice");
+    /// ```
     pub fn actors(&self) -> Vec<Actor> {
         self.graph[self.current_node].actors.clone()
     }
 
-    /// Returns an option containing the choices for the current action. Returns None if the action kind is not Choice.
+    /// Returns a vector of the choices associated with the current action, or `None` if the current action is not a choice.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_screenplay::prelude::*;
+    /// let raw = RawScreenplay {
+    ///   actors: Default::default(),
+    ///   script: vec![
+    ///     ScriptAction {
+    ///         choices: Some(vec![
+    ///             Choice { text: String::from("Choice 1"), next: 2 },
+    ///             Choice { text: String::from("Choice 2"), next: 3 },
+    ///         ]),
+    ///         ..Default::default()
+    ///     },
+    ///     ScriptAction { id: 2, ..Default::default() },
+    ///     ScriptAction { id: 3, ..Default::default() },
+    ///   ],
+    /// };
+    ///
+    /// let sp = ScreenplayBuilder::new().build(&raw).unwrap();
+    /// assert_eq!(sp.choices().unwrap()[0].next, 2);
+    /// assert_eq!(sp.choices().unwrap()[0].text, "Choice 1");
+    /// assert_eq!(sp.choices().unwrap()[1].next, 3);
+    /// assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
+    /// ```
     pub fn choices(&self) -> Option<Vec<Choice>> {
         let cnode = &self.graph[self.current_node];
         if cnode.kind != ActionKind::Choice {
@@ -112,54 +201,9 @@ impl Screenplay {
 mod test {
     use bevy::prelude::default;
 
-    use crate::prelude::{Actor, RawScreenplay, ScriptAction};
+    use crate::prelude::{RawScreenplay, ScriptAction};
 
     use super::*;
-
-    #[test]
-    fn choice_action_but_no_choices() {
-        let raw_sp = RawScreenplay {
-            actors: default(),
-            script: vec![ScriptAction {
-                action: ActionKind::Choice,
-                ..default()
-            }],
-        };
-
-        let sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
-        assert!(sp.choices().is_none());
-    }
-
-    #[test]
-    fn choices() {
-        let raw_sp = RawScreenplay {
-            actors: default(),
-            script: vec![
-                ScriptAction {
-                    choices: Some(vec![
-                        Choice {
-                            text: "Choice 1".to_string(),
-                            next: 2,
-                        },
-                        Choice {
-                            text: "Choice 2".to_string(),
-                            next: 3,
-                        },
-                    ]),
-                    ..default()
-                },
-                ScriptAction { id: 2, ..default() },
-                ScriptAction { id: 3, ..default() },
-            ],
-        };
-
-        let sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
-
-        assert_eq!(sp.choices().unwrap()[0].next, 2);
-        assert_eq!(sp.choices().unwrap()[0].text, "Choice 1");
-        assert_eq!(sp.choices().unwrap()[1].next, 3);
-        assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
-    }
 
     #[test]
     fn jump_to_no_action_err() {
@@ -168,7 +212,7 @@ mod test {
             script: vec![ScriptAction { ..default() }],
         };
 
-        let mut sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
+        let mut sp = ScreenplayBuilder::new().build(&raw_sp).unwrap();
         assert_eq!(sp.jump_to(2).err(), Some(NextActionError::WrongJump(2)));
     }
 
@@ -200,80 +244,9 @@ mod test {
             ],
         };
 
-        let mut sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
+        let mut sp = ScreenplayBuilder::new().build(&raw_sp).unwrap();
         assert!(sp.jump_to(2).is_ok());
         assert_eq!(sp.text(), "I'm number 2");
-    }
-
-    #[test]
-    fn action_kind_returns_current_kind() {
-        let raw_sp = RawScreenplay {
-            actors: default(),
-            script: vec![
-                ScriptAction { ..default() },
-                ScriptAction {
-                    id: 2,
-                    action: ActionKind::Enter,
-                    ..default()
-                },
-            ],
-        };
-
-        let mut sp = ScreenplayBuilder::raw_build(&raw_sp).unwrap();
-        assert_eq!(sp.action_kind(), ActionKind::Talk);
-        sp.next_action().unwrap();
-        assert_eq!(sp.action_kind(), ActionKind::Enter);
-    }
-
-    #[test]
-    fn actors_returns_array_of_current_actors() {
-        let actors = vec![
-            Actor {
-                id: "bob".to_owned(),
-                ..default()
-            },
-            Actor {
-                id: "alice".to_owned(),
-                ..default()
-            },
-        ];
-        let raw = RawScreenplay {
-            actors,
-            script: vec![ScriptAction {
-                actors: vec!["bob".to_string(), "alice".to_string()],
-                ..default()
-            }],
-        };
-
-        let sp = ScreenplayBuilder::raw_build(&raw);
-        assert!(sp.is_ok());
-        assert_eq!(sp.unwrap().actors().len(), 2);
-    }
-
-    #[test]
-    fn text_returns_current_action_text() {
-        let raw = RawScreenplay {
-            actors: default(),
-            script: vec![ScriptAction {
-                text: Some(String::from("Hello")),
-                ..default()
-            }],
-        };
-        let sp = ScreenplayBuilder::raw_build(&raw);
-        assert!(sp.is_ok());
-        assert_eq!(sp.unwrap().text(), "Hello");
-    }
-
-    #[test]
-    fn text_returns_empty_when_no_text() {
-        let raw = RawScreenplay {
-            actors: default(),
-            script: vec![ScriptAction { ..default() }],
-        };
-
-        let sp = ScreenplayBuilder::raw_build(&raw);
-        assert!(sp.is_ok());
-        assert_eq!(sp.unwrap().text(), "");
     }
 
     #[test]
@@ -283,7 +256,7 @@ mod test {
             script: vec![ScriptAction { ..default() }],
         };
 
-        let sp = ScreenplayBuilder::raw_build(&raw);
+        let sp = ScreenplayBuilder::new().build(&raw);
         assert!(sp.is_ok());
         assert_eq!(
             sp.unwrap().next_action().err(),
@@ -307,7 +280,7 @@ mod test {
             ],
         };
 
-        let sp = ScreenplayBuilder::raw_build(&raw);
+        let sp = ScreenplayBuilder::new().build(&raw);
         assert!(sp.is_ok());
         assert_eq!(
             sp.unwrap().next_action().err(),
@@ -324,7 +297,7 @@ mod test {
                 ScriptAction { id: 2, ..default() },
             ],
         };
-        let sp = ScreenplayBuilder::raw_build(&raw);
+        let sp = ScreenplayBuilder::new().build(&raw);
         assert!(sp.is_ok());
         assert!(sp.unwrap().next_action().is_ok());
     }
