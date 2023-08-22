@@ -58,45 +58,41 @@ struct Actor {
 If an action has one or more actors defined, they can be accessed to get the names (and the assets) to be 
 displayed together with the text.
 
-### Build Screenplay from screenplay.json files
+### Build Screenplay from screenplay.ron files
 
-The plugin can parse json files to create `RawScreenplay` assets, which can then be used to build a `Screenplay` component. 
-The files must have the extension: `screenplay.json`.
+The plugin can parse ron files to create `RawScreenplay` assets, which can then be used to build a `Screenplay` component. 
+The files must have the extension: `screenplay.ron`.
 
 Here's an example:
 
-```json
-
-{
-    "actors": {
-        "bob": { "name": "Bob", "asset": "bob.png" },
-        "alice": { "name": "Alice", "asset": "alice.png" }
-    },
-    "script": [
-        { "id": 1, "action": "talk", "text": "Bob and Alice enter the room." },
-        { "id": 2, "action": "enter", "actors": [ "bob", "alice" ] },
-        { "id": 3, "actors": ["bob"], "text": "Hello, Alice!" },
-        {
-            "id": 4,
-            "choices": [
-                { "text": "Alice says hello back.", "next": 5 },
-                { "text": "Alice ignores Bob.", "next": 6 },
-            ]
-        },
-        { "id": 5, "text": "Bob smiles." },
-        { "id": 6, "text": "Bob starts crying." },
-        { "id": 7, "text": "The end." }
+```rust,ignore
+(
+    actors: [
+        ( id: "bob", name: "Bob", asset: Some("bob.png") ),
+        ( id: "alice", name: "Alice", asset: Some("alice.png") )
+    ],
+    script: [
+        ( id: 1, action: Talk, text: Some("Bob and Alice enter the room.") ),
+        ( id: 2, action: Enter, actors: [ "bob", "alice" ] ),
+        ( id: 3, actors: ["bob"], text: Some("Hello, Alice!") ), // with missing action field, it defaults to Talk
+        (
+            id: 4,
+            choices: Some([
+                ( text: "Alice says hello back.", next: 5 ),
+                ( text: "Alice ignores Bob.", next: 6 ),
+            ])
+        ),
+        ( id: 5, text: Some("Bob smiles.") ), // with missing actors field, it defaults to an empty vector
+        ( id: 6, text: Some("Bob starts crying.") ),
+        ( id: 7, text: Some("The end.") )
     ]
-}
+)
 ```
 
-Note the last 3 actions have no `actors` nor `action` fields. This is because the `talk` action is the default action, so it can be omitted.
-And if there are no actors, the `actors` field can be omitted too.
-
-The plugin adds an `AssetLoader` for these json files, so it's as easy as: 
+The plugin adds an `AssetLoader` for these ron files, so it's as easy as: 
 
 ```rust
-let handle: Handle<RawScreenplay> = server.load("simple.json");
+let handle: Handle<RawScreenplay> = server.load("simple.screenplay.ron");
 ```
 
 Then you can use the `ScreenplayBuilder` to build a `Screenplay` component from the `RawScreenplay` asset. 
@@ -139,6 +135,7 @@ Compatibility of `bevy_screenplay` versions:
 | `bevy_screenplay` | `bevy` |
 | :--                 |  :--   |
 | `main`              | `0.11`  |
+| `0.1.1`              | `0.11`  |
 
 ## License
 
