@@ -89,7 +89,7 @@ impl ScreenplayBuilder {
     ///     ],
     /// };
     ///
-    /// let result = ScreenplayBuilder::raw_build(&raw);
+    /// let result = ScreenplayBuilder::new().build(&raw);
     ///
     /// assert!(result.is_ok());
     /// ```
@@ -329,7 +329,7 @@ fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), ScreenplayError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{prelude::Choice, tests::minimal_app};
+    use crate::prelude::Choice;
     use bevy::prelude::default;
 
     #[test]

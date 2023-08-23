@@ -41,12 +41,12 @@ impl Screenplay {
     /// # Examples
     ///
     /// ```
-    /// use my_crate::Screenplay;
+    /// use bevy_screenplay::prelude::Screenplay;
     ///
-    /// let screenplay = Screenplay::builder().build();
+    /// let builder = Screenplay::builder();
     /// ```
     pub fn builder() -> ScreenplayBuilder {
-        ScreenplayBuilder::default()
+        ScreenplayBuilder
     }
 
     /// Returns the `ActionKind` of the current action.
@@ -58,23 +58,18 @@ impl Screenplay {
     ///
     /// let raw = RawScreenplay {
     ///   actors: Default::default(),
-    ///   script: vec![
-    ///     ScriptAction { ..Default::default() },
-    ///     ScriptAction { id: 2, action: ActionKind::Enter, ..Default::default() },
-    ///   ],
+    ///   script: vec![ ScriptAction::default() ],
     /// };
     ///
     /// let mut sp = ScreenplayBuilder::new().build(&raw).unwrap();
     /// assert_eq!(sp.action_kind(), ActionKind::Talk);
-    /// sp.next_action().unwrap();
-    /// assert_eq!(sp.action_kind(), ActionKind::Enter);
     /// ```
     pub fn action_kind(&self) -> ActionKind {
         self.graph[self.current_node].kind.clone()
     }
 
     /// Move to the next action. Returns an error if the current action has no next action.
-    pub fn next_action(&mut self) -> Result<(), NextActionError> {
+    pub(crate) fn next_action(&mut self) -> Result<(), NextActionError> {
         if self.graph[self.current_node].kind == ActionKind::Choice {
             return Err(NextActionError::ChoicesNotHandled);
         }
@@ -111,6 +106,9 @@ impl Screenplay {
     /// assert_eq!(sp.unwrap().text(), "");
     /// ```
     pub fn text(&self) -> &str {
+        if self.graph.node_count() == 0 {
+            return "";
+        }
         match &self.graph[self.current_node].text {
             Some(t) => t,
             None => "",
@@ -130,11 +128,11 @@ impl Screenplay {
     ///   ],
     ///   script: vec![ScriptAction { actors: vec![String::from("bob")], ..Default::default() }],
     /// };
-    /// let sp = ScreenplayBuilder::new().build(&raw);
-    /// assert_eq!(sp.unwrap().actors()[0].name, "Bob");
-    /// assert_eq!(sp.unwrap().actors()[1].name, "Alice");
+    /// let sp = ScreenplayBuilder::new().build(&raw).unwrap();
+    /// let actors = sp.action_actors();
+    /// assert_eq!(actors[0].name, "Bob");
     /// ```
-    pub fn actors(&self) -> Vec<Actor> {
+    pub fn action_actors(&self) -> Vec<Actor> {
         self.graph[self.current_node].actors.clone()
     }
 
@@ -186,7 +184,7 @@ impl Screenplay {
     /// # Returns
     ///
     /// Returns `Ok(())` if the jump was successful.
-    pub fn jump_to(&mut self, id: i32) -> Result<(), NextActionError> {
+    pub(crate) fn jump_to(&mut self, id: i32) -> Result<(), NextActionError> {
         let idx = self
             .action_node_map
             .get(&id)
