@@ -96,16 +96,11 @@ let handle: Handle<RawScreenplay> = server.load("simple.screenplay.ron");
 ```
 
 Then you can use the `ScreenplayBuilder` to build a `Screenplay` component from the `RawScreenplay` asset. 
-You also need to pass the `RawScreenplay` assets collection `raws: Res<Assets<RawScreenplay>>`.
+You can retrieve the `RawScreenplay` from the assets collection `raws: Res<Assets<RawScreenplay>>`.
 
 ```rust
-ScreenplayBuilder::new().with_raw_screenplay(handle.clone()).build(&raws)
-```
-
-Or if you have hold of the `RawScreenplay` directly, you can use `raw_build` directly:
-
-```rust
-ScreenplayBuilder::raw_build(&raw_screenplay);
+let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
+ScreenplayBuilder::new().build(&raw_sp);
 ```
 
 ### Usage
