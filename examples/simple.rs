@@ -67,7 +67,7 @@ fn interact(
     screenplays: Query<Entity, With<Screenplay>>,
 ) {
     if input.just_pressed(KeyCode::Space) {
-        let e = screenplays.get_single().unwrap();
+        let e = screenplays.single();
         next_action_events.send(NextActionRequest(e));
     }
 }
