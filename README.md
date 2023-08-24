@@ -105,17 +105,48 @@ ScreenplayBuilder::new().build(&raw_sp);
 
 ### Usage
 
-Once you have a `Screenplay` component attached to an entity, you can use the usual queires to access it.
-The component offers a public API to interact with graph and the current action.
+Once you have a `Screenplay` component attached to an entity, you can use the usual Bevy `Query` to access it to 
+retrive information about the current action (text, choices, actors involved, the kind of action). 
 
-- `next_action` moves the screenplay to the next action.
+To move to the next action (or to jump to a specific action), you can send 2 different events and take advantage of 
+the Change Detection System to react after a change in the `Screenplay` component.
+
+The event to go to the next action:
+
+
+```rust
+NextActionRequest(pub Entity);
+```
+
+The event to jump to a specific action:
+
+```rust
+JumpToActionRequest(pub Entity, pub ActionId);
+```
+
+You pass the entity with the `Screenplay` component for the former event, and the entity with the `Screenplay` component
+and the id of the action to jump to for the latter event.
+
+The plugin will internally call the `next_action` and `jump_to` methods of the `Screenplay` component, respectively.
+
+On your side you can use the Changed api to react to the change after these events are sent. With something like:
+
+```rust
+fn print_text(screenplays: Query<&Screenplay, Changed<Screenplay>>) {
+    for sp in screenplays.iter() {
+        println!("{}", sp.text());
+    }
+}
+```
+
+The component offers a public API to retrieve info from the graph:
+
 - `actors` returns the list of actors involved in the current action.
 - `choices` returns the list of choices available in the current action.
 - `text` returns the text of the current action.
 - `action_kind` returns the kind of the current action.
-- `jump_to` jumps to a specific action by id (usually used to jump to the action pointed by a choice).
 
-You can check out the example in the `examples` folder to see how to use the plugin.
+Check out the example in the `examples` folder to see how to use the plugin.
 
 - [simple.rs](examples/simple.rs) shows how to use the plugin to create a simple, linear conversation. 
 - [choices.rs](examples/choices.rs) shows how to use the plugin to create a conversation with choices.
