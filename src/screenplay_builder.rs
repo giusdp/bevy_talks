@@ -57,7 +57,7 @@ impl ScreenplayBuilder {
     /// # Examples
     ///
     /// ```
-    /// use bevy_screenplay::prelude::{Actor, RawScreenplay, ScriptAction, Screenplay, ScreenplayBuilder};
+    /// use bevy_talks::prelude::{Actor, RawScreenplay, ScriptAction, Screenplay, ScreenplayBuilder};
     ///
     /// let raw = RawScreenplay {
     ///     script: vec![

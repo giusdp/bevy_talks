@@ -11,7 +11,7 @@ use crate::prelude::{
 
 /// A screenplay is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
-/// bevy entities with specific [`bevy_screenplay`] components.
+/// bevy entities with specific [`bevy_talks`] components.
 /// The Screenplay struct keeps track of the current action
 /// and provides functions to move to the next action.
 #[derive(Debug, Component, Default)]
@@ -41,7 +41,7 @@ impl Screenplay {
     /// # Examples
     ///
     /// ```
-    /// use bevy_screenplay::prelude::Screenplay;
+    /// use bevy_talks::prelude::Screenplay;
     ///
     /// let builder = Screenplay::builder();
     /// ```
@@ -54,7 +54,7 @@ impl Screenplay {
     /// # Examples
     ///
     /// ```
-    /// use bevy_screenplay::prelude::*;
+    /// use bevy_talks::prelude::*;
     ///
     /// let raw = RawScreenplay {
     ///   actors: Default::default(),
@@ -89,7 +89,7 @@ impl Screenplay {
     /// # Examples
     ///
     /// ```
-    /// use bevy_screenplay::prelude::*;
+    /// use bevy_talks::prelude::*;
     ///
     ///  let raw = RawScreenplay {
     ///        actors: Default::default(),
@@ -120,7 +120,7 @@ impl Screenplay {
     /// # Examples
     ///
     /// ```
-    /// use bevy_screenplay::prelude::*;
+    /// use bevy_talks::prelude::*;
     /// let raw = RawScreenplay {
     ///   actors: vec![
     ///     Actor {id: String::from("bob"), name: String::from("Bob"), ..Default::default() },
@@ -141,7 +141,7 @@ impl Screenplay {
     /// # Examples
     ///
     /// ```
-    /// use bevy_screenplay::prelude::*;
+    /// use bevy_talks::prelude::*;
     /// let raw = RawScreenplay {
     ///   actors: Default::default(),
     ///   script: vec![

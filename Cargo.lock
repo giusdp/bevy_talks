@@ -822,18 +822,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bevy_screenplay"
-version = "0.2.0-dev"
-dependencies = [
- "bevy",
- "log",
- "petgraph",
- "ron",
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "bevy_sprite"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -855,6 +843,18 @@ dependencies = [
  "fixedbitset",
  "guillotiere",
  "rectangle-pack",
+ "thiserror",
+]
+
+[[package]]
+name = "bevy_talks"
+version = "0.2.0"
+dependencies = [
+ "bevy",
+ "log",
+ "petgraph",
+ "ron",
+ "serde",
  "thiserror",
 ]
 

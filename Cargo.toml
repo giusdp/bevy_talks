@@ -1,10 +1,10 @@
 [package]
-name = "bevy_screenplay"
+name = "bevy_talks"
 version = "0.2.0"
 edition = "2021"
 description = "A Bevy plugin to write screenplays for your characters to say and do things, together with player choices."
-repository = "https://github.com/giusdp/bevy_screenplay"
-homepage = "https://github.com/giusdp/bevy_screenplay"
+repository = "https://github.com/giusdp/bevy_talks"
+homepage = "https://github.com/giusdp/bevy_talks"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "gamedev", "plugin", "dialogs"]

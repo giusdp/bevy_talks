@@ -157,8 +157,8 @@ Check out the example in the `examples` folder to see how to use the plugin.
 A future work is to have a graphical editor to create these files, but for now we have to write them by hand.
 Any contributions are welcome!
 
-Compatibility of `bevy_screenplay` versions:
-| `bevy_screenplay` | `bevy` |
+Compatibility of `bevy_talks` versions:
+| `bevy_talks` | `bevy` |
 | :--                 |  :--   |
 | `main`              | `0.11`  |
 | `0.2.0`              | `0.11`  |
@@ -183,14 +183,14 @@ additional terms or conditions.
 [renpy]: https://www.renpy.org/
 
 [img_bevy]: https://img.shields.io/badge/Bevy-0.11-blue
-[img_version]: https://img.shields.io/crates/v/bevy_screenplay.svg
-[img_doc]: https://docs.rs/bevy_screenplay/badge.svg
+[img_version]: https://img.shields.io/crates/v/bevy_talks.svg
+[img_doc]: https://docs.rs/bevy_talks/badge.svg
 [img_license]: https://img.shields.io/badge/license-MIT%2FApache-blue.svg
-[img_downloads]:https://img.shields.io/crates/d/bevy_screenplay.svg
+[img_downloads]:https://img.shields.io/crates/d/bevy_talks.svg
 [img_tracking]: https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue
 
 [bevycrate]: https://crates.io/crates/bevy/0.11.0
-[crates]: https://crates.io/crates/bevy_screenplay
-[doc]: https://docs.rs/bevy_screenplay/
-[license]: https://github.com/giusdp/bevy_screenplay#license
+[crates]: https://crates.io/crates/bevy_talks
+[doc]: https://docs.rs/bevy_talks/
+[license]: https://github.com/giusdp/bevy_talks#license
 [tracking]: https://github.com/bevyengine/bevy/blob/main/docs/plugins_guidelines.md#main-branch-tracking

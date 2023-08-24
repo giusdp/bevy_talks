@@ -7,7 +7,7 @@
 // Unhelpful for systems
 #![allow(clippy::too_many_arguments)]
 
-//! [`bevy_screenplay`] is a Bevy plugin that provides
+//! [`bevy_talks`] is a Bevy plugin that provides
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
