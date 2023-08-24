@@ -10,7 +10,7 @@ pub enum NextActionError {
     NoNextAction,
     /// Screenplay::next_action() was called on a screenplay
     /// where the current action is a choice action.
-    #[error("cannot just move to next action as the current one is a choice action")]
+    #[error("current action is a choice action")]
     ChoicesNotHandled,
 
     /// Screenplay::jump_to(id) was called on a screenplay
