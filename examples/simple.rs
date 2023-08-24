@@ -9,9 +9,6 @@ enum AppState {
 }
 
 #[derive(Resource)]
-struct PrintEnabled(bool);
-
-#[derive(Resource)]
 struct SimpleScreenplayAsset {
     handle: Handle<RawScreenplay>,
 }
@@ -20,7 +17,6 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, TalksPlugin))
         .add_state::<AppState>()
-        .insert_resource(PrintEnabled(true))
         .add_systems(
             OnEnter(AppState::LoadAssets),
             load_talks.run_if(in_state(AppState::LoadAssets)),
@@ -57,20 +53,30 @@ fn setup_screenplay(
 ) {
     let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
     let screenplay = ScreenplayBuilder::new().build(&raw_sp).unwrap();
+
     commands.spawn(screenplay);
 
+    println!();
     println!("Press space to advance the conversation.");
+    println!("-----------------------------------------");
 }
 
-fn print(mut print_enabled: ResMut<PrintEnabled>, sp_query: Query<&Screenplay>) {
-    if !print_enabled.0 {
-        return;
+fn interact(
+    input: Res<Input<KeyCode>>,
+    mut next_action_events: EventWriter<NextActionRequest>,
+    screenplays: Query<Entity, With<Screenplay>>,
+) {
+    if input.just_pressed(KeyCode::Space) {
+        let e = screenplays.get_single().unwrap();
+        next_action_events.send(NextActionRequest(e));
     }
+}
 
-    for sp in &sp_query {
+fn print(sp_query: Query<&Screenplay, Changed<Screenplay>>) {
+    for sp in sp_query.iter() {
         // extract actors names into a vector
         let actors = sp
-            .actors()
+            .action_actors()
             .iter()
             .map(|a| a.name.to_owned())
             .collect::<Vec<String>>();
@@ -84,23 +90,12 @@ fn print(mut print_enabled: ResMut<PrintEnabled>, sp_query: Query<&Screenplay>) 
             ActionKind::Talk => println!("{}: {}", speaker, sp.text()),
             ActionKind::Enter => println!("--- {actors:?} enters the scene."),
             ActionKind::Exit => println!("--- {actors:?} exit the scene."),
-            ActionKind::Choice => todo!(),
-        };
-        print_enabled.0 = false;
-    }
-}
-
-fn interact(
-    input: Res<Input<KeyCode>>,
-    mut sp_query: Query<&mut Screenplay>,
-    mut print_enabled: ResMut<PrintEnabled>,
-) {
-    if input.just_pressed(KeyCode::Space) {
-        for mut sp in &mut sp_query {
-            match sp.next_action() {
-                Ok(_) => print_enabled.0 = true,
-                Err(e) => error!("Error: {:?}", e),
+            ActionKind::Choice => {
+                println!("Choices:");
+                for (i, choice) in sp.choices().unwrap().iter().enumerate() {
+                    println!("{}: {}", i + 1, choice.text);
+                }
             }
-        }
+        };
     }
 }
