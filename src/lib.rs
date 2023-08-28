@@ -66,7 +66,7 @@ fn next_action_handler(
     for ev in next_requests.iter() {
         if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
             match sp.next_action() {
-                Ok(()) => info!("Moved to next action!."),
+                Ok(()) => info!("Moved to next action!"),
                 Err(err) => error!("Next action could not be set: {}", err),
             }
         }
