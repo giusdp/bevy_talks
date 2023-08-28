@@ -17,10 +17,7 @@ fn main() {
     App::new()
         .add_plugins((DefaultPlugins, TalksPlugin))
         .add_state::<AppState>()
-        .add_systems(
-            OnEnter(AppState::LoadAssets),
-            load_talks.run_if(in_state(AppState::LoadAssets)),
-        )
+        .add_systems(OnEnter(AppState::LoadAssets), load_talks)
         .add_systems(Update, check_loading.run_if(in_state(AppState::LoadAssets)))
         .add_systems(OnEnter(AppState::Loaded), setup_screenplay)
         .add_systems(
@@ -31,7 +28,7 @@ fn main() {
 }
 
 fn load_talks(mut commands: Commands, server: Res<AssetServer>) {
-    let h: Handle<RawScreenplay> = server.load("full.screenplay.ron");
+    let h: Handle<RawScreenplay> = server.load("talks/full.screenplay.ron");
     commands.insert_resource(SimpleScreenplayAsset { handle: h });
 }
 
