@@ -1,0 +1,35 @@
+(
+    actors: [
+      (
+        id: "actorA",
+        name: "Actor A",
+      ),
+    ],
+    script: [
+        (
+            id: 1,
+            actor: ["actorA"],
+            text: Some("Hello there!")
+        ),
+        (
+            id: 2,
+            actor: ["actorA"],
+            text: Some("I'm A!")
+        ),
+        (
+            id: 3,
+            actor: ["actorA"],
+            text: Some("This is an in-game conversation tied to an entity!")
+        ),
+        (
+            id: 4,
+            actor: ["actorA"],
+            text: Some("You just spawn a screenplay that handles this stuff as a child of some other entity, and you've just given dialogues to that entity!")
+        ),
+        (
+            id: 5,
+            actor: ["actorA"],
+            text: Some("Bye bye!")
+        )
+    ]
+)

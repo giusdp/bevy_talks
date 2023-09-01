@@ -21,6 +21,7 @@ pub mod loader;
 pub mod prelude;
 pub mod screenplay;
 pub mod screenplay_builder;
+pub mod talker;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
 pub struct TalksPlugin;

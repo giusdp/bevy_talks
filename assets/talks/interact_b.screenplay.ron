@@ -1,0 +1,15 @@
+(
+    actors: [
+      (
+        id: "actorB",
+        name: "Actor B",
+      ),
+    ],
+    script: [
+        (
+            id: 1,
+            actor: ["actorB"],
+            text: Some("What's up?")
+        ),
+    ]
+)
