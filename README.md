@@ -152,10 +152,19 @@ Check out the example in the `examples` folder to see how to use the plugin.
 - [choices.rs](examples/choices.rs) shows how to use the plugin to create a conversation with choices.
 - [full.rs](examples/full.rs) shows a screenplay where all the action kinds are used.
 
-### Other Things
+### Roadmap
 
-A future work is to have a graphical editor to create these files, but for now we have to write them by hand.
-Any contributions are welcome!
+- [ ] A `TalkerBundle` to give an entity the required components to make it show its own dialogues
+- [ ] Dialogue UIs 
+- [ ] Interaction/Trigger system (to activate/advance dialogues)
+- [ ] Graphical editor to create the asset files
+- [ ] Support other asset formats (?)
+- [ ] More examples
+- [ ] Extensive documentation/manual wiki
+
+
+### Bevy Version Support
+
 
 Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
