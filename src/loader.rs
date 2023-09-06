@@ -1,4 +1,4 @@
-//! Asset loader for screenplays with json format.
+//! Asset loader for Talks with json format.
 
 use bevy::log::error;
 use bevy::{
@@ -6,21 +6,21 @@ use bevy::{
     utils::BoxedFuture,
 };
 
-use crate::prelude::RawScreenplay;
+use crate::prelude::RawTalk;
 
-/// Load screenplays from json assets.
+/// Load Talks from json assets.
 #[derive(Default)]
-pub struct ScreenplayLoader;
+pub struct TalkLoader;
 
-impl AssetLoader for ScreenplayLoader {
+impl AssetLoader for TalkLoader {
     fn load<'a>(
         &'a self,
         bytes: &'a [u8],
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), bevy::asset::Error>> {
-        let raw_sp = parse_ron_screenplay(bytes);
+        let raw_sp = parse_ron_talk(bytes);
         if let Err(e) = &raw_sp {
-            error!("Error parsing screenplay: {e:}");
+            error!("Error parsing Talk: {e:}");
         }
         Box::pin(async move {
             load_context.set_default_asset(LoadedAsset::new(raw_sp?));
@@ -29,14 +29,14 @@ impl AssetLoader for ScreenplayLoader {
     }
 
     fn extensions(&self) -> &[&str] {
-        &["screenplay.ron"]
+        &["talk.ron"]
     }
 }
 
-/// Parse a screenplay from a byte slice.
-fn parse_ron_screenplay(bytes: &[u8]) -> Result<RawScreenplay, bevy::asset::Error> {
+/// Parse a Talk from a byte slice.
+fn parse_ron_talk(bytes: &[u8]) -> Result<RawTalk, bevy::asset::Error> {
     let script_str = std::str::from_utf8(bytes)?;
-    let raw_sp: RawScreenplay = ron::from_str(script_str)?;
+    let raw_sp: RawTalk = ron::from_str(script_str)?;
     Ok(raw_sp)
 }
 
@@ -45,7 +45,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_raw_screenplay() {
+    fn test_parse_raw_talk() {
         let bytes = b"(
             script: [
                 (
@@ -62,7 +62,7 @@ mod tests {
             ],
             actors: [ ( id: \"actor1\", name: \"Actor 1\" ), ( id: \"actor2\", name: \"Actor 2\" ) ],
         )";
-        let result = parse_ron_screenplay(bytes);
+        let result = parse_ron_talk(bytes);
         println!("{:?}", result);
         assert!(result.is_ok());
 

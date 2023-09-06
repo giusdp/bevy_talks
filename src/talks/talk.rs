@@ -1,31 +1,33 @@
-//! The main module of the crate. It contains the Screenplay struct and its
+//! The main module of the crate. It contains the Talk struct and its
 //! builder.
 use bevy::prelude::Component;
 use bevy::utils::HashMap;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::prelude::{
-    ActionId, ActionKind, ActionNode, Actor, Choice, NextActionError, ScreenplayBuilder,
-};
+use crate::prelude::{ActionId, ActionKind, ActionNode, Actor, Choice};
 
-/// A screenplay is a directed graph of actions.
+use super::builder::{self};
+use super::errors::{NextActionError, TalkError};
+use super::RawTalk;
+
+/// A Talk is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
 /// bevy entities with specific [`bevy_talks`] components.
-/// The Screenplay struct keeps track of the current action
+/// The Talk struct keeps track of the current action
 /// and provides functions to move to the next action.
 #[derive(Debug, Component, Default)]
-pub struct Screenplay {
-    /// The graph that represents the screenplay.
+pub struct Talk {
+    /// The graph that represents the Talk.
     ///
-    /// This field is a directed graph that represents the structure of the screenplay. Each node in the
-    /// graph represents an action in the screenplay, and each edge represents a transition between
+    /// This field is a directed graph that represents the structure of the Talk. Each node in the
+    /// graph represents an action in the Talk, and each edge represents a transition between
     /// actions.
     pub(crate) graph: DiGraph<ActionNode, ()>,
 
-    /// The index of the current node in the screenplay graph.
+    /// The index of the current node in the Talk graph.
     ///
-    /// This field is used to keep track of the current node in the screenplay graph. It is updated
+    /// This field is used to keep track of the current node in the Talk graph. It is updated
     /// whenever the [`next_action`] method is called.
     pub(crate) current_node: NodeIndex,
 
@@ -34,19 +36,19 @@ pub struct Screenplay {
     pub(crate) action_node_map: HashMap<ActionId, NodeIndex>,
 }
 
-// Public API
-impl Screenplay {
-    /// Returns a new `ScreenplayBuilder` instance.
+// API
+impl Talk {
+    /// Returns a new `TalkBuilder` instance.
     ///
     /// # Examples
     ///
     /// ```
-    /// use bevy_talks::prelude::Screenplay;
+    /// use bevy_talks::prelude::Talk;
     ///
-    /// let builder = Screenplay::builder();
+    /// let builder = Talk::build();
     /// ```
-    pub fn builder() -> ScreenplayBuilder {
-        ScreenplayBuilder
+    pub fn build(raw_talk: &RawTalk) -> Result<Talk, TalkError> {
+        builder::build(raw_talk)
     }
 
     /// Returns the `ActionKind` of the current action.
@@ -56,12 +58,12 @@ impl Screenplay {
     /// ```
     /// use bevy_talks::prelude::*;
     ///
-    /// let raw = RawScreenplay {
+    /// let raw = RawTalk {
     ///   actors: Default::default(),
     ///   script: vec![ ScriptAction::default() ],
     /// };
     ///
-    /// let mut sp = ScreenplayBuilder::new().build(&raw).unwrap();
+    /// let mut sp = TalkBuilder::new().build(&raw).unwrap();
     /// assert_eq!(sp.action_kind(), ActionKind::Talk);
     /// ```
     pub fn action_kind(&self) -> ActionKind {
@@ -91,18 +93,18 @@ impl Screenplay {
     /// ```
     /// use bevy_talks::prelude::*;
     ///
-    ///  let raw = RawScreenplay {
+    ///  let raw = RawTalk {
     ///        actors: Default::default(),
     ///        script: vec![ScriptAction {
     ///            text: Some(String::from("Hello")),
     ///            ..Default::default()
     ///        }],
     ///    };
-    /// let sp = ScreenplayBuilder::new().build(&raw);
+    /// let sp = TalkBuilder::new().build(&raw);
     /// assert_eq!(sp.unwrap().text(), "Hello");
     ///
-    /// let raw = RawScreenplay::default();
-    /// let sp = ScreenplayBuilder::new().build(&raw);
+    /// let raw = RawTalk::default();
+    /// let sp = TalkBuilder::new().build(&raw);
     /// assert_eq!(sp.unwrap().text(), "");
     /// ```
     pub fn text(&self) -> &str {
@@ -121,14 +123,14 @@ impl Screenplay {
     ///
     /// ```
     /// use bevy_talks::prelude::*;
-    /// let raw = RawScreenplay {
+    /// let raw = RawTalk {
     ///   actors: vec![
     ///     Actor {id: String::from("bob"), name: String::from("Bob"), ..Default::default() },
     ///     Actor {id: String::from("alice"), name: String::from("Alice"), ..Default::default() },
     ///   ],
     ///   script: vec![ScriptAction { actors: vec![String::from("bob")], ..Default::default() }],
     /// };
-    /// let sp = ScreenplayBuilder::new().build(&raw).unwrap();
+    /// let sp = TalkBuilder::new().build(&raw).unwrap();
     /// let actors = sp.action_actors();
     /// assert_eq!(actors[0].name, "Bob");
     /// ```
@@ -142,7 +144,7 @@ impl Screenplay {
     ///
     /// ```
     /// use bevy_talks::prelude::*;
-    /// let raw = RawScreenplay {
+    /// let raw = RawTalk {
     ///   actors: Default::default(),
     ///   script: vec![
     ///     ScriptAction {
@@ -157,7 +159,7 @@ impl Screenplay {
     ///   ],
     /// };
     ///
-    /// let sp = ScreenplayBuilder::new().build(&raw).unwrap();
+    /// let sp = TalkBuilder::new().build(&raw).unwrap();
     /// assert_eq!(sp.choices().unwrap()[0].next, 2);
     /// assert_eq!(sp.choices().unwrap()[0].text, "Choice 1");
     /// assert_eq!(sp.choices().unwrap()[1].next, 3);
@@ -171,7 +173,7 @@ impl Screenplay {
         cnode.choices.clone()
     }
 
-    /// Jumps to a specific action node in the screenplay.
+    /// Jumps to a specific action node in the Talk.
     ///
     /// # Arguments
     ///
@@ -199,24 +201,24 @@ impl Screenplay {
 mod test {
     use bevy::prelude::default;
 
-    use crate::prelude::{RawScreenplay, ScriptAction};
+    use crate::prelude::ScriptAction;
 
     use super::*;
 
     #[test]
     fn jump_to_no_action_err() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![ScriptAction { ..default() }],
         };
 
-        let mut sp = ScreenplayBuilder::new().build(&raw_sp).unwrap();
+        let mut sp = Talk::build(&raw_sp).unwrap();
         assert_eq!(sp.jump_to(2).err(), Some(NextActionError::WrongJump(2)));
     }
 
     #[test]
     fn jump_to() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction {
@@ -242,19 +244,19 @@ mod test {
             ],
         };
 
-        let mut sp = ScreenplayBuilder::new().build(&raw_sp).unwrap();
+        let mut sp = Talk::build(&raw_sp).unwrap();
         assert!(sp.jump_to(2).is_ok());
         assert_eq!(sp.text(), "I'm number 2");
     }
 
     #[test]
     fn next_action_with_no_next() {
-        let raw = RawScreenplay {
+        let raw = RawTalk {
             actors: default(),
             script: vec![ScriptAction { ..default() }],
         };
 
-        let sp = ScreenplayBuilder::new().build(&raw);
+        let sp = Talk::build(&raw);
         assert!(sp.is_ok());
         assert_eq!(
             sp.unwrap().next_action().err(),
@@ -264,7 +266,7 @@ mod test {
 
     #[test]
     fn next_action_choices_not_handled_err() {
-        let raw = RawScreenplay {
+        let raw = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction {
@@ -278,7 +280,7 @@ mod test {
             ],
         };
 
-        let sp = ScreenplayBuilder::new().build(&raw);
+        let sp = Talk::build(&raw);
         assert!(sp.is_ok());
         assert_eq!(
             sp.unwrap().next_action().err(),
@@ -288,14 +290,14 @@ mod test {
 
     #[test]
     fn next_action_success() {
-        let raw = RawScreenplay {
+        let raw = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction { ..default() },
                 ScriptAction { id: 2, ..default() },
             ],
         };
-        let sp = ScreenplayBuilder::new().build(&raw);
+        let sp = Talk::build(&raw);
         assert!(sp.is_ok());
         assert!(sp.unwrap().next_action().is_ok());
     }

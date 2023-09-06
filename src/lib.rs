@@ -11,39 +11,48 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use prelude::{JumpToActionRequest, NextActionRequest, RawScreenplay, ScreenplayLoader};
-use screenplay::Screenplay;
+use prelude::{JumpToActionRequest, NextActionRequest, RawTalk, TalkLoader};
+use talks::talk::Talk;
+use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 pub mod action;
-pub mod errors;
+pub mod display;
 pub mod events;
 pub mod loader;
 pub mod prelude;
-pub mod screenplay;
-pub mod screenplay_builder;
 pub mod talker;
+pub mod talks;
+pub mod trigger;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
 pub struct TalksPlugin;
 
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset_loader::<ScreenplayLoader>()
-            .add_asset::<RawScreenplay>()
+        app.init_asset_loader::<TalkLoader>()
+            .add_asset::<RawTalk>()
             .add_event::<NextActionRequest>()
             .add_event::<JumpToActionRequest>()
-            .add_systems(Update, (next_action_handler, jump_action_handler));
+            .add_systems(
+                Update,
+                (
+                    next_action_handler,
+                    jump_action_handler,
+                    handle_trigger::<OnUseTrigger>,
+                    handle_trigger::<OnEnableTrigger>,
+                ),
+            );
     }
 }
 
-/// Handles `JumpToActionRequest` events by updating the active screenplay.
+/// Handles `JumpToActionRequest` events by updating the active Talk.
 ///
 /// This function is a Bevy system that listens for `JumpToActionRequest` events.
-/// It calls `jump_to` on the active screenplay and sends `ActorsEnterEvent` or `ActorsExitEvent` events
+/// It calls `jump_to` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
 /// if the reached action is an enter or exit action, respectively.
 fn jump_action_handler(
     mut jump_requests: EventReader<JumpToActionRequest>,
-    mut sp_comps: Query<(Entity, &mut Screenplay)>,
+    mut sp_comps: Query<(Entity, &mut Talk)>,
 ) {
     for ev in jump_requests.iter() {
         if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
@@ -55,22 +64,33 @@ fn jump_action_handler(
     }
 }
 
-/// Handles `NextActionRequest` events by advancing the active screenplay to the next action.
+/// Handles `NextActionRequest` events by advancing the active Talk to the next action.
 ///
 /// This function is a Bevy system that listens for `NextActionRequest` events.
-/// It calls `next_action` on the active screenplay and sends `ActorsEnterEvent` or `ActorsExitEvent` events
+/// It calls `next_action` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
 /// if the reached action is an enter or exit action, respectively.
 fn next_action_handler(
+    mut commands: Commands,
     mut next_requests: EventReader<NextActionRequest>,
-    mut sp_comps: Query<(Entity, &mut Screenplay)>,
+    mut sp_comps: Query<&mut Talk>,
 ) {
     for ev in next_requests.iter() {
-        if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
+        if let Ok(mut sp) = sp_comps.get_mut(ev.0) {
             match sp.next_action() {
-                Ok(()) => info!("Moved to next action!"),
+                Ok(()) => {
+                    let maybe_ec = commands.get_entity(ev.0);
+                    if let Some(ec) = maybe_ec {}
+                    info!("Moved to next action!")
+                }
                 Err(err) => error!("Next action could not be set: {}", err),
             }
         }
+    }
+}
+
+fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
+    for (sp, t) in query.iter() {
+        t.trigger();
     }
 }
 
@@ -80,7 +100,6 @@ mod tests {
 
     use action::ScriptAction;
     use events::JumpToActionRequest;
-    use screenplay_builder::ScreenplayBuilder;
 
     /// A minimal Bevy app with the Talks plugin.
     pub fn minimal_app() -> App {
@@ -92,7 +111,7 @@ mod tests {
     #[test]
     fn next_action_handler() {
         let mut app = minimal_app();
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction { ..default() },
@@ -100,7 +119,7 @@ mod tests {
             ],
         };
 
-        let sp = ScreenplayBuilder::new().build(&raw_sp);
+        let sp = Talk::build(&raw_sp);
         assert!(sp.is_ok());
 
         let e = app.world.spawn(sp.unwrap()).id();
@@ -108,7 +127,7 @@ mod tests {
         app.world.send_event(NextActionRequest(e));
         app.update();
 
-        let sp_spawned = app.world.get::<Screenplay>(e).unwrap();
+        let sp_spawned = app.world.get::<Talk>(e).unwrap();
 
         assert_eq!(sp_spawned.current_node.index(), 1);
     }
@@ -116,7 +135,7 @@ mod tests {
     #[test]
     fn jump_action_handler() {
         let mut app = minimal_app();
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction { ..default() },
@@ -125,7 +144,7 @@ mod tests {
             ],
         };
 
-        let sp = ScreenplayBuilder::new().build(&raw_sp);
+        let sp = Talk::build(&raw_sp);
         assert!(sp.is_ok());
 
         let e = app.world.spawn(sp.unwrap()).id();
@@ -133,7 +152,7 @@ mod tests {
         app.world.send_event(JumpToActionRequest(e, 3));
         app.update();
 
-        let sp_spawned = app.world.get::<Screenplay>(e).unwrap();
+        let sp_spawned = app.world.get::<Talk>(e).unwrap();
 
         assert_eq!(sp_spawned.current_node.index(), 2);
     }

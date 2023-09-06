@@ -1,17 +1,18 @@
 //! Talker module
 use bevy::prelude::{Bundle, Component};
 
-use crate::prelude::Screenplay;
+use crate::prelude::talk::Talk;
 
-/// A bundle that contains the components needed to make an entity show a screenplay
+/// A bundle that contains the components needed to make an entity show a Talk
 #[derive(Bundle, Default)]
 pub struct TalkerBundle {
-    /// The screenplay to show.
-    pub screenplay: Screenplay,
+    /// The Talk to show.
+    pub talk: Talk,
     /// The component that indicates whether a talker is active or not.
     pub activated: Activated,
     /// The component that indicates whether a talker is interactable or not.
     pub interaction: Interaction,
+    // pub display: dyn TalkDisplay,
 }
 
 /// A component that indicates whether a talker is active or not.

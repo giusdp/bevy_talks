@@ -1,131 +1,104 @@
-//! The main module of the crate. It contains the Screenplay struct and its
+//! The main module of the crate. It contains the Talk struct and its
 //! builder.
 use bevy::{
     prelude::default,
-    reflect::{Reflect, TypeUuid},
     utils::{HashMap, HashSet},
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
-use serde::Deserialize;
 
-use crate::prelude::{
-    ActionId, ActionKind, ActionNode, Actor, ActorId, Screenplay, ScreenplayError, ScriptAction,
-};
+use crate::prelude::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptAction};
 
-/// A struct that represents a raw screenplay (as from the json format).
+use super::{errors::TalkError, talk::Talk, RawTalk};
+
+/// Builds a `Talk` instance from a `RawTalk` instance.
 ///
-/// It contains a list of actors that appear in the screenplay, and a list of actions that make up the screenplay.
-#[derive(Debug, Deserialize, Default, Clone, Reflect, TypeUuid)]
-#[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
-#[reflect_value]
-pub struct RawScreenplay {
-    /// The list of actors that appear in the screenplay.
-    pub actors: Vec<Actor>,
-    /// The list of actions that make up the screenplay.
-    pub script: Vec<ScriptAction>,
-}
-
-/// The [`ScreenplayBuilder`] is used to construct a [`Screenplay`].
-/// A [`RawScreenplay`] can be used to build the Screenplay component.
-#[derive(Default)]
-pub struct ScreenplayBuilder;
-
-impl ScreenplayBuilder {
-    /// Creates a new `ScreenplayBuilder` instance with default values.
-    pub fn new() -> ScreenplayBuilder {
-        ScreenplayBuilder
+/// This function performs two passes over the `RawTalk` instance: a validation pass and a graph build pass.
+/// In the validation pass, it checks that there are no duplicate ids both in actors and actions,
+/// that all the actors in the actions are present in the actors list,
+/// and that all the `next` fields and `choice.next` fields in the actions point to existing actions.
+/// In the graph build pass, it adds all the action nodes to a new `DiGraph`,
+/// and then adds edges to the graph to connect the nodes according to the `next` and `choice.next` fields in the actions.
+///
+/// # Arguments
+///
+/// * `raw` - A reference to a `RawTalk` instance to build a `Talk` from.
+///
+/// # Returns
+///
+/// A `Result` containing the `Talk` instance if the build was successful,
+/// or a `TalkError` if there was an error during validation or graph building.
+///
+/// # Examples
+///
+/// ```
+/// use bevy_talks::prelude::{Actor, RawTalk, ScriptAction, Talk, TalkBuilder};
+///
+/// let raw = RawTalk {
+///     script: vec![
+///         ScriptAction {
+///             id: 1,
+///             text: Some("Action 1".to_string()),
+///             actors: vec!["actor1".to_string()],
+///             next: Some(2),
+///             ..Default::default()
+///         },
+///         ScriptAction {
+///             id: 2,
+///             text: Some("Action 2".to_string()),
+///             actors: vec!["actor2".to_string()],
+///             ..Default::default()
+///         },
+///     ],
+///     actors: vec![
+///         Actor {
+///             id: "actor1".to_string(),
+///             name: "Actor 1".to_string(),
+///             ..Default::default()
+///         },
+///         Actor {
+///             id: "actor2".to_string(),
+///             name: "Actor 2".to_string(),
+///             ..Default::default()
+///         },
+///     ],
+/// };
+///
+/// let result = TalkBuilder::new().build(&raw);
+///
+/// assert!(result.is_ok());
+/// ```
+///
+pub fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
+    if raw.script.is_empty() {
+        return Ok(Talk { ..default() });
     }
 
-    /// Builds a `Screenplay` instance from a `RawScreenplay` instance.
-    ///
-    /// This function performs two passes over the `RawScreenplay` instance: a validation pass and a graph build pass.
-    /// In the validation pass, it checks that there are no duplicate ids both in actors and actions,
-    /// that all the actors in the actions are present in the actors list,
-    /// and that all the `next` fields and `choice.next` fields in the actions point to existing actions.
-    /// In the graph build pass, it adds all the action nodes to a new `DiGraph`,
-    /// and then adds edges to the graph to connect the nodes according to the `next` and `choice.next` fields in the actions.
-    ///
-    /// # Arguments
-    ///
-    /// * `raw` - A reference to a `RawScreenplay` instance to build a `Screenplay` from.
-    ///
-    /// # Returns
-    ///
-    /// A `Result` containing the `Screenplay` instance if the build was successful,
-    /// or a `ScreenplayError` if there was an error during validation or graph building.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use bevy_talks::prelude::{Actor, RawScreenplay, ScriptAction, Screenplay, ScreenplayBuilder};
-    ///
-    /// let raw = RawScreenplay {
-    ///     script: vec![
-    ///         ScriptAction {
-    ///             id: 1,
-    ///             text: Some("Action 1".to_string()),
-    ///             actors: vec!["actor1".to_string()],
-    ///             next: Some(2),
-    ///             ..Default::default()
-    ///         },
-    ///         ScriptAction {
-    ///             id: 2,
-    ///             text: Some("Action 2".to_string()),
-    ///             actors: vec!["actor2".to_string()],
-    ///             ..Default::default()
-    ///         },
-    ///     ],
-    ///     actors: vec![
-    ///         Actor {
-    ///             id: "actor1".to_string(),
-    ///             name: "Actor 1".to_string(),
-    ///             ..Default::default()
-    ///         },
-    ///         Actor {
-    ///             id: "actor2".to_string(),
-    ///             name: "Actor 2".to_string(),
-    ///             ..Default::default()
-    ///         },
-    ///     ],
-    /// };
-    ///
-    /// let result = ScreenplayBuilder::new().build(&raw);
-    ///
-    /// assert!(result.is_ok());
-    /// ```
-    ///
-    pub fn build(self, raw: &RawScreenplay) -> Result<Screenplay, ScreenplayError> {
-        if raw.script.is_empty() {
-            return Ok(Screenplay { ..default() });
-        }
+    // # Validation Pass
+    // Check that there are no duplicate ids both in actors and actions
+    check_duplicate_action_ids(&raw.script)?;
+    check_duplicate_actor_ids(&raw.actors)?;
 
-        // # Validation Pass
-        // Check that there are no duplicate ids both in actors and actions
-        check_duplicate_action_ids(&raw.script)?;
-        check_duplicate_actor_ids(&raw.actors)?;
+    // Check that all the actors in the actions are present in the actors list
+    validate_actors_in_actions(&raw.script, &raw.actors)?;
 
-        // Check that all the actors in the actions are present in the actors list
-        validate_actors_in_actions(&raw.script, &raw.actors)?;
+    // Check all the nexts and choice.next (they should point to existing actions)
+    validate_all_nexts(&raw.script)?;
 
-        // Check all the nexts and choice.next (they should point to existing actions)
-        validate_all_nexts(&raw.script)?;
+    // # Graph build Pass
+    let mut graph: DiGraph<ActionNode, ()> =
+        DiGraph::with_capacity(raw.script.len(), raw.script.len());
 
-        // # Graph build Pass
-        let mut graph: DiGraph<ActionNode, ()> =
-            DiGraph::with_capacity(raw.script.len(), raw.script.len());
+    // 1. Add all action nodes
+    let id_nodeidx_map = add_action_nodes(&mut graph, &raw.script, &raw.actors);
 
-        // 1. Add all action nodes
-        let id_nodeidx_map = add_action_nodes(&mut graph, &raw.script, &raw.actors);
+    // 2. Add edges to the graph
+    connect_action_nodes(&mut graph, &raw.script, &id_nodeidx_map);
 
-        // 2. Add edges to the graph
-        connect_action_nodes(&mut graph, &raw.script, &id_nodeidx_map);
-
-        Ok(Screenplay {
-            graph,
-            current_node: NodeIndex::new(0),
-            action_node_map: id_nodeidx_map,
-        })
-    }
+    Ok(Talk {
+        graph,
+        current_node: NodeIndex::new(0),
+        action_node_map: id_nodeidx_map,
+    })
 }
 
 /// Connects all the action nodes in the graph based on the `next`
@@ -226,11 +199,8 @@ fn retrieve_actors(actor_ids: &[ActorId], actors: &[Actor]) -> Vec<Actor> {
 ///
 /// # Errors
 ///
-/// Returns a `ScreenplayError::InvalidActor` error if any of the actors in any of the actions are not present in the actors list.
-fn validate_actors_in_actions(
-    actions: &[ScriptAction],
-    actors: &[Actor],
-) -> Result<(), ScreenplayError> {
+/// Returns a `TalkError::InvalidActor` error if any of the actors in any of the actions are not present in the actors list.
+fn validate_actors_in_actions(actions: &[ScriptAction], actors: &[Actor]) -> Result<(), TalkError> {
     for action in actions {
         validate_actors_in_single_action(action, actors)?;
     }
@@ -246,17 +216,14 @@ fn validate_actors_in_actions(
 ///
 /// # Errors
 ///
-/// Returns a `ScreenplayError::InvalidActor` error if any of the actors in the action are not present in the actors list.
+/// Returns a `TalkError::InvalidActor` error if any of the actors in the action are not present in the actors list.
 fn validate_actors_in_single_action(
     action: &ScriptAction,
     actors: &[Actor],
-) -> Result<(), ScreenplayError> {
+) -> Result<(), TalkError> {
     for actor_key in action.actors.iter() {
         if !actors.iter().any(|a| a.id == *actor_key) {
-            return Err(ScreenplayError::InvalidActor(
-                action.id,
-                actor_key.to_string(),
-            ));
+            return Err(TalkError::InvalidActor(action.id, actor_key.to_string()));
         }
     }
     Ok(())
@@ -270,12 +237,12 @@ fn validate_actors_in_single_action(
 ///
 /// # Errors
 ///
-/// Returns a `ScreenplayError::DuplicateActionId` error if any `id` value appears more than once in the `actions` vector.
-fn check_duplicate_action_ids(actions: &[ScriptAction]) -> Result<(), ScreenplayError> {
+/// Returns a `TalkError::DuplicateActionId` error if any `id` value appears more than once in the `actions` vector.
+fn check_duplicate_action_ids(actions: &[ScriptAction]) -> Result<(), TalkError> {
     let mut seen_ids = HashSet::new();
     for action in actions {
         if !seen_ids.insert(action.id) {
-            return Err(ScreenplayError::DuplicateActionId(action.id));
+            return Err(TalkError::DuplicateActionId(action.id));
         }
     }
     Ok(())
@@ -289,12 +256,12 @@ fn check_duplicate_action_ids(actions: &[ScriptAction]) -> Result<(), Screenplay
 ///
 /// # Errors
 ///
-/// Returns a `ScreenplayError::DuplicateActorId` error if any `actor_id` value appears more than once in the `actors` vector.
-fn check_duplicate_actor_ids(actors: &[Actor]) -> Result<(), ScreenplayError> {
+/// Returns a `TalkError::DuplicateActorId` error if any `actor_id` value appears more than once in the `actors` vector.
+fn check_duplicate_actor_ids(actors: &[Actor]) -> Result<(), TalkError> {
     let mut seen_ids = HashSet::new();
     for actor in actors {
         if !seen_ids.insert(&actor.id) {
-            return Err(ScreenplayError::DuplicateActorId(actor.id.clone()));
+            return Err(TalkError::DuplicateActorId(actor.id.clone()));
         }
     }
     Ok(())
@@ -307,19 +274,19 @@ fn check_duplicate_actor_ids(actors: &[Actor]) -> Result<(), ScreenplayError> {
 ///
 /// # Errors
 ///
-/// Returns a `ScreenplayError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `ScriptAction`s do not point to real actions.
-fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), ScreenplayError> {
+/// Returns a `TalkError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `ScriptAction`s do not point to real actions.
+fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), TalkError> {
     let id_set = actions.iter().map(|a| a.id).collect::<HashSet<ActionId>>();
     for action in actions {
         if let Some(choices) = &action.choices {
             for choice in choices {
                 if !id_set.contains(&choice.next) {
-                    return Err(ScreenplayError::InvalidNextAction(action.id, choice.next));
+                    return Err(TalkError::InvalidNextAction(action.id, choice.next));
                 }
             }
         } else if let Some(next_id) = &action.next {
             if !id_set.contains(next_id) {
-                return Err(ScreenplayError::InvalidNextAction(action.id, *next_id));
+                return Err(TalkError::InvalidNextAction(action.id, *next_id));
             }
         }
     }
@@ -333,8 +300,8 @@ mod tests {
     use bevy::prelude::default;
 
     #[test]
-    fn build_empty_screenplay() {
-        let res = ScreenplayBuilder::new().build(&RawScreenplay::default());
+    fn build_empty_talk() {
+        let res = build(&RawTalk::default());
         assert!(res.is_ok());
         let sp = res.unwrap();
         assert_eq!(sp.graph.node_count(), 0);
@@ -343,12 +310,12 @@ mod tests {
 
     #[test]
     fn simple_build() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![ScriptAction { ..default() }],
         };
 
-        let res = ScreenplayBuilder::new().build(&raw_sp);
+        let res = build(&raw_sp);
         assert!(res.is_ok());
 
         let sp = res.unwrap();
@@ -360,7 +327,7 @@ mod tests {
 
     #[test]
     fn new_with_self_loop() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![ScriptAction {
                 id: 1,
@@ -369,7 +336,7 @@ mod tests {
             }],
         };
 
-        let res = ScreenplayBuilder::new().build(&raw_sp);
+        let res = build(&raw_sp);
 
         assert!(res.is_ok());
         let sp = res.unwrap();
@@ -381,7 +348,7 @@ mod tests {
 
     #[test]
     fn new_with_two_actor_action_nodes() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction {
@@ -393,7 +360,7 @@ mod tests {
             ],
         };
 
-        let res = ScreenplayBuilder::new().build(&raw_sp);
+        let res = build(&raw_sp);
 
         assert!(res.is_ok());
         let sp = res.unwrap();
@@ -404,7 +371,7 @@ mod tests {
 
     #[test]
     fn new_with_branching() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction {
@@ -429,7 +396,7 @@ mod tests {
             ],
         };
 
-        let res = ScreenplayBuilder::new().build(&raw_sp);
+        let res = build(&raw_sp);
         assert!(res.is_ok());
         let sp = res.unwrap();
 
@@ -450,7 +417,7 @@ mod tests {
                 ..default()
             },
         ];
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors,
             script: vec![
                 ScriptAction {
@@ -469,7 +436,7 @@ mod tests {
             ],
         };
 
-        let res = ScreenplayBuilder::new().build(&raw_sp);
+        let res = build(&raw_sp);
 
         assert!(res.is_ok());
         let sp = res.unwrap();
@@ -481,7 +448,7 @@ mod tests {
 
     #[test]
     fn build_missing_actor() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![ScriptAction {
                 actors: vec!["bob".to_string()],
@@ -489,12 +456,9 @@ mod tests {
             }],
         };
 
-        let res = ScreenplayBuilder::new().build(&raw_sp).err();
+        let res = build(&raw_sp).err();
 
-        assert_eq!(
-            res,
-            Some(ScreenplayError::InvalidActor(0, String::from("bob")))
-        );
+        assert_eq!(res, Some(TalkError::InvalidActor(0, String::from("bob"))));
     }
 
     #[test]
@@ -503,36 +467,33 @@ mod tests {
             id: "bob".to_string(),
             ..default()
         }];
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: actor_vec,
             script: vec![ScriptAction {
                 actors: vec!["alice".to_string()],
                 ..default()
             }],
         };
-        let res = ScreenplayBuilder::new().build(&raw_sp).err();
-        assert_eq!(
-            res,
-            Some(ScreenplayError::InvalidActor(0, String::from("alice")))
-        );
+        let res = build(&raw_sp).err();
+        assert_eq!(res, Some(TalkError::InvalidActor(0, String::from("alice"))));
     }
 
     #[test]
     fn build_with_invalid_next_action() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![ScriptAction {
                 next: Some(2),
                 ..default()
             }],
         };
-        let res = ScreenplayBuilder::new().build(&raw_sp).err();
-        assert_eq!(res, Some(ScreenplayError::InvalidNextAction(0, 2)));
+        let res = build(&raw_sp).err();
+        assert_eq!(res, Some(TalkError::InvalidNextAction(0, 2)));
     }
 
     #[test]
     fn build_not_found_in_choice() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![ScriptAction {
                 choices: Some(vec![Choice {
@@ -542,20 +503,20 @@ mod tests {
                 ..default()
             }],
         };
-        let res = ScreenplayBuilder::new().build(&raw_sp).err();
-        assert_eq!(res, Some(ScreenplayError::InvalidNextAction(0, 2)));
+        let res = build(&raw_sp).err();
+        assert_eq!(res, Some(TalkError::InvalidNextAction(0, 2)));
     }
 
     #[test]
     fn build_duplicate_id() {
-        let raw_sp = RawScreenplay {
+        let raw_sp = RawTalk {
             actors: default(),
             script: vec![
                 ScriptAction { id: 1, ..default() },
                 ScriptAction { id: 1, ..default() },
             ],
         };
-        let res = ScreenplayBuilder::new().build(&raw_sp).err();
-        assert_eq!(res, Some(ScreenplayError::DuplicateActionId(1)));
+        let res = build(&raw_sp).err();
+        assert_eq!(res, Some(TalkError::DuplicateActionId(1)));
     }
 }

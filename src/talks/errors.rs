@@ -4,35 +4,35 @@ use thiserror::Error;
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
-    /// Screenplay::next_action() was called on a screenplay
+    /// Talk::next_action() was called on a Talk
     /// where the current action has no next action.
     #[error("current action has no next")]
     NoNextAction,
-    /// Screenplay::next_action() was called on a screenplay
+    /// Talk::next_action() was called on a Talk
     /// where the current action is a choice action.
     #[error("current action is a choice action")]
     ChoicesNotHandled,
 
-    /// Screenplay::jump_to(id) was called on a screenplay
+    /// Talk::jump_to(id) was called on a Talk
     /// where an action with given id does not exist.
     #[error("jumped to action {0}, but it does not exist")]
     WrongJump(i32),
 }
 
-/// Errors when parsing a screenplay json
+/// Errors when parsing a Talk json
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum JsonError {
     /// Serde failed to parse the json
     #[error("serde failed to parse the json: {0}")]
     BadParse(String),
-    /// The screenplay json is not valid
+    /// The Talk json is not valid
     #[error("the script is not valid: {0:?}")]
     Validation(Vec<String>),
 }
 
-/// Errors when building a screenplay
+/// Errors when building a Talk
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ScreenplayError {
+pub enum TalkError {
     /// The actor id is duplicated
     #[error("the actor id {0} is duplicated")]
     DuplicateActorId(String),
@@ -45,7 +45,7 @@ pub enum ScreenplayError {
     /// An action has the next field pointing to a non-existent action
     #[error("the action {0} is pointing to id {1} which was not found")]
     InvalidNextAction(i32, i32),
-    /// The Handle did not have a screenplay loaded
-    #[error("the handle did not have a screenplay loaded")]
-    RawScreenplayNotLoaded,
+    /// The Handle did not have a Talk loaded
+    #[error("the handle did not have a Talk loaded")]
+    RawTalkNotLoaded,
 }

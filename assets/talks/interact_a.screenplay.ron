@@ -24,7 +24,7 @@
         (
             id: 4,
             actor: ["actorA"],
-            text: Some("You just spawn a screenplay that handles this stuff as a child of some other entity, and you've just given dialogues to that entity!")
+            text: Some("You just spawn a Talk that handles this stuff as a child of some other entity, and you've just given dialogues to that entity!")
         ),
         (
             id: 5,
