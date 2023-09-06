@@ -1,5 +1,6 @@
 //! Asset loader for screenplays with json format.
 
+use bevy::log::error;
 use bevy::{
     asset::{AssetLoader, LoadContext, LoadedAsset},
     utils::BoxedFuture,
@@ -17,9 +18,12 @@ impl AssetLoader for ScreenplayLoader {
         bytes: &'a [u8],
         load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<(), bevy::asset::Error>> {
+        let raw_sp = parse_ron_screenplay(bytes);
+        if let Err(e) = &raw_sp {
+            error!("Error parsing screenplay: {e:}");
+        }
         Box::pin(async move {
-            let raw_sp = parse_ron_screenplay(bytes)?;
-            load_context.set_default_asset(LoadedAsset::new(raw_sp));
+            load_context.set_default_asset(LoadedAsset::new(raw_sp?));
             Ok(())
         })
     }
