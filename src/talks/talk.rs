@@ -6,9 +6,10 @@ use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
 use crate::builder::builder;
+use crate::builder::errors::TalkError;
 use crate::builder::types::{ActionId, ActionKind, ActionNode, Actor, Choice};
 
-use super::errors::{NextActionError, TalkError};
+use super::errors::NextActionError;
 use super::RawTalk;
 
 /// A Talk is a directed graph of actions.

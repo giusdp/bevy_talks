@@ -6,9 +6,12 @@ use bevy::{
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 
-use crate::prelude::{errors::TalkError, talk::Talk, RawTalk};
+use crate::prelude::{talk::Talk, RawTalk};
 
-use super::types::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptAction};
+use super::{
+    errors::TalkError,
+    types::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptAction},
+};
 
 /// Builds a `Talk` instance from a `RawTalk` instance.
 ///
@@ -68,7 +71,7 @@ use super::types::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptActio
 /// assert!(result.is_ok());
 /// ```
 ///
-pub fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
+pub(crate) fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
     if raw.script.is_empty() {
         return Ok(Talk { ..default() });
     }
