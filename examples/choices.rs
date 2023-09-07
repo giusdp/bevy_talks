@@ -49,9 +49,9 @@ fn setup_talk(
     simple_sp_asset: Res<SimpleTalkAsset>,
 ) {
     let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
-    let Talk = Talk::build(&raw_sp).unwrap();
+    let talk = Talk::build(&raw_sp).unwrap();
 
-    commands.spawn(Talk);
+    commands.spawn(talk);
 
     println!();
     println!("Press space to advance the conversation. And 1, 2 to pick a choice.");

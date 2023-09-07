@@ -26,9 +26,9 @@ pub(crate) type ActorId = String;
 #[reflect_value]
 pub struct RawTalk {
     /// The list of actions that make up the Talk.
-    pub(crate) script: Vec<RawAction>,
+    pub script: Vec<RawAction>,
     /// The list of actors that appear in the Talk.
-    pub(crate) actors: Vec<RawActor>,
+    pub actors: Vec<RawActor>,
 }
 
 /// A struct that represents an action in a Talk.
@@ -38,19 +38,19 @@ pub struct RawTalk {
 /// the action, the text of the action, the ID of the next action to perform, whether the action is
 /// the start of the Talk, and any sound effect associated with the action.
 #[derive(Debug, Default, Clone)]
-pub(crate) struct RawAction {
+pub struct RawAction {
     /// The ID of the action.
-    pub(crate) id: ActionId,
+    pub id: ActionId,
     /// The kind of action.
-    pub(crate) kind: TalkNodeKind,
+    pub kind: TalkNodeKind,
     /// The actors involved in the action.
-    pub(crate) actors: Vec<ActorId>,
+    pub actors: Vec<ActorId>,
     /// Any choices that the user can make during the action.
-    pub(crate) choices: Option<Vec<RawChoice>>,
+    pub choices: Option<Vec<RawChoice>>,
     /// The text of the action.
-    pub(crate) text: Option<String>,
+    pub text: Option<String>,
     /// The ID of the next action to perform.
-    pub(crate) next: Option<i32>,
+    pub next: Option<i32>,
 }
 
 /// A struct that represents an actor in a Talk.
@@ -59,13 +59,13 @@ pub(crate) struct RawAction {
 /// name of the character that the actor plays, and an optional asset that represents the actor's
 /// appearance or voice.
 #[derive(Debug, Clone, Default)]
-pub(crate) struct RawActor {
+pub struct RawActor {
     /// The ID of the actor.
-    pub(crate) id: ActorId,
+    pub id: ActorId,
     /// The name of the character that the actor plays.
-    pub(crate) name: String,
+    pub name: String,
     /// An optional asset that represents the actor's appearance or voice.
-    pub(crate) asset: Option<Handle<Image>>,
+    pub asset: Option<Handle<Image>>,
 }
 
 impl From<RawActor> for Actor {
@@ -82,9 +82,9 @@ impl From<RawActor> for Actor {
 /// This struct is used to define a choice in a Talk. It contains the text of the choice and
 /// the ID of the next action to perform if the choice is selected.
 #[derive(Debug, Clone)]
-pub(crate) struct RawChoice {
+pub struct RawChoice {
     /// The text of the choice.
-    pub(crate) text: String,
+    pub text: String,
     /// The ID of the next action to perform if the choice is selected.
-    pub(crate) next: ActionId,
+    pub next: ActionId,
 }

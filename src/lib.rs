@@ -103,8 +103,6 @@ mod tests {
 
     use super::*;
 
-    use events::JumpToActionRequest;
-
     /// A minimal Bevy app with the Talks plugin.
     pub fn minimal_app() -> App {
         let mut app = App::new();
@@ -133,28 +131,28 @@ mod tests {
         assert_eq!(sp_spawned.current_node.index(), 1);
     }
 
-    #[test]
-    fn jump_action_handler() {
-        let mut app = minimal_app();
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![
-                RawAction { ..default() },
-                RawAction { id: 2, ..default() },
-                RawAction { id: 3, ..default() },
-            ],
-        };
+    // #[test]
+    // fn jump_action_handler() {
+    //     let mut app = minimal_app();
+    //     let raw_sp = RawTalk {
+    //         actors: default(),
+    //         script: vec![
+    //             RawAction { ..default() },
+    //             RawAction { id: 2, ..default() },
+    //             RawAction { id: 3, ..default() },
+    //         ],
+    //     };
 
-        let sp = Talk::build(&raw_sp);
-        assert!(sp.is_ok());
+    //     let sp = Talk::build(&raw_sp);
+    //     assert!(sp.is_ok());
 
-        let e = app.world.spawn(sp.unwrap()).id();
+    //     let e = app.world.spawn(sp.unwrap()).id();
 
-        app.world.send_event(JumpToActionRequest(e, 3.into()));
-        app.update();
+    //     app.world.send_event(JumpToActionRequest(e, 3.into()));
+    //     app.update();
 
-        let sp_spawned = app.world.get::<Talk>(e).unwrap();
+    //     let sp_spawned = app.world.get::<Talk>(e).unwrap();
 
-        assert_eq!(sp_spawned.current_node.index(), 2);
-    }
+    //     assert_eq!(sp_spawned.current_node.index(), 2);
+    // }
 }

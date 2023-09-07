@@ -68,10 +68,10 @@ fn setup_talk(
 fn interact(
     input: Res<Input<KeyCode>>,
     mut next_action_events: EventWriter<NextActionRequest>,
-    Talks: Query<Entity, With<Talk>>,
+    talks: Query<Entity, With<Talk>>,
 ) {
     if input.just_pressed(KeyCode::Space) {
-        let e = Talks.single();
+        let e = talks.single();
         next_action_events.send(NextActionRequest(e));
     }
 }

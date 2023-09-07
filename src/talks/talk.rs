@@ -4,11 +4,8 @@ use bevy::prelude::Component;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use super::errors::NextActionError;
 use super::{Actor, Choice, TalkNode, TalkNodeKind};
-use crate::builder;
-use crate::errors::BuildTalkError;
-use crate::prelude::RawTalk;
+use crate::{builder, prelude::*};
 
 /// A Talk is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
@@ -36,20 +33,31 @@ pub struct Talk {
 
 // API
 impl Talk {
-    /// Returns a new `TalkBuilder` instance.
+    // Builds a `Talk` instance from a `RawTalk` instance.
+    ///
+    /// # Arguments
+    ///
+    /// * `raw_talk` - A reference to the `RawTalk` instance to build the `Talk` from.
+    ///
+    /// # Returns
+    ///
+    /// Returns a `Result` containing the built `Talk` instance if successful, or a `BuildTalkError` if an error occurred during the build process.
     ///
     /// # Examples
     ///
     /// ```
-    /// use bevy_talks::prelude::Talk;
+    /// use bevy_talks::prelude::*;
     ///
-    /// let builder = Talk::build();
+    /// let raw_talk = RawTalk::default();
+    /// let talk_res = Talk::build(&raw_talk);
+    ///
+    /// assert!(talk_res.is_ok());
     /// ```
     pub fn build(raw_talk: &RawTalk) -> Result<Talk, BuildTalkError> {
         builder::build(raw_talk)
     }
 
-    /// Returns the `ActionKind` of the current action.
+    /// Returns the `TalkNodeKind` of the current action.
     ///
     /// # Examples
     ///
@@ -58,11 +66,11 @@ impl Talk {
     ///
     /// let raw = RawTalk {
     ///   actors: Default::default(),
-    ///   script: vec![ ScriptAction::default() ],
+    ///   script: vec![ RawAction::default() ],
     /// };
     ///
-    /// let mut sp = TalkBuilder::new().build(&raw).unwrap();
-    /// assert_eq!(sp.action_kind(), ActionKind::Talk);
+    /// let mut sp = Talk::build(&raw).unwrap();
+    /// assert_eq!(sp.node_kind(), TalkNodeKind::Talk);
     /// ```
     pub fn node_kind(&self) -> TalkNodeKind {
         self.graph[self.current_node].kind.clone()
@@ -93,16 +101,16 @@ impl Talk {
     ///
     ///  let raw = RawTalk {
     ///        actors: Default::default(),
-    ///        script: vec![ScriptAction {
+    ///        script: vec![RawAction {
     ///            text: Some(String::from("Hello")),
     ///            ..Default::default()
     ///        }],
     ///    };
-    /// let sp = TalkBuilder::new().build(&raw);
+    /// let sp = Talk::build(&raw);
     /// assert_eq!(sp.unwrap().text(), "Hello");
     ///
     /// let raw = RawTalk::default();
-    /// let sp = TalkBuilder::new().build(&raw);
+    /// let sp = Talk::build(&raw);
     /// assert_eq!(sp.unwrap().text(), "");
     /// ```
     pub fn text(&self) -> &str {
@@ -123,12 +131,12 @@ impl Talk {
     /// use bevy_talks::prelude::*;
     /// let raw = RawTalk {
     ///   actors: vec![
-    ///     Actor {id: String::from("bob"), name: String::from("Bob"), ..Default::default() },
-    ///     Actor {id: String::from("alice"), name: String::from("Alice"), ..Default::default() },
+    ///     RawActor {id: String::from("bob"), name: String::from("Bob"), ..Default::default() },
+    ///     RawActor {id: String::from("alice"), name: String::from("Alice"), ..Default::default() },
     ///   ],
-    ///   script: vec![ScriptAction { actors: vec![String::from("bob")], ..Default::default() }],
+    ///   script: vec![RawAction { actors: vec![String::from("bob")], ..Default::default() }],
     /// };
-    /// let sp = TalkBuilder::new().build(&raw).unwrap();
+    /// let sp = Talk::build(&raw).unwrap();
     /// let actors = sp.action_actors();
     /// assert_eq!(actors[0].name, "Bob");
     /// ```
@@ -145,22 +153,22 @@ impl Talk {
     /// let raw = RawTalk {
     ///   actors: Default::default(),
     ///   script: vec![
-    ///     ScriptAction {
+    ///     RawAction {
     ///         choices: Some(vec![
-    ///             Choice { text: String::from("Choice 1"), next: 2 },
-    ///             Choice { text: String::from("Choice 2"), next: 3 },
+    ///             RawChoice { text: String::from("Choice 1"), next: 2 },
+    ///             RawChoice { text: String::from("Choice 2"), next: 3 },
     ///         ]),
     ///         ..Default::default()
     ///     },
-    ///     ScriptAction { id: 2, ..Default::default() },
-    ///     ScriptAction { id: 3, ..Default::default() },
+    ///     RawAction { id: 2, ..Default::default() },
+    ///     RawAction { id: 3, ..Default::default() },
     ///   ],
     /// };
     ///
-    /// let sp = TalkBuilder::new().build(&raw).unwrap();
-    /// assert_eq!(sp.choices().unwrap()[0].next, 2);
+    /// let sp = Talk::build(&raw).unwrap();
+    /// assert_eq!(sp.choices().unwrap()[0].next, 1.into());
     /// assert_eq!(sp.choices().unwrap()[0].text, "Choice 1");
-    /// assert_eq!(sp.choices().unwrap()[1].next, 3);
+    /// assert_eq!(sp.choices().unwrap()[1].next, 2.into());
     /// assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
     /// ```
     pub fn choices(&self) -> Option<Vec<Choice>> {

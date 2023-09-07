@@ -35,10 +35,6 @@ pub struct Actor {
 }
 
 /// An enumeration of the different kinds of actions that can be performed in a Talk.
-///
-/// This enumeration is used to define the different kinds of actions that can be performed in a
-/// Talk. Each variant of the enumeration represents a different kind of action, such as
-/// talking, entering, exiting, or making a choice.
 #[derive(Debug, Default, Clone, PartialEq)]
 pub enum TalkNodeKind {
     /// A talk action, where a character speaks dialogue.

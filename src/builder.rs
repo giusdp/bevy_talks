@@ -33,18 +33,18 @@ use crate::{
 /// # Examples
 ///
 /// ```
-/// use bevy_talks::prelude::{Actor, RawTalk, ScriptAction, Talk, TalkBuilder};
+/// use bevy_talks::prelude::*;
 ///
 /// let raw = RawTalk {
 ///     script: vec![
-///         ScriptAction {
+///         RawAction {
 ///             id: 1,
 ///             text: Some("Action 1".to_string()),
 ///             actors: vec!["actor1".to_string()],
 ///             next: Some(2),
 ///             ..Default::default()
 ///         },
-///         ScriptAction {
+///         RawAction {
 ///             id: 2,
 ///             text: Some("Action 2".to_string()),
 ///             actors: vec!["actor2".to_string()],
@@ -52,12 +52,12 @@ use crate::{
 ///         },
 ///     ],
 ///     actors: vec![
-///         Actor {
+///         RawActor {
 ///             id: "actor1".to_string(),
 ///             name: "Actor 1".to_string(),
 ///             ..Default::default()
 ///         },
-///         Actor {
+///         RawActor {
 ///             id: "actor2".to_string(),
 ///             name: "Actor 2".to_string(),
 ///             ..Default::default()
@@ -65,7 +65,7 @@ use crate::{
 ///     ],
 /// };
 ///
-/// let result = TalkBuilder::new().build(&raw);
+/// let result = Talk::build(&raw);
 ///
 /// assert!(result.is_ok());
 /// ```

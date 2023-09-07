@@ -1,3 +1,8 @@
 //! Prelude for the `talks` crate.
 pub use super::TalksPlugin;
-pub use super::{events::*, talker::*, talks::raw_talk::*, talks::talk::*};
+pub use super::{
+    errors::*,
+    events::*,
+    talker::*,
+    talks::{errors::*, raw_talk::*, talk::*, *},
+};
