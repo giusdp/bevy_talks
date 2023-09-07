@@ -60,6 +60,7 @@ pub(crate) struct RawAction {
 /// appearance or voice.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct RawActor {
+    /// The ID of the actor.
     pub(crate) id: ActorId,
     /// The name of the character that the actor plays.
     pub(crate) name: String,
@@ -67,11 +68,11 @@ pub(crate) struct RawActor {
     pub(crate) asset: Option<Handle<Image>>,
 }
 
-impl Into<Actor> for RawActor {
-    fn into(self) -> Actor {
+impl From<RawActor> for Actor {
+    fn from(val: RawActor) -> Self {
         Actor {
-            name: self.name,
-            asset: self.asset,
+            name: val.name,
+            asset: val.asset,
         }
     }
 }

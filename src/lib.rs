@@ -11,16 +11,16 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use loader::loader::TalkLoader;
 use prelude::{JumpToActionRequest, NextActionRequest, RawTalk, Talk};
+use ron_loader::loader::TalkLoader;
 use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 mod builder;
 pub mod display;
 pub mod errors;
 pub mod events;
-pub mod loader;
 pub mod prelude;
+pub mod ron_loader;
 pub mod talker;
 pub mod talks;
 pub mod trigger;
@@ -89,6 +89,7 @@ fn next_action_handler(
     }
 }
 
+/// Handles `OnUseTrigger` and `OnEnableTrigger` events by triggering the associated actions.
 fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
     for (_sp, t) in query.iter() {
         t.trigger();

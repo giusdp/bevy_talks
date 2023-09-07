@@ -8,7 +8,7 @@ pub trait TalkTriggerer {
     fn trigger(&self);
 }
 
-/// The player’s Selector or Proximity Selector sent an OnUse message to the GameObject, or the Dialogue System Trigger’s OnUse() method was called manually in a UnityEvent or script.
+/// The component was used.
 #[derive(Component)]
 pub struct OnUseTrigger;
 

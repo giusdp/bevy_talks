@@ -1,6 +1,6 @@
 //! Talks module
 
-use bevy::prelude::{Handle, HandleUntyped, Image};
+use bevy::prelude::{Handle, Image};
 use petgraph::stable_graph::NodeIndex;
 
 pub mod components;

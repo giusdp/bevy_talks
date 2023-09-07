@@ -1,8 +1,6 @@
 //! Asset loader for Talks from "talks.ron" files.
 
-use std::cell::RefCell;
-use std::path::{Path, PathBuf};
-use std::rc::Rc;
+use std::path::Path;
 
 use bevy::asset::AssetPath;
 use bevy::log::error;

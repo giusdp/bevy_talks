@@ -1,3 +1,4 @@
+//! Types used by the ron loader.
 use serde::Deserialize;
 
 use crate::{
@@ -40,17 +41,17 @@ pub(crate) struct RonAction {
     pub(crate) next: Option<ActionId>,
 }
 
-impl Into<RawAction> for RonAction {
-    fn into(self) -> RawAction {
+impl From<RonAction> for RawAction {
+    fn from(val: RonAction) -> Self {
         RawAction {
-            id: self.id,
-            kind: self.action.into(),
-            actors: self.actors,
-            choices: self
+            id: val.id,
+            kind: val.action.into(),
+            actors: val.actors,
+            choices: val
                 .choices
                 .map(|c| c.into_iter().map(|c| c.into()).collect()),
-            text: self.text,
-            next: self.next,
+            text: val.text,
+            next: val.next,
         }
     }
 }
@@ -81,11 +82,11 @@ pub(crate) struct RonChoice {
     pub(crate) next: ActionId,
 }
 
-impl Into<RawChoice> for RonChoice {
-    fn into(self) -> RawChoice {
+impl From<RonChoice> for RawChoice {
+    fn from(val: RonChoice) -> Self {
         RawChoice {
-            text: self.text,
-            next: self.next,
+            text: val.text,
+            next: val.next,
         }
     }
 }
@@ -108,9 +109,9 @@ pub(crate) enum RonActionKind {
     Choice,
 }
 
-impl Into<TalkNodeKind> for RonActionKind {
-    fn into(self) -> TalkNodeKind {
-        match self {
+impl From<RonActionKind> for TalkNodeKind {
+    fn from(val: RonActionKind) -> Self {
+        match val {
             RonActionKind::Talk => TalkNodeKind::Talk,
             RonActionKind::Join => TalkNodeKind::Join,
             RonActionKind::Leave => TalkNodeKind::Leave,
