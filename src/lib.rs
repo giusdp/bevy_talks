@@ -11,14 +11,15 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use builder::loader::TalkLoader;
-use prelude::{JumpToActionRequest, NextActionRequest, RawTalk};
-use talks::talk::Talk;
+use loader::loader::TalkLoader;
+use prelude::{JumpToActionRequest, NextActionRequest, RawTalk, Talk};
 use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
-pub mod builder;
+mod builder;
 pub mod display;
+pub mod errors;
 pub mod events;
+pub mod loader;
 pub mod prelude;
 pub mod talker;
 pub mod talks;
@@ -37,7 +38,7 @@ impl Plugin for TalksPlugin {
                 Update,
                 (
                     next_action_handler,
-                    jump_action_handler,
+                    // jump_action_handler,
                     handle_trigger::<OnUseTrigger>,
                     handle_trigger::<OnEnableTrigger>,
                 ),
@@ -45,24 +46,24 @@ impl Plugin for TalksPlugin {
     }
 }
 
-/// Handles `JumpToActionRequest` events by updating the active Talk.
-///
-/// This function is a Bevy system that listens for `JumpToActionRequest` events.
-/// It calls `jump_to` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
-/// if the reached action is an enter or exit action, respectively.
-fn jump_action_handler(
-    mut jump_requests: EventReader<JumpToActionRequest>,
-    mut sp_comps: Query<(Entity, &mut Talk)>,
-) {
-    for ev in jump_requests.iter() {
-        if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
-            match sp.jump_to(ev.1) {
-                Ok(()) => info!("Jumped to action {}.", ev.1),
-                Err(err) => error!("Jump action could not be set: {}", err),
-            }
-        }
-    }
-}
+// /// Handles `JumpToActionRequest` events by updating the active Talk.
+// ///
+// /// This function is a Bevy system that listens for `JumpToActionRequest` events.
+// /// It calls `jump_to` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
+// /// if the reached action is an enter or exit action, respectively.
+// fn jump_action_handler(
+//     mut jump_requests: EventReader<JumpToActionRequest>,
+//     mut sp_comps: Query<(Entity, &mut Talk)>,
+// ) {
+//     for ev in jump_requests.iter() {
+//         if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
+//             match sp.jump_to(ev.1) {
+//                 Ok(()) => info!("Jumped to action {:?}.", ev.1),
+//                 Err(err) => error!("Jump action could not be set: {}", err),
+//             }
+//         }
+//     }
+// }
 
 /// Handles `NextActionRequest` events by advancing the active Talk to the next action.
 ///
@@ -96,7 +97,8 @@ fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::types::RawAction;
+
+    use crate::prelude::RawAction;
 
     use super::*;
 
@@ -147,7 +149,7 @@ mod tests {
 
         let e = app.world.spawn(sp.unwrap()).id();
 
-        app.world.send_event(JumpToActionRequest(e, 3));
+        app.world.send_event(JumpToActionRequest(e, 3.into()));
         app.update();
 
         let sp_spawned = app.world.get::<Talk>(e).unwrap();

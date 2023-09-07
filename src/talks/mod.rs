@@ -1,19 +1,18 @@
 //! Talks module
 
-use bevy::prelude::HandleUntyped;
+use bevy::prelude::{Handle, HandleUntyped, Image};
 use petgraph::stable_graph::NodeIndex;
-use serde::Deserialize;
 
 pub mod components;
 pub mod errors;
+pub mod raw_talk;
 pub mod talk;
-
 /// An action node in a Talk.
 #[derive(Debug, Default)]
 #[allow(dead_code)]
 pub(crate) struct TalkNode {
     /// The kind of action.
-    pub(crate) kind: Kind,
+    pub(crate) kind: TalkNodeKind,
     /// The text of the action.
     pub(crate) text: Option<String>,
     /// The actors involved in the action.
@@ -32,7 +31,7 @@ pub struct Actor {
     /// The name of the character that the actor plays.
     pub name: String,
     /// An optional asset that represents the actor's appearance or voice.
-    pub asset: Option<HandleUntyped>,
+    pub asset: Option<Handle<Image>>,
 }
 
 /// An enumeration of the different kinds of actions that can be performed in a Talk.
@@ -40,8 +39,8 @@ pub struct Actor {
 /// This enumeration is used to define the different kinds of actions that can be performed in a
 /// Talk. Each variant of the enumeration represents a different kind of action, such as
 /// talking, entering, exiting, or making a choice.
-#[derive(Debug, Default, Deserialize, Clone, PartialEq)]
-pub enum Kind {
+#[derive(Debug, Default, Clone, PartialEq)]
+pub enum TalkNodeKind {
     /// A talk action, where a character speaks dialogue.
     #[default]
     Talk,

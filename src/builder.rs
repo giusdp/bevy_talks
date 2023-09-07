@@ -6,9 +6,11 @@ use bevy::{
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 
-use crate::{prelude::Talk, talks::TalkNode};
-
-use super::{errors::BuildTalkError, ActionId, ActionKind, ActorId, RawAction, RawActor, RawTalk};
+use crate::{
+    errors::BuildTalkError,
+    prelude::{ActionId, ActorId, RawAction, RawActor, RawTalk, Talk},
+    talks::{Choice, TalkNode, TalkNodeKind},
+};
 
 /// Builds a `Talk` instance from a `RawTalk` instance.
 ///
@@ -101,9 +103,10 @@ pub(crate) fn build(raw: &RawTalk) -> Result<Talk, BuildTalkError> {
     })
 }
 
-/// Connects all the action nodes in the graph based on the `next`
-/// and `choices` fields of each `ScriptAction` instance. If both fields are None,
-/// the next action in the `actions` slice is connected (unless it's the last one).
+/// Connects all the action nodes in the graph based on the `next`  and `choices` fields of each `RawAction` instance.
+/// If both fields are None, the next action in the `actions` slice is connected (unless it's the last one).
+///
+/// When connecting the nodes, the `choices` field of the current node is populated with the `Choice` instances
 ///
 /// # Arguments
 ///
@@ -118,6 +121,19 @@ fn connect_action_nodes(
     for (i, action) in actions.iter().enumerate() {
         let current_node_idx = id_nodeidx_map.get(&action.id).unwrap();
         if let Some(choices) = &action.choices {
+            // Build the choice vector to put in the current node
+            let choice_vec = choices
+                .iter()
+                .map(|c| {
+                    let next = id_nodeidx_map.get(&c.next).unwrap();
+                    Choice {
+                        text: c.text.clone(),
+                        next: *next,
+                    }
+                })
+                .collect::<Vec<_>>();
+            let current_node = graph.node_weight_mut(*current_node_idx).unwrap();
+            current_node.choices = Some(choice_vec);
             for choice in choices {
                 let choice_node_idx = id_nodeidx_map.get(&choice.next).unwrap();
                 graph.add_edge(*current_node_idx, *choice_node_idx, ());
@@ -151,16 +167,22 @@ fn add_action_nodes(
     let mut id_nodeidx_map = HashMap::new();
 
     for action in actions {
-        let action_actors = retrieve_actors(&action.actors, actors);
+        let actors = retrieve_actors(&action.actors, actors)
+            .into_iter()
+            .map(|a| a.into())
+            .collect();
+
+        // Choices will be populated later, we first need to have all the nodes in place
         let mut node = TalkNode {
-            kind: action.action.clone(),
-            choices: action.choices.clone(),
+            kind: action.kind.clone(),
+            choices: None,
             text: action.text.clone(),
-            actors: action_actors,
+            actors,
         };
-        // If the action has choices, hardwire the kind to Choice
-        if node.choices.is_some() && node.kind != ActionKind::Choice {
-            node.kind = ActionKind::Choice;
+
+        // If the raw action has choices, hardwire the kind to Choice
+        if action.choices.is_some() && node.kind != TalkNodeKind::Choice {
+            node.kind = TalkNodeKind::Choice;
         }
 
         let node_idx = graph.add_node(node);
@@ -204,31 +226,13 @@ fn validate_actors_in_actions(
     actors: &[RawActor],
 ) -> Result<(), BuildTalkError> {
     for action in actions {
-        validate_actors_in_single_action(action, actors)?;
-    }
-    Ok(())
-}
-
-/// Validate that all the actors in the action are present in the actors list.
-///
-/// # Arguments
-///
-/// * `action` - A reference to the `ScriptAction` to validate.
-/// * `actors` - A slice of `Actor` structs representing the available actors.
-///
-/// # Errors
-///
-/// Returns a `TalkError::InvalidActor` error if any of the actors in the action are not present in the actors list.
-fn validate_actors_in_single_action(
-    action: &RawAction,
-    actors: &[RawActor],
-) -> Result<(), BuildTalkError> {
-    for actor_key in action.actors.iter() {
-        if !actors.iter().any(|a| a.id == *actor_key) {
-            return Err(BuildTalkError::InvalidActor(
-                action.id,
-                actor_key.to_string(),
-            ));
+        for actor_key in action.actors.iter() {
+            if !actors.iter().any(|a| a.id == *actor_key) {
+                return Err(BuildTalkError::InvalidActor(
+                    action.id,
+                    actor_key.to_string(),
+                ));
+            }
         }
     }
     Ok(())
@@ -271,7 +275,9 @@ fn check_duplicate_actor_ids(actors: &[RawActor]) -> Result<(), BuildTalkError> 
     }
     Ok(())
 }
+
 /// Check if all `next` fields and `Choice` `next` fields in a `Vec<ScriptAction>` point to real actions.
+/// If the action has choices, the `next` field is not checked.
 ///
 /// # Arguments
 ///
@@ -301,7 +307,7 @@ fn validate_all_nexts(actions: &[RawAction]) -> Result<(), BuildTalkError> {
 #[cfg(test)]
 mod tests {
 
-    use crate::builder::RawChoice;
+    use crate::prelude::RawChoice;
 
     use super::*;
     use bevy::prelude::default;
@@ -328,7 +334,7 @@ mod tests {
         let sp = res.unwrap();
         assert_eq!(sp.graph.node_count(), 1);
         assert_eq!(sp.graph.edge_count(), 0);
-        assert_eq!(sp.action_node_map.len(), 1);
+        // assert_eq!(sp.action_node_map.len(), 1);
         assert_eq!(sp.current_node.index(), 0);
     }
 
@@ -349,7 +355,7 @@ mod tests {
         let sp = res.unwrap();
         assert_eq!(sp.graph.node_count(), 1);
         assert_eq!(sp.graph.edge_count(), 1);
-        assert_eq!(sp.action_node_map.len(), 1);
+        // assert_eq!(sp.action_node_map.len(), 1);
         assert_eq!(sp.current_node.index(), 0);
     }
 

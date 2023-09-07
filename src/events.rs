@@ -1,8 +1,7 @@
 //! Events used in the plugin.
 
 use bevy::prelude::{Entity, Event};
-
-use crate::builder::types::ActionId;
+use petgraph::stable_graph::NodeIndex;
 
 /// Event to request the next action in the `ActiveTalk`. It is sent with the entity with the `Talk` component to update.
 ///
@@ -18,4 +17,4 @@ pub struct NextActionRequest(pub Entity);
 /// This event is typically used to signal after a Player choice to jump to the action that is the result of the choice.
 /// The `ActionId` to jump to is the one defined in the next field for the Choice choosen by the player.
 #[derive(Event)]
-pub struct JumpToActionRequest(pub Entity, pub ActionId);
+pub struct JumpToActionRequest(pub Entity, pub NodeIndex);
