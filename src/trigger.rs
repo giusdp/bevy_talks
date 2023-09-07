@@ -27,6 +27,3 @@ impl TalkTriggerer for OnEnableTrigger {
         println!("OnEnableTrigger");
     }
 }
-
-/// The component received an OnCollisionEnter message.
-struct OnCollisionEnterTrigger;

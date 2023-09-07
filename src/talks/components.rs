@@ -2,7 +2,7 @@
 
 use bevy::prelude::{Component, Entity};
 
-use crate::builder::types::Actor;
+use super::Actor;
 
 /// The dialogue line component for a Talk.
 #[derive(Component, Default)]

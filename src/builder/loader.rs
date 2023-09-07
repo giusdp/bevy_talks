@@ -6,7 +6,7 @@ use bevy::{
     utils::BoxedFuture,
 };
 
-use crate::prelude::RawTalk;
+use super::RawTalk;
 
 /// Load Talks from json assets.
 #[derive(Default)]

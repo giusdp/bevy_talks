@@ -6,12 +6,9 @@ use bevy::{
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 
-use crate::prelude::{RawTalk, Talk};
+use crate::{prelude::Talk, talks::TalkNode};
 
-use super::{
-    errors::TalkError,
-    types::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptAction},
-};
+use super::{errors::BuildTalkError, ActionId, ActionKind, ActorId, RawAction, RawActor, RawTalk};
 
 /// Builds a `Talk` instance from a `RawTalk` instance.
 ///
@@ -71,7 +68,7 @@ use super::{
 /// assert!(result.is_ok());
 /// ```
 ///
-pub(crate) fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
+pub(crate) fn build(raw: &RawTalk) -> Result<Talk, BuildTalkError> {
     if raw.script.is_empty() {
         return Ok(Talk { ..default() });
     }
@@ -88,7 +85,7 @@ pub(crate) fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
     validate_all_nexts(&raw.script)?;
 
     // # Graph build Pass
-    let mut graph: DiGraph<ActionNode, ()> =
+    let mut graph: DiGraph<TalkNode, ()> =
         DiGraph::with_capacity(raw.script.len(), raw.script.len());
 
     // 1. Add all action nodes
@@ -100,7 +97,7 @@ pub(crate) fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
     Ok(Talk {
         graph,
         current_node: NodeIndex::new(0),
-        action_node_map: id_nodeidx_map,
+        // action_node_map: id_nodeidx_map,
     })
 }
 
@@ -114,8 +111,8 @@ pub(crate) fn build(raw: &RawTalk) -> Result<Talk, TalkError> {
 /// * `actions` - A slice of `ScriptAction` instances to connect in the graph.
 /// * `id_nodeidx_map` - A `HashMap` that maps `ActionId` values to `NodeIndex` values in the graph.
 fn connect_action_nodes(
-    graph: &mut Graph<ActionNode, ()>,
-    actions: &[ScriptAction],
+    graph: &mut Graph<TalkNode, ()>,
+    actions: &[RawAction],
     id_nodeidx_map: &HashMap<ActionId, NodeIndex>,
 ) {
     for (i, action) in actions.iter().enumerate() {
@@ -147,15 +144,15 @@ fn connect_action_nodes(
 ///
 /// A `HashMap` that maps `ActionId` values to `NodeIndex` values in the graph.
 fn add_action_nodes(
-    graph: &mut Graph<ActionNode, ()>,
-    actions: &[ScriptAction],
-    actors: &[Actor],
+    graph: &mut Graph<TalkNode, ()>,
+    actions: &[RawAction],
+    actors: &[RawActor],
 ) -> HashMap<ActionId, NodeIndex> {
     let mut id_nodeidx_map = HashMap::new();
 
     for action in actions {
         let action_actors = retrieve_actors(&action.actors, actors);
-        let mut node = ActionNode {
+        let mut node = TalkNode {
             kind: action.action.clone(),
             choices: action.choices.clone(),
             text: action.text.clone(),
@@ -184,7 +181,7 @@ fn add_action_nodes(
 /// # Returns
 ///
 /// A vector of `Actor` instances corresponding to the given actor IDs.
-fn retrieve_actors(actor_ids: &[ActorId], actors: &[Actor]) -> Vec<Actor> {
+fn retrieve_actors(actor_ids: &[ActorId], actors: &[RawActor]) -> Vec<RawActor> {
     actors
         .iter()
         .filter(|actor| actor_ids.contains(&actor.id))
@@ -202,7 +199,10 @@ fn retrieve_actors(actor_ids: &[ActorId], actors: &[Actor]) -> Vec<Actor> {
 /// # Errors
 ///
 /// Returns a `TalkError::InvalidActor` error if any of the actors in any of the actions are not present in the actors list.
-fn validate_actors_in_actions(actions: &[ScriptAction], actors: &[Actor]) -> Result<(), TalkError> {
+fn validate_actors_in_actions(
+    actions: &[RawAction],
+    actors: &[RawActor],
+) -> Result<(), BuildTalkError> {
     for action in actions {
         validate_actors_in_single_action(action, actors)?;
     }
@@ -220,12 +220,15 @@ fn validate_actors_in_actions(actions: &[ScriptAction], actors: &[Actor]) -> Res
 ///
 /// Returns a `TalkError::InvalidActor` error if any of the actors in the action are not present in the actors list.
 fn validate_actors_in_single_action(
-    action: &ScriptAction,
-    actors: &[Actor],
-) -> Result<(), TalkError> {
+    action: &RawAction,
+    actors: &[RawActor],
+) -> Result<(), BuildTalkError> {
     for actor_key in action.actors.iter() {
         if !actors.iter().any(|a| a.id == *actor_key) {
-            return Err(TalkError::InvalidActor(action.id, actor_key.to_string()));
+            return Err(BuildTalkError::InvalidActor(
+                action.id,
+                actor_key.to_string(),
+            ));
         }
     }
     Ok(())
@@ -240,11 +243,11 @@ fn validate_actors_in_single_action(
 /// # Errors
 ///
 /// Returns a `TalkError::DuplicateActionId` error if any `id` value appears more than once in the `actions` vector.
-fn check_duplicate_action_ids(actions: &[ScriptAction]) -> Result<(), TalkError> {
+fn check_duplicate_action_ids(actions: &[RawAction]) -> Result<(), BuildTalkError> {
     let mut seen_ids = HashSet::new();
     for action in actions {
         if !seen_ids.insert(action.id) {
-            return Err(TalkError::DuplicateActionId(action.id));
+            return Err(BuildTalkError::DuplicateActionId(action.id));
         }
     }
     Ok(())
@@ -259,11 +262,11 @@ fn check_duplicate_action_ids(actions: &[ScriptAction]) -> Result<(), TalkError>
 /// # Errors
 ///
 /// Returns a `TalkError::DuplicateActorId` error if any `actor_id` value appears more than once in the `actors` vector.
-fn check_duplicate_actor_ids(actors: &[Actor]) -> Result<(), TalkError> {
+fn check_duplicate_actor_ids(actors: &[RawActor]) -> Result<(), BuildTalkError> {
     let mut seen_ids = HashSet::new();
     for actor in actors {
         if !seen_ids.insert(&actor.id) {
-            return Err(TalkError::DuplicateActorId(actor.id.clone()));
+            return Err(BuildTalkError::DuplicateActorId(actor.id.clone()));
         }
     }
     Ok(())
@@ -277,18 +280,18 @@ fn check_duplicate_actor_ids(actors: &[Actor]) -> Result<(), TalkError> {
 /// # Errors
 ///
 /// Returns a `TalkError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `ScriptAction`s do not point to real actions.
-fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), TalkError> {
+fn validate_all_nexts(actions: &[RawAction]) -> Result<(), BuildTalkError> {
     let id_set = actions.iter().map(|a| a.id).collect::<HashSet<ActionId>>();
     for action in actions {
         if let Some(choices) = &action.choices {
             for choice in choices {
                 if !id_set.contains(&choice.next) {
-                    return Err(TalkError::InvalidNextAction(action.id, choice.next));
+                    return Err(BuildTalkError::InvalidNextAction(action.id, choice.next));
                 }
             }
         } else if let Some(next_id) = &action.next {
             if !id_set.contains(next_id) {
-                return Err(TalkError::InvalidNextAction(action.id, *next_id));
+                return Err(BuildTalkError::InvalidNextAction(action.id, *next_id));
             }
         }
     }
@@ -297,7 +300,8 @@ fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), TalkError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::types::Choice;
+
+    use crate::builder::RawChoice;
 
     use super::*;
     use bevy::prelude::default;
@@ -315,7 +319,7 @@ mod tests {
     fn simple_build() {
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![ScriptAction { ..default() }],
+            script: vec![RawAction { ..default() }],
         };
 
         let res = build(&raw_sp);
@@ -332,7 +336,7 @@ mod tests {
     fn new_with_self_loop() {
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![ScriptAction {
+            script: vec![RawAction {
                 id: 1,
                 next: Some(1),
                 ..default()
@@ -354,12 +358,12 @@ mod tests {
         let raw_sp = RawTalk {
             actors: default(),
             script: vec![
-                ScriptAction {
+                RawAction {
                     id: 1,
                     next: Some(2),
                     ..default()
                 },
-                ScriptAction { id: 2, ..default() },
+                RawAction { id: 2, ..default() },
             ],
         };
 
@@ -377,25 +381,25 @@ mod tests {
         let raw_sp = RawTalk {
             actors: default(),
             script: vec![
-                ScriptAction {
+                RawAction {
                     choices: Some(vec![
-                        Choice {
+                        RawChoice {
                             text: "Choice 1".to_string(),
                             next: 2,
                         },
-                        Choice {
+                        RawChoice {
                             text: "Choice 2".to_string(),
                             next: 3,
                         },
                     ]),
                     ..default()
                 },
-                ScriptAction {
+                RawAction {
                     id: 2,
                     text: Some("Hello".to_string()),
                     ..default()
                 },
-                ScriptAction { id: 3, ..default() },
+                RawAction { id: 3, ..default() },
             ],
         };
 
@@ -411,11 +415,11 @@ mod tests {
     #[test]
     fn new_with_actors() {
         let actors = vec![
-            Actor {
+            RawActor {
                 id: "bob".to_owned(),
                 ..default()
             },
-            Actor {
+            RawActor {
                 id: "alice".to_owned(),
                 ..default()
             },
@@ -423,14 +427,14 @@ mod tests {
         let raw_sp = RawTalk {
             actors,
             script: vec![
-                ScriptAction {
+                RawAction {
                     id: 1,
                     text: Some("Hello".to_string()),
                     actors: vec!["bob".to_string()],
                     next: Some(2),
                     ..default()
                 },
-                ScriptAction {
+                RawAction {
                     id: 2,
                     text: Some("Whatup".to_string()),
                     actors: vec!["alice".to_string()],
@@ -453,7 +457,7 @@ mod tests {
     fn build_missing_actor() {
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![ScriptAction {
+            script: vec![RawAction {
                 actors: vec!["bob".to_string()],
                 ..default()
             }],
@@ -461,45 +465,51 @@ mod tests {
 
         let res = build(&raw_sp).err();
 
-        assert_eq!(res, Some(TalkError::InvalidActor(0, String::from("bob"))));
+        assert_eq!(
+            res,
+            Some(BuildTalkError::InvalidActor(0, String::from("bob")))
+        );
     }
 
     #[test]
     fn build_actor_mismath() {
-        let actor_vec = vec![Actor {
+        let actor_vec = vec![RawActor {
             id: "bob".to_string(),
             ..default()
         }];
         let raw_sp = RawTalk {
             actors: actor_vec,
-            script: vec![ScriptAction {
+            script: vec![RawAction {
                 actors: vec!["alice".to_string()],
                 ..default()
             }],
         };
         let res = build(&raw_sp).err();
-        assert_eq!(res, Some(TalkError::InvalidActor(0, String::from("alice"))));
+        assert_eq!(
+            res,
+            Some(BuildTalkError::InvalidActor(0, String::from("alice")))
+        );
     }
 
     #[test]
     fn build_with_invalid_next_action() {
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![ScriptAction {
+            script: vec![RawAction {
                 next: Some(2),
                 ..default()
             }],
         };
         let res = build(&raw_sp).err();
-        assert_eq!(res, Some(TalkError::InvalidNextAction(0, 2)));
+        assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
     }
 
     #[test]
     fn build_not_found_in_choice() {
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![ScriptAction {
-                choices: Some(vec![Choice {
+            script: vec![RawAction {
+                choices: Some(vec![RawChoice {
                     next: 2,
                     text: default(),
                 }]),
@@ -507,7 +517,7 @@ mod tests {
             }],
         };
         let res = build(&raw_sp).err();
-        assert_eq!(res, Some(TalkError::InvalidNextAction(0, 2)));
+        assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
     }
 
     #[test]
@@ -515,11 +525,11 @@ mod tests {
         let raw_sp = RawTalk {
             actors: default(),
             script: vec![
-                ScriptAction { id: 1, ..default() },
-                ScriptAction { id: 1, ..default() },
+                RawAction { id: 1, ..default() },
+                RawAction { id: 1, ..default() },
             ],
         };
         let res = build(&raw_sp).err();
-        assert_eq!(res, Some(TalkError::DuplicateActionId(1)));
+        assert_eq!(res, Some(BuildTalkError::DuplicateActionId(1)));
     }
 }

@@ -1,16 +1,13 @@
 //! The main module of the crate. It contains the Talk struct and its
 //! builder.
 use bevy::prelude::Component;
-use bevy::utils::HashMap;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::builder::builder;
-use crate::builder::errors::TalkError;
-use crate::builder::types::{ActionId, ActionKind, ActionNode, Actor, Choice};
-
 use super::errors::NextActionError;
-use super::RawTalk;
+use super::TalkNode;
+use crate::builder::errors::BuildTalkError;
+use crate::builder::RawTalk;
 
 /// A Talk is a directed graph of actions.
 /// The nodes of the graph are the actions, which are
@@ -24,17 +21,16 @@ pub struct Talk {
     /// This field is a directed graph that represents the structure of the Talk. Each node in the
     /// graph represents an action in the Talk, and each edge represents a transition between
     /// actions.
-    pub(crate) graph: DiGraph<ActionNode, ()>,
+    pub(crate) graph: DiGraph<TalkNode, ()>,
 
     /// The index of the current node in the Talk graph.
     ///
     /// This field is used to keep track of the current node in the Talk graph. It is updated
     /// whenever the [`next_action`] method is called.
     pub(crate) current_node: NodeIndex,
-
-    /// The map tracking the action ids to the node indexes in the graph.
-    #[allow(dead_code)]
-    pub(crate) action_node_map: HashMap<ActionId, NodeIndex>,
+    // /// The map tracking the action ids to the node indexes in the graph.
+    // #[allow(dead_code)]
+    // pub(crate) action_node_map: HashMap<ActionId, NodeIndex>,
 }
 
 // API
@@ -48,7 +44,7 @@ impl Talk {
     ///
     /// let builder = Talk::build();
     /// ```
-    pub fn build(raw_talk: &RawTalk) -> Result<Talk, TalkError> {
+    pub fn build(raw_talk: &RawTalk) -> Result<Talk, BuildTalkError> {
         builder::build(raw_talk)
     }
 
@@ -135,7 +131,7 @@ impl Talk {
     /// let actors = sp.action_actors();
     /// assert_eq!(actors[0].name, "Bob");
     /// ```
-    pub fn action_actors(&self) -> Vec<Actor> {
+    pub fn action_actors(&self) -> Vec<RawActor> {
         self.graph[self.current_node].actors.clone()
     }
 
@@ -166,7 +162,7 @@ impl Talk {
     /// assert_eq!(sp.choices().unwrap()[1].next, 3);
     /// assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
     /// ```
-    pub fn choices(&self) -> Option<Vec<Choice>> {
+    pub fn choices(&self) -> Option<Vec<RawChoice>> {
         let cnode = &self.graph[self.current_node];
         if cnode.kind != ActionKind::Choice {
             return None;
@@ -202,7 +198,7 @@ impl Talk {
 mod test {
     use bevy::prelude::default;
 
-    use crate::builder::types::ScriptAction;
+    use crate::builder::types::RawAction;
 
     use super::*;
 
@@ -210,7 +206,7 @@ mod test {
     fn jump_to_no_action_err() {
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![ScriptAction { ..default() }],
+            script: vec![RawAction { ..default() }],
         };
 
         let mut sp = Talk::build(&raw_sp).unwrap();
@@ -222,26 +218,26 @@ mod test {
         let raw_sp = RawTalk {
             actors: default(),
             script: vec![
-                ScriptAction {
+                RawAction {
                     choices: Some(vec![
-                        Choice {
+                        RawChoice {
                             text: "Choice 1".to_string(),
                             next: 2,
                         },
-                        Choice {
+                        RawChoice {
                             text: "Choice 2".to_string(),
                             next: 3,
                         },
                     ]),
                     ..default()
                 },
-                ScriptAction {
+                RawAction {
                     id: 2,
                     text: Some("I'm number 2".to_string()),
                     next: Some(3),
                     ..default()
                 },
-                ScriptAction { id: 3, ..default() },
+                RawAction { id: 3, ..default() },
             ],
         };
 
@@ -254,7 +250,7 @@ mod test {
     fn next_action_with_no_next() {
         let raw = RawTalk {
             actors: default(),
-            script: vec![ScriptAction { ..default() }],
+            script: vec![RawAction { ..default() }],
         };
 
         let sp = Talk::build(&raw);
@@ -270,14 +266,14 @@ mod test {
         let raw = RawTalk {
             actors: default(),
             script: vec![
-                ScriptAction {
-                    choices: Some(vec![Choice {
+                RawAction {
+                    choices: Some(vec![RawChoice {
                         text: "Whatup".to_string(),
                         next: 2,
                     }]),
                     ..default()
                 },
-                ScriptAction { id: 2, ..default() },
+                RawAction { id: 2, ..default() },
             ],
         };
 
@@ -293,10 +289,7 @@ mod test {
     fn next_action_success() {
         let raw = RawTalk {
             actors: default(),
-            script: vec![
-                ScriptAction { ..default() },
-                ScriptAction { id: 2, ..default() },
-            ],
+            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
         };
         let sp = Talk::build(&raw);
         assert!(sp.is_ok());

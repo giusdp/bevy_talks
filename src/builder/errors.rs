@@ -4,7 +4,7 @@ use thiserror::Error;
 
 /// Errors when building a Talk
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum TalkError {
+pub enum BuildTalkError {
     /// The actor id is duplicated
     #[error("the actor id {0} is duplicated")]
     DuplicateActorId(String),

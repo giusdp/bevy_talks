@@ -96,7 +96,7 @@ fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
 
 #[cfg(test)]
 mod tests {
-    use crate::builder::types::ScriptAction;
+    use crate::builder::types::RawAction;
 
     use super::*;
 
@@ -114,10 +114,7 @@ mod tests {
         let mut app = minimal_app();
         let raw_sp = RawTalk {
             actors: default(),
-            script: vec![
-                ScriptAction { ..default() },
-                ScriptAction { id: 2, ..default() },
-            ],
+            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
         };
 
         let sp = Talk::build(&raw_sp);
@@ -139,9 +136,9 @@ mod tests {
         let raw_sp = RawTalk {
             actors: default(),
             script: vec![
-                ScriptAction { ..default() },
-                ScriptAction { id: 2, ..default() },
-                ScriptAction { id: 3, ..default() },
+                RawAction { ..default() },
+                RawAction { id: 2, ..default() },
+                RawAction { id: 3, ..default() },
             ],
         };
 
