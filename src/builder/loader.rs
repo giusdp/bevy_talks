@@ -1,4 +1,4 @@
-//! Asset loader for Talks with json format.
+//! Asset loader for Talks from "talks.ron" files.
 
 use bevy::log::error;
 use bevy::{
