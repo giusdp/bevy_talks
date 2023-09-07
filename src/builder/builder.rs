@@ -6,9 +6,9 @@ use bevy::{
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 
-use crate::prelude::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptAction};
+use crate::prelude::{errors::TalkError, talk::Talk, RawTalk};
 
-use super::{errors::TalkError, talk::Talk, RawTalk};
+use super::types::{ActionId, ActionKind, ActionNode, Actor, ActorId, ScriptAction};
 
 /// Builds a `Talk` instance from a `RawTalk` instance.
 ///
@@ -156,7 +156,6 @@ fn add_action_nodes(
             kind: action.action.clone(),
             choices: action.choices.clone(),
             text: action.text.clone(),
-            sound_effect: action.sound_effect.clone(),
             actors: action_actors,
         };
         // If the action has choices, hardwire the kind to Choice
@@ -295,8 +294,9 @@ fn validate_all_nexts(actions: &[ScriptAction]) -> Result<(), TalkError> {
 
 #[cfg(test)]
 mod tests {
+    use crate::builder::types::Choice;
+
     use super::*;
-    use crate::prelude::Choice;
     use bevy::prelude::default;
 
     #[test]

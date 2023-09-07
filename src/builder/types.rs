@@ -27,8 +27,6 @@ pub(crate) struct ActionNode {
     pub(crate) actors: Vec<Actor>,
     /// The choices available after the action.
     pub(crate) choices: Option<Vec<Choice>>,
-    /// The sound effect associated with the action.
-    pub(crate) sound_effect: Option<String>,
 }
 
 /// A struct that represents an action in a Talk.
@@ -53,8 +51,6 @@ pub struct ScriptAction {
     pub text: Option<String>,
     /// The ID of the next action to perform.
     pub next: Option<ActionId>,
-    /// Any sound effect associated with the action.
-    pub sound_effect: Option<String>,
 }
 
 /// A struct that represents an actor in a Talk.

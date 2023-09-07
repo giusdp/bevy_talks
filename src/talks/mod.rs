@@ -3,9 +3,8 @@
 use bevy::reflect::{Reflect, TypeUuid};
 use serde::Deserialize;
 
-use crate::prelude::{Actor, ScriptAction};
+use crate::builder::types::{Actor, ScriptAction};
 
-mod builder;
 pub mod components;
 pub mod errors;
 pub mod talk;

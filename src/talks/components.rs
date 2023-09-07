@@ -1,9 +1,8 @@
 //! Components that make a Talk
 
-use bevy::asset::HandleUntyped;
 use bevy::prelude::{Component, Entity};
 
-use crate::prelude::ActionKind;
+use crate::builder::types::Actor;
 
 /// The dialogue line component for a Talk.
 #[derive(Component, Default)]
@@ -14,13 +13,10 @@ pub struct DialogueLine {
 
 /// The actor component that represents a character in a Talk.
 #[derive(Component, Default)]
-pub struct Actor {
-    name: String,
-    asset: Option<HandleUntyped>,
+pub struct CurrentActors {
+    name: Vec<Actor>,
 }
 
-/// The Action Kind component that represents the kind of action in a Talk.
-#[derive(Component, Default)]
-pub struct TalkActionKind {
-    kind: ActionKind,
-}
+// /// The Action Kind component that represents the kind of action in a Talk.
+// #[derive(Component, Default)]
+// pub struct ActionKind {}

@@ -11,14 +11,13 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use prelude::{JumpToActionRequest, NextActionRequest, RawTalk, TalkLoader};
+use prelude::{loader::TalkLoader, JumpToActionRequest, NextActionRequest, RawTalk};
 use talks::talk::Talk;
 use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
-pub mod action;
+pub mod builder;
 pub mod display;
 pub mod events;
-pub mod loader;
 pub mod prelude;
 pub mod talker;
 pub mod talks;
@@ -98,8 +97,8 @@ fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
 mod tests {
     use super::*;
 
-    use action::ScriptAction;
     use events::JumpToActionRequest;
+    use prelude::types::ScriptAction;
 
     /// A minimal Bevy app with the Talks plugin.
     pub fn minimal_app() -> App {

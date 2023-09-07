@@ -2,7 +2,7 @@
 
 use bevy::prelude::{Entity, Event};
 
-use crate::prelude::ActionId;
+use crate::builder::types::ActionId;
 
 /// Event to request the next action in the `ActiveTalk`. It is sent with the entity with the `Talk` component to update.
 ///

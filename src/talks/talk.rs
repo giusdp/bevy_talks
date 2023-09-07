@@ -5,9 +5,9 @@ use bevy::utils::HashMap;
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::prelude::{ActionId, ActionKind, ActionNode, Actor, Choice};
+use crate::builder::builder;
+use crate::builder::types::{ActionId, ActionKind, ActionNode, Actor, Choice};
 
-use super::builder::{self};
 use super::errors::{NextActionError, TalkError};
 use super::RawTalk;
 
@@ -201,7 +201,7 @@ impl Talk {
 mod test {
     use bevy::prelude::default;
 
-    use crate::prelude::ScriptAction;
+    use crate::builder::types::ScriptAction;
 
     use super::*;
 
