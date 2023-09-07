@@ -6,7 +6,7 @@ use bevy::{
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 
-use crate::prelude::{talk::Talk, RawTalk};
+use crate::prelude::{RawTalk, Talk};
 
 use super::{
     errors::TalkError,

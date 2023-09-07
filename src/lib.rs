@@ -11,7 +11,8 @@
 //! the basics to build and handle dialogues in games.
 
 use bevy::prelude::*;
-use prelude::{loader::TalkLoader, JumpToActionRequest, NextActionRequest, RawTalk};
+use builder::loader::TalkLoader;
+use prelude::{JumpToActionRequest, NextActionRequest, RawTalk};
 use talks::talk::Talk;
 use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
@@ -78,7 +79,7 @@ fn next_action_handler(
             match sp.next_action() {
                 Ok(()) => {
                     let maybe_ec = commands.get_entity(ev.0);
-                    if let Some(ec) = maybe_ec {}
+                    if let Some(_ec) = maybe_ec {}
                     info!("Moved to next action!")
                 }
                 Err(err) => error!("Next action could not be set: {}", err),
@@ -88,17 +89,18 @@ fn next_action_handler(
 }
 
 fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
-    for (sp, t) in query.iter() {
+    for (_sp, t) in query.iter() {
         t.trigger();
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::builder::types::ScriptAction;
+
     use super::*;
 
     use events::JumpToActionRequest;
-    use prelude::types::ScriptAction;
 
     /// A minimal Bevy app with the Talks plugin.
     pub fn minimal_app() -> App {

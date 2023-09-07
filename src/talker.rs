@@ -1,7 +1,7 @@
 //! Talker module
 use bevy::prelude::{Bundle, Component};
 
-use crate::prelude::talk::Talk;
+use crate::prelude::Talk;
 
 /// A bundle that contains the components needed to make an entity show a Talk
 #[derive(Bundle, Default)]
