@@ -1,9 +1,5 @@
 use bevy::{asset::LoadState, prelude::*};
-use bevy_talks::{
-    prelude::*,
-    talker::{Activated, TalkerBundle},
-    talks::TalkNodeKind,
-};
+use bevy_talks::prelude::*;
 
 #[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
 enum AppState {

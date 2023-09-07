@@ -1,10 +1,11 @@
 //! A module that defines the raw data structures used to build a Talk.
 //!
-use super::{Actor, TalkNodeKind};
 use bevy::{
     prelude::{Handle, Image},
     reflect::{Reflect, TypeUuid},
 };
+
+use crate::prelude::{Actor, TalkNodeKind};
 
 /// A unique identifier for an action in a Talk.
 ///

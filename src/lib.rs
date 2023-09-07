@@ -16,13 +16,15 @@ use ron_loader::loader::TalkLoader;
 use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 mod builder;
+pub mod components;
 pub mod display;
 pub mod errors;
 pub mod events;
 pub mod prelude;
+pub mod raw_talk;
 pub mod ron_loader;
+pub mod talk;
 pub mod talker;
-pub mod talks;
 pub mod trigger;
 
 /// The plugin that provides the basics to build and handle dialogues in games.

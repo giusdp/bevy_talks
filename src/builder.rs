@@ -6,10 +6,9 @@ use bevy::{
 };
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex, Graph};
 
-use crate::{
-    errors::BuildTalkError,
-    prelude::{ActionId, ActorId, RawAction, RawActor, RawTalk, Talk},
-    talks::{Choice, TalkNode, TalkNodeKind},
+use crate::prelude::{
+    ActionId, ActorId, BuildTalkError, Choice, RawAction, RawActor, RawTalk, Talk, TalkNode,
+    TalkNodeKind,
 };
 
 /// Builds a `Talk` instance from a `RawTalk` instance.

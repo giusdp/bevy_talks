@@ -10,8 +10,7 @@ use bevy::{
     utils::BoxedFuture,
 };
 
-use crate::prelude::RawActor;
-use crate::talks::raw_talk::{RawAction, RawTalk};
+use crate::prelude::{RawAction, RawActor, RawTalk};
 
 use super::types::RonTalk;
 

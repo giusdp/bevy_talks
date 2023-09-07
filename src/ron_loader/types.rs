@@ -1,10 +1,7 @@
 //! Types used by the ron loader.
 use serde::Deserialize;
 
-use crate::{
-    prelude::{ActionId, ActorId, RawAction, RawChoice},
-    talks::TalkNodeKind,
-};
+use crate::prelude::{ActionId, ActorId, RawAction, RawChoice, TalkNodeKind};
 
 /// The ron talk asset type.
 ///
