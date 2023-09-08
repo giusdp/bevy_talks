@@ -151,31 +151,36 @@ fn interact(
     }
 }
 
-fn print(sp_query: Query<(&Talk, &Activated), Or<(Changed<Talk>, Changed<Activated>)>>) {
-    for (sp, active) in sp_query.iter() {
-        if !active.0 {
+fn print(
+    talk_comps: Query<(
+        Ref<CurrentText>,
+        &CurrentActors,
+        &CurrentNodeKind,
+        &CurrentChoices,
+    )>,
+) {
+    for (tt, ca, kind, cc) in talk_comps.iter() {
+        if !tt.is_changed() || tt.is_added() {
             continue;
         }
-
         // extract actors names into a vector
-        let actors = sp
-            .action_actors()
-            .iter()
-            .map(|a| a.name.to_owned())
-            .collect::<Vec<String>>();
+        let actors =
+            ca.0.iter()
+                .map(|a| a.name.to_owned())
+                .collect::<Vec<String>>();
 
         let mut speaker = "Narrator";
         if actors.len() > 0 {
             speaker = actors[0].as_str();
         }
 
-        match sp.node_kind() {
-            TalkNodeKind::Talk => println!("{}: {}", speaker, sp.text()),
+        match kind.0 {
+            TalkNodeKind::Talk => println!("{}: {}", speaker, tt.0),
             TalkNodeKind::Join => println!("--- {actors:?} enters the scene."),
             TalkNodeKind::Leave => println!("--- {actors:?} exit the scene."),
             TalkNodeKind::Choice => {
                 println!("Choices:");
-                for (i, choice) in sp.choices().unwrap().iter().enumerate() {
+                for (i, choice) in cc.0.iter().enumerate() {
                     println!("{}: {}", i + 1, choice.text);
                 }
             }

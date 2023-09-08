@@ -94,6 +94,7 @@ fn print(
         };
     }
 }
+
 fn interact(
     input: Res<Input<KeyCode>>,
     talk_comps: Query<(Entity, &CurrentNodeKind, &CurrentChoices)>,
