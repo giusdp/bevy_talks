@@ -98,6 +98,7 @@ pub(crate) fn build(raw: &RawTalk) -> Result<Talk, BuildTalkError> {
     Ok(Talk {
         graph,
         current_node: NodeIndex::new(0),
+        start_node: NodeIndex::new(0),
         // action_node_map: id_nodeidx_map,
     })
 }

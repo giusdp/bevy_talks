@@ -77,6 +77,9 @@ pub struct Talk {
     /// This field is used to keep track of the current node in the Talk graph. It is updated
     /// whenever the [`next_action`] method is called.
     pub(crate) current_node: NodeIndex,
+
+    /// The index of the start node in the Talk graph.
+    pub(crate) start_node: NodeIndex,
 }
 
 // API
@@ -106,6 +109,11 @@ impl Talk {
         builder::build(raw_talk)
     }
 
+    /// Sets the current node of the `Talk` instance to the start node.
+    pub(crate) fn start(&mut self) {
+        self.current_node = self.start_node;
+    }
+
     /// Returns the `TalkNodeKind` of the current action.
     ///
     /// # Examples
@@ -121,7 +129,7 @@ impl Talk {
     /// let mut sp = Talk::build(&raw).unwrap();
     /// assert_eq!(sp.node_kind(), TalkNodeKind::Talk);
     /// ```
-    pub fn node_kind(&self) -> TalkNodeKind {
+    pub(crate) fn node_kind(&self) -> TalkNodeKind {
         self.graph[self.current_node].kind.clone()
     }
 
@@ -162,7 +170,7 @@ impl Talk {
     /// let sp = Talk::build(&raw);
     /// assert_eq!(sp.unwrap().text(), "");
     /// ```
-    pub fn text(&self) -> &str {
+    pub(crate) fn text(&self) -> &str {
         if self.graph.node_count() == 0 {
             return "";
         }
@@ -189,7 +197,7 @@ impl Talk {
     /// let actors = sp.action_actors();
     /// assert_eq!(actors[0].name, "Bob");
     /// ```
-    pub fn action_actors(&self) -> Vec<Actor> {
+    pub(crate) fn action_actors(&self) -> Vec<Actor> {
         self.graph[self.current_node].actors.clone()
     }
 
@@ -215,17 +223,22 @@ impl Talk {
     /// };
     ///
     /// let sp = Talk::build(&raw).unwrap();
-    /// assert_eq!(sp.choices().unwrap()[0].next, 1.into());
-    /// assert_eq!(sp.choices().unwrap()[0].text, "Choice 1");
-    /// assert_eq!(sp.choices().unwrap()[1].next, 2.into());
-    /// assert_eq!(sp.choices().unwrap()[1].text, "Choice 2");
+    /// assert_eq!(sp.choices()[0].next, 1.into());
+    /// assert_eq!(sp.choices()[0].text, "Choice 1");
+    /// assert_eq!(sp.choices()[1].next, 2.into());
+    /// assert_eq!(sp.choices()[1].text, "Choice 2");
     /// ```
-    pub fn choices(&self) -> Option<Vec<Choice>> {
+    pub(crate) fn choices(&self) -> Vec<Choice> {
         let cnode = &self.graph[self.current_node];
         if cnode.kind != TalkNodeKind::Choice {
-            return None;
+            return vec![];
         }
-        cnode.choices.clone()
+
+        if let Some(choices) = &cnode.choices {
+            choices.clone()
+        } else {
+            vec![]
+        }
     }
 
     /// Jumps to a specific action node in the Talk.
@@ -258,6 +271,31 @@ mod test {
     use crate::prelude::{RawAction, RawChoice};
 
     use super::*;
+
+    #[test]
+    fn start_sets_current_node() {
+        let raw_sp = RawTalk {
+            actors: default(),
+            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
+        };
+
+        let mut sp = Talk::build(&raw_sp).unwrap();
+        sp.start();
+        assert_eq!(sp.current_node.index(), 0);
+    }
+
+    #[test]
+    fn start_resets_current_node() {
+        let raw_sp = RawTalk {
+            actors: default(),
+            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
+        };
+
+        let mut sp = Talk::build(&raw_sp).unwrap();
+        sp.current_node = 1.into();
+        sp.start();
+        assert_eq!(sp.current_node.index(), 0);
+    }
 
     #[test]
     fn jump_to_no_action_err() {
