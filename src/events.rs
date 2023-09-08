@@ -18,3 +18,8 @@ pub struct NextActionRequest(pub Entity);
 /// The `ActionId` to jump to is the one defined in the next field for the Choice choosen by the player.
 #[derive(Event)]
 pub struct JumpToActionRequest(pub Entity, pub NodeIndex);
+
+/// An event that requests to initialize a Talk.
+/// If used on an already initialized Talk, it will reset it.
+#[derive(Event)]
+pub struct InitTalkRequest(pub Entity);
