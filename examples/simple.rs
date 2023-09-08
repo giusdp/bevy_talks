@@ -73,14 +73,14 @@ fn interact(
 }
 
 fn print(
-    sp_query: Query<(
+    talk_comps: Query<(
         Ref<CurrentText>,
         &CurrentActors,
         &CurrentNodeKind,
         &CurrentChoices,
     )>,
 ) {
-    for (tt, ca, kind, cc) in sp_query.iter() {
+    for (tt, ca, kind, cc) in talk_comps.iter() {
         if !tt.is_changed() || tt.is_added() {
             continue;
         }

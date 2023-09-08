@@ -47,50 +47,56 @@ fn setup_talk(
     mut commands: Commands,
     raws: Res<Assets<RawTalk>>,
     simple_sp_asset: Res<SimpleTalkAsset>,
+    mut init_talk_events: EventWriter<InitTalkRequest>,
 ) {
     let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
     let talk = Talk::build(&raw_sp).unwrap();
 
-    commands.spawn(talk);
+    let e = commands.spawn(TalkerBundle { talk, ..default() }).id();
+    init_talk_events.send(InitTalkRequest(e));
 
     println!();
     println!("Press space to advance the conversation. And 1, 2 to pick a choice.");
 }
 
-fn print(sp_query: Query<&Talk, Changed<Talk>>) {
-    for sp in &sp_query {
-        if sp.node_kind() == TalkNodeKind::Choice {
-            if let Some(choices) = sp.choices() {
+fn print(talk_comps: Query<(Ref<CurrentText>, &CurrentNodeKind, &CurrentChoices)>) {
+    for (tt, kind, cc) in talk_comps.iter() {
+        if !tt.is_changed() || tt.is_added() {
+            continue;
+        }
+
+        if kind.0 == TalkNodeKind::Choice {
+            if !cc.0.is_empty() {
                 println!("Choices:");
-                for (i, choice) in choices.iter().enumerate() {
+                for (i, choice) in cc.0.iter().enumerate() {
                     println!("{}: {}", i + 1, choice.text);
                 }
             }
         } else {
-            println!("{}", sp.text());
+            println!("{}", tt.0);
         }
     }
 }
 
 fn interact(
     input: Res<Input<KeyCode>>,
-    sp_query: Query<(Entity, &Talk)>,
+    talk_comps: Query<(Entity, &CurrentNodeKind, &CurrentChoices)>,
     mut next_action_ev_writer: EventWriter<NextActionRequest>,
     mut jump_ev_writer: EventWriter<JumpToActionRequest>,
 ) {
-    let (sp_e, sp) = sp_query.single();
+    let (talker, kind, cc) = talk_comps.single();
 
-    if sp.node_kind() == TalkNodeKind::Choice {
+    if kind.0 == TalkNodeKind::Choice {
         if input.just_pressed(KeyCode::Key1) {
-            let c = sp.choices().unwrap()[0].next;
-            jump_ev_writer.send(JumpToActionRequest(sp_e, c));
+            let c = cc.0[0].next;
+            jump_ev_writer.send(JumpToActionRequest(talker, c));
         } else if input.just_pressed(KeyCode::Key2) {
-            let c = sp.choices().unwrap()[1].next;
-            jump_ev_writer.send(JumpToActionRequest(sp_e, c));
+            let c = cc.0[1].next;
+            jump_ev_writer.send(JumpToActionRequest(talker, c));
         }
     }
 
     if input.just_pressed(KeyCode::Space) {
-        next_action_ev_writer.send(NextActionRequest(sp_e));
+        next_action_ev_writer.send(NextActionRequest(talker));
     }
 }

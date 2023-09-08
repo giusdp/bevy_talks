@@ -72,6 +72,7 @@ fn init_talk_handler(
         ca.0 = talk.action_actors();
         kind.0 = talk.node_kind();
         cc.0 = talk.choices();
+        debug!("Talk initialized.");
     }
 }
 
@@ -82,14 +83,30 @@ fn init_talk_handler(
 /// if the reached action is an enter or exit action, respectively.
 fn jump_action_handler(
     mut jump_requests: EventReader<JumpToActionRequest>,
-    mut talk_comps: Query<(Entity, &mut Talk)>,
+    mut talk_comps: Query<(
+        &mut Talk,
+        &mut CurrentText,
+        &mut CurrentActors,
+        &mut CurrentNodeKind,
+        &mut CurrentChoices,
+    )>,
 ) {
     for ev in jump_requests.iter() {
-        if let Ok((_, mut sp)) = talk_comps.get_mut(ev.0) {
-            match sp.jump_to(ev.1) {
-                Ok(()) => info!("Jumped to action {:?}.", ev.1),
-                Err(err) => error!("Jump action could not be set: {}", err),
+        let talker_entity = talk_comps.get_mut(ev.0);
+        if let Err(err) = talker_entity {
+            error!("Jump action could not be done: {}", err);
+            continue;
+        }
+        let (mut talk, mut text, mut ca, mut kind, mut cc) = talker_entity.unwrap();
+        match talk.jump_to(ev.1) {
+            Ok(()) => {
+                text.0 = talk.text().to_string();
+                ca.0 = talk.action_actors();
+                kind.0 = talk.node_kind();
+                cc.0 = talk.choices();
+                debug!("Jumped to action {:?}.", ev.1)
             }
+            Err(err) => error!("Jump action could not be set: {}", err),
         }
     }
 }
@@ -123,6 +140,7 @@ fn next_action_handler(
                 ca.0 = talk.action_actors();
                 kind.0 = talk.node_kind();
                 cc.0 = talk.choices();
+                debug!("Next action set.");
             }
             Err(err) => error!("Next action could not be set: {}", err),
         }
