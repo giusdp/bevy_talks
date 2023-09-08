@@ -230,28 +230,27 @@ impl Talk {
         cnode.choices.clone()
     }
 
-    // /// Jumps to a specific action node in the Talk.
-    // ///
-    // /// # Arguments
-    // ///
-    // /// * `id` - The ID of the action node to jump to.
-    // ///
-    // /// # Errors
-    // ///
-    // /// Returns a `NextActionError::WrongJump` error if the specified ID is not found in the action node map.
-    // ///
-    // /// # Returns
-    // ///
-    // /// Returns `Ok(())` if the jump was successful.
-    // pub(crate) fn jump_to(&mut self, id: NodeIndex) -> Result<(), NextActionError> {
-    //     let idx = self
-    //         .action_node_map
-    //         .get(&id)
-    //         .ok_or(NextActionError::WrongJump(id))?;
+    /// Jumps to a specific action node in the Talk.
+    ///
+    /// # Arguments
+    ///
+    /// * `id` - The ID of the action node to jump to.
+    ///
+    /// # Errors
+    ///
+    /// Returns a `NextActionError::WrongJump` error if the specified ID is not found in the action node map.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` if the jump was successful.
+    pub(crate) fn jump_to(&mut self, idx: NodeIndex) -> Result<(), NextActionError> {
+        if !self.graph.node_indices().any(|i| i == idx) {
+            return Err(NextActionError::WrongJump(idx.index()));
+        }
 
-    //     self.current_node = *idx;
-    //     Ok(())
-    // }
+        self.current_node = idx;
+        Ok(())
+    }
 }
 
 #[cfg(test)]

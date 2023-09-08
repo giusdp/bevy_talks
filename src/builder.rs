@@ -110,7 +110,7 @@ pub(crate) fn build(raw: &RawTalk) -> Result<Talk, BuildTalkError> {
 /// # Arguments
 ///
 /// * `graph` - A mutable reference to a `Graph` instance.
-/// * `actions` - A slice of `ScriptAction` instances to connect in the graph.
+/// * `actions` - A slice of `RawAction` instances to connect in the graph.
 /// * `id_nodeidx_map` - A `HashMap` that maps `ActionId` values to `NodeIndex` values in the graph.
 fn connect_action_nodes(
     graph: &mut Graph<TalkNode, ()>,
@@ -152,7 +152,7 @@ fn connect_action_nodes(
 /// # Arguments
 ///
 /// * `graph` - A mutable reference to a `Graph` instance.
-/// * `actions` - A slice of `ScriptAction` instances.
+/// * `actions` - A slice of `RawAction` instances.
 /// * `actors` - A slice of `Actor` instances.
 ///
 /// # Returns
@@ -214,7 +214,7 @@ fn retrieve_actors(actor_ids: &[ActorId], actors: &[RawActor]) -> Vec<RawActor> 
 ///
 /// # Arguments
 ///
-/// * `actions` - A slice of `ScriptAction` structs to validate.
+/// * `actions` - A slice of `RawAction` structs to validate.
 /// * `actors` - A slice of `Actor` structs representing the available actors.
 ///
 /// # Errors
@@ -241,7 +241,7 @@ fn validate_actors_in_actions(
 ///
 /// # Arguments
 ///
-/// * `actions` - A slice of `ScriptAction` structs to check for duplicate `id` values.
+/// * `actions` - A slice of `RawAction` structs to check for duplicate `id` values.
 ///
 /// # Errors
 ///
@@ -275,16 +275,16 @@ fn check_duplicate_actor_ids(actors: &[RawActor]) -> Result<(), BuildTalkError> 
     Ok(())
 }
 
-/// Check if all `next` fields and `Choice` `next` fields in a `Vec<ScriptAction>` point to real actions.
+/// Check if all `next` fields and `Choice` `next` fields in a `Vec<RawAction>` point to real actions.
 /// If the action has choices, the `next` field is not checked.
 ///
 /// # Arguments
 ///
-/// * `actions` - A slice of `ScriptAction` structs representing the available actions.
+/// * `actions` - A slice of `RawAction` structs representing the available actions.
 ///
 /// # Errors
 ///
-/// Returns a `TalkError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `ScriptAction`s do not point to real actions.
+/// Returns a `TalkError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `RawAction`s do not point to real actions.
 fn validate_all_nexts(actions: &[RawAction]) -> Result<(), BuildTalkError> {
     let id_set = actions.iter().map(|a| a.id).collect::<HashSet<ActionId>>();
     for action in actions {

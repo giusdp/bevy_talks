@@ -48,24 +48,24 @@ impl Plugin for TalksPlugin {
     }
 }
 
-// /// Handles `JumpToActionRequest` events by updating the active Talk.
-// ///
-// /// This function is a Bevy system that listens for `JumpToActionRequest` events.
-// /// It calls `jump_to` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
-// /// if the reached action is an enter or exit action, respectively.
-// fn jump_action_handler(
-//     mut jump_requests: EventReader<JumpToActionRequest>,
-//     mut sp_comps: Query<(Entity, &mut Talk)>,
-// ) {
-//     for ev in jump_requests.iter() {
-//         if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
-//             match sp.jump_to(ev.1) {
-//                 Ok(()) => info!("Jumped to action {:?}.", ev.1),
-//                 Err(err) => error!("Jump action could not be set: {}", err),
-//             }
-//         }
-//     }
-// }
+/// Handles `JumpToActionRequest` events by updating the active Talk.
+///
+/// This function is a Bevy system that listens for `JumpToActionRequest` events.
+/// It calls `jump_to` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
+/// if the reached action is an enter or exit action, respectively.
+fn jump_action_handler(
+    mut jump_requests: EventReader<JumpToActionRequest>,
+    mut sp_comps: Query<(Entity, &mut Talk)>,
+) {
+    for ev in jump_requests.iter() {
+        if let Ok((_, mut sp)) = sp_comps.get_mut(ev.0) {
+            match sp.jump_to(ev.1) {
+                Ok(()) => info!("Jumped to action {:?}.", ev.1),
+                Err(err) => error!("Jump action could not be set: {}", err),
+            }
+        }
+    }
+}
 
 /// Handles `NextActionRequest` events by advancing the active Talk to the next action.
 ///

@@ -2,6 +2,8 @@
 
 use thiserror::Error;
 
+use crate::prelude::ActionId;
+
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
@@ -17,7 +19,7 @@ pub enum NextActionError {
     /// Talk::jump_to(id) was called on a Talk
     /// where an action with given id does not exist.
     #[error("jumped to action {0}, but it does not exist")]
-    WrongJump(i32),
+    WrongJump(usize),
 }
 
 /// Errors when building a Talk
@@ -28,13 +30,13 @@ pub enum BuildTalkError {
     DuplicateActorId(String),
     /// An action has a non-existent actor
     #[error("the action {0} has specified a non existent actor {1}")]
-    InvalidActor(i32, String),
+    InvalidActor(ActionId, String),
     /// Multiple actions have same id error
     #[error("multiple actions have same id: {0}")]
-    DuplicateActionId(i32),
+    DuplicateActionId(ActionId),
     /// An action has the next field pointing to a non-existent action
     #[error("the action {0} is pointing to id {1} which was not found")]
-    InvalidNextAction(i32, i32),
+    InvalidNextAction(ActionId, ActionId),
     /// The Handle did not have a Talk loaded
     #[error("the handle did not have a Talk loaded")]
     RawTalkNotLoaded,

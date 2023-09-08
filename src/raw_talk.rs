@@ -12,7 +12,7 @@ use crate::prelude::{Actor, TalkNodeKind};
 /// This type alias is used to define a unique identifier for an action in a Talk. Each action
 /// in the Talk is assigned a unique ID, which is used to link the actions together in the
 /// Talk graph.
-pub(crate) type ActionId = i32;
+pub(crate) type ActionId = usize;
 
 /// A unique identifier for an actor in a Talk.
 ///
@@ -51,7 +51,7 @@ pub struct RawAction {
     /// The text of the action.
     pub text: Option<String>,
     /// The ID of the next action to perform.
-    pub next: Option<i32>,
+    pub next: Option<ActionId>,
 }
 
 /// A struct that represents an actor in a Talk.
