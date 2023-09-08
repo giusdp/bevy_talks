@@ -49,6 +49,7 @@ impl Plugin for TalksPlugin {
     }
 }
 
+/// The handler system for `InitTalkRequest` events.
 fn init_talk_handler(
     mut init_requests: EventReader<InitTalkRequest>,
     mut talk_comps: Query<(
@@ -208,7 +209,13 @@ mod tests {
         let sp = Talk::build(&raw_sp);
         assert!(sp.is_ok());
 
-        let e = app.world.spawn(sp.unwrap()).id();
+        let e = app
+            .world
+            .spawn(TalkerBundle {
+                talk: sp.unwrap(),
+                ..default()
+            })
+            .id();
 
         app.world.send_event(NextActionRequest(e));
         app.update();
@@ -233,7 +240,13 @@ mod tests {
         let sp = Talk::build(&raw_sp);
         assert!(sp.is_ok());
 
-        let e = app.world.spawn(sp.unwrap()).id();
+        let e = app
+            .world
+            .spawn(TalkerBundle {
+                talk: sp.unwrap(),
+                ..default()
+            })
+            .id();
 
         app.world.send_event(JumpToActionRequest(e, 2.into()));
         app.update();
