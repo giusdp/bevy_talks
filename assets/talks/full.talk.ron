@@ -1,7 +1,7 @@
 (
     actors: [ 
-      ( id: "ferris", name: "Ferris", asset: Some("ferris.png") ),
-      ( id: "bevy", name: "Bevy", asset: Some("bevy.png") ),
+      ( id: "ferris", name: "Ferris" ),
+      ( id: "bevy", name: "Bevy" ),
     ],
     script: [
         (
@@ -10,7 +10,7 @@
         ),
         (
           id: 90,
-          action: Enter,
+          action: Join,
           actors: ["ferris"],
         ),
         (
@@ -24,7 +24,7 @@
         ),
         (
           id: 91,
-          action: Enter,
+          action: Join,
           actors: ["bevy"],
         ),
         (
@@ -58,7 +58,7 @@
         ),
         (
             id: 100,
-            action: Exit,
+            action: Leave,
             actors: ["ferris", "bevy"],
             next: Some(11),
         ),

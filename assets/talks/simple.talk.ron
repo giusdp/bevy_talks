@@ -16,7 +16,7 @@
     ),
     (
       id: 90,
-      action: Enter,
+      action: Join,
       actors: [ "ferris" ]
     ),
     (
@@ -30,7 +30,7 @@
     ),
     (
       id: 91,
-      action: Enter,
+      action: Join,
       actors: [ "bevy" ]
     ),
     (
@@ -61,7 +61,7 @@
     ),
     (
       id: 10,
-      action: Exit,
+      action: Leave,
       actors: [ "ferris", "bevy" ]
     ),
     (

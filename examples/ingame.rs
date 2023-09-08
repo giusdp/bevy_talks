@@ -39,8 +39,8 @@ fn main() {
 }
 
 fn load_talks(mut commands: Commands, server: Res<AssetServer>) {
-    let sp_a: Handle<RawTalk> = server.load("talks/interact_a.Talk.ron");
-    let sp_b: Handle<RawTalk> = server.load("talks/interact_b.Talk.ron");
+    let sp_a: Handle<RawTalk> = server.load("talks/interact_a.talk.ron");
+    let sp_b: Handle<RawTalk> = server.load("talks/interact_b.talk.ron");
     commands.insert_resource(TalkAsset { sp_a, sp_b });
 }
 
