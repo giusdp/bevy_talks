@@ -60,7 +60,7 @@
             id: 100,
             action: Leave,
             actors: ["ferris", "bevy"],
-            next: Some(11),
+            next: Some(12),
         ),
         (
             id: 9,
