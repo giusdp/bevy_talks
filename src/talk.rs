@@ -77,14 +77,11 @@ pub struct Talk {
     /// This field is used to keep track of the current node in the Talk graph. It is updated
     /// whenever the [`next_action`] method is called.
     pub(crate) current_node: NodeIndex,
-    // /// The map tracking the action ids to the node indexes in the graph.
-    // #[allow(dead_code)]
-    // pub(crate) action_node_map: HashMap<ActionId, NodeIndex>,
 }
 
 // API
 impl Talk {
-    // Builds a `Talk` instance from a `RawTalk` instance.
+    /// Builds a `Talk` instance from a `RawTalk` instance.
     ///
     /// # Arguments
     ///
@@ -92,7 +89,8 @@ impl Talk {
     ///
     /// # Returns
     ///
-    /// Returns a `Result` containing the built `Talk` instance if successful, or a `BuildTalkError` if an error occurred during the build process.
+    /// Returns a `Result` containing the built `Talk` instance if successful,
+    /// or a `BuildTalkError` if an error occurred during the build process.
     ///
     /// # Examples
     ///
@@ -234,11 +232,11 @@ impl Talk {
     ///
     /// # Arguments
     ///
-    /// * `id` - The ID of the action node to jump to.
+    /// * `idx` - The `NodeIndex` of the action node to jump to.
     ///
     /// # Errors
     ///
-    /// Returns a `NextActionError::WrongJump` error if the specified ID is not found in the action node map.
+    /// Returns a `NextActionError::WrongJump` error if the specified idx is not a node in the graph.
     ///
     /// # Returns
     ///
@@ -261,49 +259,52 @@ mod test {
 
     use super::*;
 
-    // #[test]
-    // fn jump_to_no_action_err() {
-    //     let raw_sp = RawTalk {
-    //         actors: default(),
-    //         script: vec![RawAction { ..default() }],
-    //     };
+    #[test]
+    fn jump_to_no_action_err() {
+        let raw_sp = RawTalk {
+            actors: default(),
+            script: vec![RawAction { ..default() }],
+        };
 
-    //     let mut sp = Talk::build(&raw_sp).unwrap();
-    //     assert_eq!(sp.jump_to(2).err(), Some(NextActionError::WrongJump(2)));
-    // }
+        let mut sp = Talk::build(&raw_sp).unwrap();
+        assert_eq!(
+            sp.jump_to(2.into()).err(),
+            Some(NextActionError::WrongJump(2))
+        );
+    }
 
-    // #[test]
-    // fn jump_to() {
-    //     let raw_sp = RawTalk {
-    //         actors: default(),
-    //         script: vec![
-    //             RawAction {
-    //                 choices: Some(vec![
-    //                     RawChoice {
-    //                         text: "Choice 1".to_string(),
-    //                         next: 2,
-    //                     },
-    //                     RawChoice {
-    //                         text: "Choice 2".to_string(),
-    //                         next: 3,
-    //                     },
-    //                 ]),
-    //                 ..default()
-    //             },
-    //             RawAction {
-    //                 id: 2,
-    //                 text: Some("I'm number 2".to_string()),
-    //                 next: Some(3),
-    //                 ..default()
-    //             },
-    //             RawAction { id: 3, ..default() },
-    //         ],
-    //     };
+    #[test]
+    fn jump_to() {
+        let raw_sp = RawTalk {
+            actors: default(),
+            script: vec![
+                RawAction {
+                    choices: Some(vec![
+                        RawChoice {
+                            text: "Choice 1".to_string(),
+                            next: 2,
+                        },
+                        RawChoice {
+                            text: "Choice 2".to_string(),
+                            next: 3,
+                        },
+                    ]),
+                    ..default()
+                },
+                RawAction {
+                    id: 2,
+                    text: Some("I'm number 2".to_string()),
+                    next: Some(3),
+                    ..default()
+                },
+                RawAction { id: 3, ..default() },
+            ],
+        };
 
-    //     let mut sp = Talk::build(&raw_sp).unwrap();
-    //     assert!(sp.jump_to(2).is_ok());
-    //     assert_eq!(sp.text(), "I'm number 2");
-    // }
+        let mut sp = Talk::build(&raw_sp).unwrap();
+        assert!(sp.jump_to(1.into()).is_ok());
+        assert_eq!(sp.text(), "I'm number 2");
+    }
 
     #[test]
     fn next_action_with_no_next() {
