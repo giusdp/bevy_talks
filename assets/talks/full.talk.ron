@@ -1,7 +1,7 @@
 (
     actors: [ 
-      ( id: "ferris", name: "Ferris", asset: Some("images/feri.png") ),
-      ( id: "bevy", name: "Bevy", asset: Some("images/bev.png") ),
+      ( id: "ferris", name: "Ferris" ),
+      ( id: "bevy", name: "Bevy" ),
     ],
     script: [
         (

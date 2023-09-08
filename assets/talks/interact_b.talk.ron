@@ -1,14 +1,15 @@
 (
     actors: [
       (
-        id: "actorB",
-        name: "Actor B",
+        id: "ferris",
+        name: "Ferris",
+        asset: Some("images/feri.png"),
       ),
     ],
     script: [
         (
             id: 1,
-            actor: ["actorB"],
+            actor: ["ferris"],
             text: Some("What's up?")
         ),
     ]

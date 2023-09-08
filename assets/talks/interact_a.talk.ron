@@ -1,34 +1,35 @@
 (
     actors: [
       (
-        id: "actorA",
-        name: "Actor A",
+        id: "bevy",
+        name: "Bevy",
+        asset: Some("images/bev.png"),
       ),
     ],
     script: [
         (
             id: 1,
-            actor: ["actorA"],
+            actor: ["bevy"],
             text: Some("Hello there!")
         ),
         (
             id: 2,
-            actor: ["actorA"],
-            text: Some("I'm A!")
+            actor: ["bevy"],
+            text: Some("I'm Bev!")
         ),
         (
             id: 3,
-            actor: ["actorA"],
+            actor: ["bevy"],
             text: Some("This is an in-game conversation tied to an entity!")
         ),
         (
             id: 4,
-            actor: ["actorA"],
+            actor: ["bevy"],
             text: Some("You just spawn a Talk that handles this stuff as a child of some other entity, and you've just given dialogues to that entity!")
         ),
         (
             id: 5,
-            actor: ["actorA"],
+            actor: ["bevy"],
             text: Some("Bye bye!")
         )
     ]
