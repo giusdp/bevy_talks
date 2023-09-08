@@ -1,13 +1,7 @@
 (
   actors: [
-    (
-        id: "ferris",
-        name: "Ferris",
-    ),
-    (
-        id: "bevy",
-        name: "Bevy",
-    ),
+    ( id: "ferris", name: "Ferris" ), 
+    ( id: "bevy", name: "Bevy" ),
   ],
   script: [
     (

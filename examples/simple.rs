@@ -47,18 +47,14 @@ fn setup_talk(
     mut commands: Commands,
     raws: Res<Assets<RawTalk>>,
     simple_sp_asset: Res<SimpleTalkAsset>,
+    mut init_talk_events: EventWriter<InitTalkRequest>,
 ) {
     let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
     let talk = Talk::build(&raw_sp).unwrap();
 
-    commands.spawn(TalkerBundle {
-        talk: talk,
-        activated: Default::default(),
-        interaction: Default::default(),
-        // display: TerminalDisplay::default(),
-    });
+    let e = commands.spawn(TalkerBundle { talk, ..default() }).id();
 
-    // commands.spawn(Talk);
+    init_talk_events.send(InitTalkRequest(e));
 
     println!();
     println!("Press space to advance the conversation.");
@@ -76,27 +72,36 @@ fn interact(
     }
 }
 
-fn print(sp_query: Query<&Talk, Changed<Talk>>) {
-    for sp in sp_query.iter() {
+fn print(
+    sp_query: Query<(
+        Ref<CurrentText>,
+        &CurrentActors,
+        &CurrentNodeKind,
+        &CurrentChoices,
+    )>,
+) {
+    for (tt, ca, kind, cc) in sp_query.iter() {
+        if !tt.is_changed() || tt.is_added() {
+            continue;
+        }
         // extract actors names into a vector
-        let actors = sp
-            .action_actors()
-            .iter()
-            .map(|a| a.name.to_owned())
-            .collect::<Vec<String>>();
+        let actors =
+            ca.0.iter()
+                .map(|a| a.name.to_owned())
+                .collect::<Vec<String>>();
 
         let mut speaker = "Narrator";
         if actors.len() > 0 {
             speaker = actors[0].as_str();
         }
 
-        match sp.node_kind() {
-            TalkNodeKind::Talk => println!("{}: {}", speaker, sp.text()),
+        match kind.0 {
+            TalkNodeKind::Talk => println!("{}: {}", speaker, tt.0),
             TalkNodeKind::Join => println!("--- {actors:?} enters the scene."),
             TalkNodeKind::Leave => println!("--- {actors:?} exit the scene."),
             TalkNodeKind::Choice => {
                 println!("Choices:");
-                for (i, choice) in sp.choices().unwrap().iter().enumerate() {
+                for (i, choice) in cc.0.iter().enumerate() {
                     println!("{}: {}", i + 1, choice.text);
                 }
             }
