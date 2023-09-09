@@ -8,72 +8,67 @@
 <!-- [![][img_downloads]][crates] -->
 
 
-This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game, via *Talk*s. 
-A *Talk* is a directed graph where each node is an *action* that can happen.
-An action is usually something that an *actor* can do, such as saying a line, entering/exiting the scene, or even a choice 
-the player can make, etc.
+This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game, via *Talk*s components. 
+A *Talk* is a directed graph where each node is an *action* that an actor can perform, 
+such as saying a line, joining/leaving the scene, or even a choice the player can make.
 
-As the most most common action is text being displayed on the screen, the most basic
-*Talk* is a sequence of texts forming a conversation between actors, which results in a linear graph of actions.
+The most common action is text being displayed on the screen, and a simple *Talk* is
+just a sequence of texts forming a conversation between actors.
 
-A *Talk* is a Bevy component that can be attached to an entity. This way you can have multiple entities 
-each with its own *Talk*, so each entity has its own dialog. Or, you to make a VN-like game, you can 
-have one single Talk in the game.
+You can have multiple entities each with their own *Talk*. Or you can make a VN-like game with one single Talk in the game.
 
-The heart of the Talk is a directed graph where each node is an `ActionNode`:
+The heart of the Talk is a directed graph where each node is an `TalkNode` struct:
 
 ```rust
-struct ActionNode {
-    /// The kind of action.
-    kind: ActionKind,
-    /// The text of the action.
-    text: Option<String>,
+struct TalkNode {
+     /// Talk, Join, Leave, Choice
+    kind: TalkNodeKind,
+    /// Text to display on the screen.
+    text: String,
     /// The actors involved in the action.
     actors: Vec<Actor>,
-    /// The choices available after the action.
-    choices: Option<Vec<Choice>>,
-    /// The sound effect associated with the action.
-    sound_effect: Option<String>,
+    /// The choices available for the player
+    choices: Vec<Choice>,
 }
 ```
-
-This struct defines an action that can happen. 
-- `kind` field defines the kind of action (Talk, Enter, Exit, Choice). 
-- `text` field is the text that to display on the screen.
-- `actors` field is the list of actors involved in the action.
-- `choices` field is the list of choices available to present to the player.
-- `sound_effect` field is an extra field to specify a sound effect to play when the action is reached.
-
 The `Actor` struct is a simple struct that contains the name of the actor and the asset to display on the screen.
 
 ```rust
 struct Actor {
     /// The name of the character that the actor plays.
     name: String,
-    /// An optional asset that represents the actor's appearance or voice.
-    asset: Option<String>,
+    /// An optional asset for the actor.
+    asset: Option<Handle<Image>>,
 }
 ```
 
-If an action has one or more actors defined, they can be accessed to get the names (and the assets) to be 
-displayed together with the text.
+The Choice struct is a simple struct that contains the text of the choice and the index of the node to jump to.
 
-### Build Talk from Talk.ron files
+```rust
+struct Choice {
+    /// The text of the choice.
+    pub text: String,
+    /// The ID of the next action to jump to if the choice is selected.
+    pub next: NodeIndex,
+}
+```
+
+### Build Talks from talk.ron files
 
 The plugin can parse ron files to create `RawTalk` assets, which can then be used to build a `Talk` component. 
-The files must have the extension: `Talk.ron`.
+The files must have the extension: `talk.ron`.
 
 Here's an example:
 
 ```rust,ignore
 (
     actors: [
-        ( id: "bob", name: "Bob", asset: Some("bob.png") ),
-        ( id: "alice", name: "Alice", asset: Some("alice.png") )
+        ( id: "bob", name: "Bob" ),
+        ( id: "alice", name: "Alice" )
     ],
     script: [
         ( id: 1, action: Talk, text: Some("Bob and Alice enter the room.") ),
-        ( id: 2, action: Enter, actors: [ "bob", "alice" ] ),
+        ( id: 2, action: Join, actors: [ "bob", "alice" ] ),
         ( id: 3, actors: ["bob"], text: Some("Hello, Alice!") ), // with missing action field, it defaults to Talk
         (
             id: 4,
@@ -92,72 +87,83 @@ Here's an example:
 The plugin adds an `AssetLoader` for these ron files, so it's as easy as: 
 
 ```rust
-let handle: Handle<RawTalk> = server.load("simple.Talk.ron");
+let handle: Handle<RawTalk> = asset_server.load("simple.talk.ron");
 ```
 
-Then you can use the `TalkBuilder` to build a `Talk` component from the `RawTalk` asset. 
+Then you can use `Talk::build` function with the `RawTalk` asset. 
 You can retrieve the `RawTalk` from the assets collection `raws: Res<Assets<RawTalk>>`.
 
 ```rust
 let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
-TalkBuilder::new().build(&raw_sp);
+Talk::build(&raw_sp)
 ```
 
 ### Usage
 
-Once you have a `Talk` component attached to an entity, you can use the usual Bevy `Query` to access it to 
-retrive information about the current action (text, choices, actors involved, the kind of action). 
 
-To move to the next action (or to jump to a specific action), you can send 2 different events and take advantage of 
-the Change Detection System to react after a change in the `Talk` component.
+The plugin provides a `TalkerBundle` to give an entity the required components to handle its own dialogues.
+```rust
+struct TalkerBundle {
+    talk: Talk,
+    /// The dialogue line component for a Talk.
+    talk_text: CurrentText,
+    /// The actor component that represents a character in a Talk.
+    current_actors: CurrentActors,
+    /// The Talk Node Kind component that represents the kind of action in a Talk.
+    kind: CurrentNodeKind,
+    /// The component that represents the current choices in a Talk.
+    current_choices: CurrentChoices,
+}
+```
 
-The event to go to the next action:
+With these components you can query the current text/actor/choices for the current action in a talk. 
+Together with the Change Detection System, you can react to changes in the `Talk` component to update your UI.
 
+```rust
+fn print_text(talks: Query<(Ref<CurrentText> &CurrentNodeKind)>) {
+    for (text, kind) in talks.iter() {
+        if kind == TalkNodeKind::Talk && text.is_changed() {
+            println!("{}", text.text());
+        }
+    }
+}
+```
+
+To interact with Talks you can send 3 different events. One to initialize the Talk (it populates the components with the first node), and two to advance the Talk to the next node or to jump to a specific node):
+
+```rust
+struct InitTalkRequest(pub Entity);
+```
+
+To move forward to the next action:
 
 ```rust
 NextActionRequest(pub Entity);
 ```
 
-The event to jump to a specific action:
+To jump to a specific action (used with choices):
 
 ```rust
-JumpToActionRequest(pub Entity, pub ActionId);
+JumpToActionRequest(pub Entity, pub NodeIndex);
 ```
 
-You pass the entity with the `Talk` component for the former event, and the entity with the `Talk` component
-and the id of the action to jump to for the latter event.
-
-The plugin will internally call the `next_action` and `jump_to` methods of the `Talk` component, respectively.
-
-On your side you can use the Changed api to react to the change after these events are sent. With something like:
-
-```rust
-fn print_text(Talks: Query<&Talk, Changed<Talk>>) {
-    for sp in Talks.iter() {
-        println!("{}", sp.text());
-    }
-}
-```
-
-The component offers a public API to retrieve info from the graph:
-
-- `actors` returns the list of actors involved in the current action.
-- `choices` returns the list of choices available in the current action.
-- `text` returns the text of the current action.
-- `action_kind` returns the kind of the current action.
+You pass the entity with the `Talk` component for the first 2 events.
+The third required the entity and the index that identifies the node to jump to.
 
 Check out the example in the `examples` folder to see how to use the plugin.
 
 - [simple.rs](examples/simple.rs) shows how to use the plugin to create a simple, linear conversation. 
-- [choices.rs](examples/choices.rs) shows how to use the plugin to create a conversation with choices.
+- [choices.rs](examples/choices.rs) shows how to use the plugin to create a conversation with choices (jumps in the graph).
 - [full.rs](examples/full.rs) shows a Talk where all the action kinds are used.
+- [ingame.rs](examples/ingame.rs) shows how to use the plugin with more than one `Talker` entity you can interact with.
 
 ### Roadmap
 
-- [ ] A `TalkerBundle` to give an entity the required components to make it show its own dialogues
+- [x] A `TalkerBundle` to give an entity the required components to access and track the dialogues
 - [ ] Dialogue UIs 
 - [ ] Interaction/Trigger system (to activate/advance dialogues)
 - [ ] Graphical editor to create the asset files
+- [ ] Voice lines/sound support
 - [ ] Support other asset formats (?)
 - [ ] More examples
 - [ ] Extensive documentation/manual wiki
@@ -170,6 +176,7 @@ Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
 | :--                 |  :--   |
 | `main`              | `0.11`  |
+| `0.3.0`              | `0.11`  |
 | `0.2.0`              | `0.11`  |
 | `0.1.1`              | `0.11`  |
 
