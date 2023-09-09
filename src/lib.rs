@@ -13,10 +13,11 @@
 use bevy::prelude::*;
 use prelude::*;
 use ron_loader::loader::TalkLoader;
-use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
+// use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 mod builder;
-pub mod display;
+// pub mod display;
+// pub mod trigger;
 pub mod errors;
 pub mod events;
 pub mod prelude;
@@ -24,7 +25,6 @@ pub mod raw_talk;
 pub mod ron_loader;
 pub mod talk;
 pub mod talker;
-pub mod trigger;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
 pub struct TalksPlugin;
@@ -38,13 +38,7 @@ impl Plugin for TalksPlugin {
             .add_event::<JumpToActionRequest>()
             .add_systems(
                 Update,
-                (
-                    init_talk_handler,
-                    next_action_handler,
-                    jump_action_handler,
-                    handle_trigger::<OnUseTrigger>,
-                    handle_trigger::<OnEnableTrigger>,
-                ),
+                (init_talk_handler, next_action_handler, jump_action_handler),
             );
     }
 }
@@ -145,13 +139,6 @@ fn next_action_handler(
             }
             Err(err) => error!("Next action could not be set: {}", err),
         }
-    }
-}
-
-/// Handles `OnUseTrigger` and `OnEnableTrigger` events by triggering the associated actions.
-fn handle_trigger<T: TalkTriggerer + Component>(query: Query<(&Talk, &T)>) {
-    for (_sp, t) in query.iter() {
-        t.trigger();
     }
 }
 

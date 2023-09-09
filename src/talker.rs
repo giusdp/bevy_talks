@@ -8,10 +8,6 @@ use crate::prelude::{Actor, Choice, Talk, TalkNodeKind};
 pub struct TalkerBundle {
     /// The Talk to show.
     pub talk: Talk,
-    /// The component that indicates whether a talker is active or not.
-    pub activated: Activated,
-    /// The component that indicates whether a talker is interactable or not.
-    pub interaction: Interaction,
     /// The dialogue line component for a Talk.
     pub talk_text: CurrentText,
     /// The actor component that represents a character in a Talk.
@@ -21,14 +17,6 @@ pub struct TalkerBundle {
     /// The component that represents the current choices in a Talk.
     pub current_choices: CurrentChoices,
 }
-
-/// A component that indicates whether a talker is active or not.
-#[derive(Component, Default)]
-pub struct Activated(pub bool);
-
-/// A component that indicates whether a talker is interactable or not.
-#[derive(Component, Default)]
-pub struct Interaction;
 
 /// The dialogue line component for a Talk.
 #[derive(Component, Default)]
