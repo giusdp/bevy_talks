@@ -9,28 +9,38 @@
     script: [
         (
             id: 1,
-            actor: ["bevy"],
+            actors: ["bevy"],
             text: Some("Hello there!")
         ),
         (
-            id: 2,
-            actor: ["bevy"],
-            text: Some("I'm Bev!")
-        ),
-        (
             id: 3,
-            actor: ["bevy"],
+            actors: ["bevy"],
             text: Some("This is an in-game conversation tied to an entity!")
         ),
         (
             id: 4,
-            actor: ["bevy"],
-            text: Some("You just spawn a Talk that handles this stuff as a child of some other entity, and you've just given dialogues to that entity!")
+            actors: ["bevy"],
+            text: Some("There is a cool TalkerBundle that adds all the required components and you use events to interact with the convo!")
         ),
         (
             id: 5,
-            actor: ["bevy"],
+            actors: ["bevy"],
             text: Some("Bye bye!")
+        ),
+        (
+            id: 6,
+            actors: ["bevy"],
+            text: Some("Bye bye!")
+        ),
+        (
+            id: 7,
+            actors: ["bevy"],
+            text: Some("Bye bye!")
+        ),
+        (
+            id: 8,
+            actors: ["bevy"],
+            text: Some("Dude gtfo")
         )
     ]
 )

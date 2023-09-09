@@ -9,8 +9,8 @@
     script: [
         (
             id: 1,
-            actor: ["ferris"],
-            text: Some("What's up?")
+            actors: ["ferris"],
+            text: Some("What's up? I have no other lines.")
         ),
     ]
 )
