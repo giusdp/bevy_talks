@@ -1,6 +1,6 @@
 [package]
 name = "bevy_talks"
-version = "0.3.0-dev"
+version = "0.3.0"
 edition = "2021"
 description = "A Bevy plugin to write screenplays for your characters to say and do things, together with player choices."
 repository = "https://github.com/giusdp/bevy_talks"

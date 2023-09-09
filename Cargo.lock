@@ -855,7 +855,7 @@ dependencies = [
 
 [[package]]
 name = "bevy_talks"
-version = "0.3.0-dev"
+version = "0.3.0"
 dependencies = [
  "bevy",
  "log",
