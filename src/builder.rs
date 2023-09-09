@@ -133,7 +133,7 @@ fn connect_action_nodes(
                 })
                 .collect::<Vec<_>>();
             let current_node = graph.node_weight_mut(*current_node_idx).unwrap();
-            current_node.choices = Some(choice_vec);
+            current_node.choices = choice_vec;
             for choice in choices {
                 let choice_node_idx = id_nodeidx_map.get(&choice.next).unwrap();
                 graph.add_edge(*current_node_idx, *choice_node_idx, ());
@@ -175,8 +175,8 @@ fn add_action_nodes(
         // Choices will be populated later, we first need to have all the nodes in place
         let mut node = TalkNode {
             kind: action.kind.clone(),
-            choices: None,
-            text: action.text.clone(),
+            choices: vec![],
+            text: action.text.clone().unwrap_or("".to_string()),
             actors,
         };
 

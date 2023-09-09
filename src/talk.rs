@@ -12,11 +12,11 @@ pub(crate) struct TalkNode {
     /// The kind of action.
     pub(crate) kind: TalkNodeKind,
     /// The text of the action.
-    pub(crate) text: Option<String>,
+    pub(crate) text: String,
     /// The actors involved in the action.
     pub(crate) actors: Vec<Actor>,
     /// The choices available after the action.
-    pub(crate) choices: Option<Vec<Choice>>,
+    pub(crate) choices: Vec<Choice>,
 }
 
 /// A struct that represents an actor in a Talk.
@@ -28,7 +28,7 @@ pub(crate) struct TalkNode {
 pub struct Actor {
     /// The name of the character that the actor plays.
     pub name: String,
-    /// An optional asset that represents the actor's appearance or voice.
+    /// An optional asset for the actor.
     pub asset: Option<Handle<Image>>,
 }
 
@@ -54,7 +54,7 @@ pub enum TalkNodeKind {
 pub struct Choice {
     /// The text of the choice.
     pub text: String,
-    /// The ID of the next action to perform if the choice is selected.
+    /// The ID of the next action to jump to if the choice is selected.
     pub next: NodeIndex,
 }
 
@@ -140,10 +140,7 @@ impl Talk {
         if self.graph.node_count() == 0 {
             return "";
         }
-        match &self.graph[self.current_node].text {
-            Some(t) => t,
-            None => "",
-        }
+        &self.graph[self.current_node].text
     }
 
     /// Returns a vector of the actors associated with the current action.
@@ -157,12 +154,7 @@ impl Talk {
         if cnode.kind != TalkNodeKind::Choice {
             return vec![];
         }
-
-        if let Some(choices) = &cnode.choices {
-            choices.clone()
-        } else {
-            vec![]
-        }
+        cnode.choices.clone()
     }
 
     /// Jumps to a specific action node in the Talk.
