@@ -167,6 +167,7 @@ Check out the example in the `examples` folder to see how to use the plugin.
 - [ ] Support other asset formats (?)
 - [ ] More examples
 - [ ] Extensive documentation/manual wiki
+- [ ] Localization with [Fluent](https://projectfluent.org/)
 
 
 ### Bevy Version Support
