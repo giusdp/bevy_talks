@@ -1,4 +1,5 @@
 //! Types used by the ron loader.
+
 use serde::Deserialize;
 
 use crate::prelude::{ActionId, ActorId, RawAction, RawChoice, TalkNodeKind};

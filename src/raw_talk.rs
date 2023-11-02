@@ -1,8 +1,8 @@
 //! A module that defines the raw data structures used to build a Talk.
 //!
 use bevy::{
-    prelude::{Handle, Image},
-    reflect::{Reflect, TypeUuid},
+    prelude::{Asset, Handle, Image},
+    reflect::TypePath,
 };
 
 use crate::prelude::{Actor, TalkNodeKind};
@@ -22,9 +22,7 @@ pub(crate) type ActionId = usize;
 pub(crate) type ActorId = String;
 
 /// A struct that represents a Raw Talk.
-#[derive(Debug, Default, Clone, Reflect, TypeUuid)]
-#[uuid = "413be529-bfeb-8c5b-9db0-4b8b380a2c47"]
-#[reflect_value]
+#[derive(Asset, Debug, Default, Clone, TypePath)]
 pub struct RawTalk {
     /// The list of actions that make up the Talk.
     pub script: Vec<RawAction>,

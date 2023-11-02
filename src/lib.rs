@@ -12,7 +12,7 @@
 
 use bevy::prelude::*;
 use prelude::*;
-use ron_loader::loader::TalkLoader;
+use ron_loader::loader::TalksLoader;
 // use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 mod builder;
@@ -31,8 +31,8 @@ pub struct TalksPlugin;
 
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
-        app.init_asset_loader::<TalkLoader>()
-            .add_asset::<RawTalk>()
+        app.register_asset_loader(TalksLoader)
+            .init_asset::<RawTalk>()
             .add_event::<InitTalkRequest>()
             .add_event::<NextActionRequest>()
             .add_event::<JumpToActionRequest>()
