@@ -180,6 +180,7 @@ Compatibility of `bevy_talks` versions:
 | `0.3.0`              | `0.11`  |
 | `0.2.0`              | `0.11`  |
 | `0.1.1`              | `0.11`  |
+| `bevy_main`              | `main`  |
 
 ## License
 
