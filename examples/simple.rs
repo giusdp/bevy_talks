@@ -37,7 +37,7 @@ fn check_loading(
     simple_sp_asset: Res<SimpleTalkAsset>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
-    let load_state = server.get_load_state(&simple_sp_asset.handle);
+    let load_state = server.get_load_state(&simple_sp_asset.handle).unwrap();
     if load_state == LoadState::Loaded {
         next_state.set(AppState::Loaded);
     }

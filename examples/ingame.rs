@@ -65,8 +65,8 @@ fn check_loading(
     sp_asset: Res<TalkAsset>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
-    let load_state_a = server.get_load_state(&sp_asset.bev_talk_handle);
-    let load_state_b = server.get_load_state(&sp_asset.feri_talk_handle);
+    let load_state_a = server.get_load_state(&sp_asset.bev_talk_handle).unwrap();
+    let load_state_b = server.get_load_state(&sp_asset.feri_talk_handle).unwrap();
     if load_state_a == LoadState::Loaded && load_state_b == LoadState::Loaded {
         next_state.set(AppState::Loaded);
     }
