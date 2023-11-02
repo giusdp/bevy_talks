@@ -2,28 +2,27 @@
 name = "bevy_talks"
 version = "0.3.0"
 edition = "2021"
-description = "A Bevy plugin to write screenplays for your characters to say and do things, together with player choices."
+description = "A Bevy plugin to write dialogues for your characters to say and do things, together with player choices."
 repository = "https://github.com/giusdp/bevy_talks"
 homepage = "https://github.com/giusdp/bevy_talks"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
-keywords = ["bevy", "gamedev", "plugin", "dialogs"]
-exclude = ["assets/", ".github/", "examples/", "schema.json"]
+keywords = ["bevy", "gamedev", "plugin", "dialogues", "dialogs"]
+exclude = ["assets/", ".github/", "examples/"]
 
 
 [dependencies]
-bevy = { version = "0.11.2", default-features = false, features = [
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "6f8848a6c222f3c2f12f0b0ea5daed5c1e1ce819", default-features = false, features = [
     "bevy_asset",
     "bevy_render",
 ] }
 thiserror = "1.0.48"
-serde = { version = "1", features = ["derive"] }
-log = "0.4.20"
+serde = { version = "1" }
+serde_ron = { version = "0.8.1", package = "ron" }
 petgraph = "0.6.4"
-ron = "0.8.1"
 
 [dev-dependencies]
-bevy = "0.11.2"
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "6f8848a6c222f3c2f12f0b0ea5daed5c1e1ce819" }
 
 [[example]]
 name = "simple"
