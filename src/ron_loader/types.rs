@@ -65,8 +65,8 @@ pub(crate) struct RonActor {
     pub(crate) id: ActorId,
     /// The name of the character that the actor plays.
     pub(crate) name: String,
-    /// An optional asset that represents the actor's appearance or voice.
-    pub(crate) asset: Option<String>,
+    // An optional asset that represents the actor's appearance or voice.
+    // pub(crate) asset: Option<String>,
 }
 /// A struct that represents a choice in a Talk.
 ///

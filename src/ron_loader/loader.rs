@@ -15,6 +15,7 @@ use super::types::RonTalk;
 /// Load Talks from json assets.
 pub struct TalksLoader;
 
+/// The error type for the RON Talks loader.
 #[non_exhaustive]
 #[derive(Debug, Error)]
 pub enum RonLoaderError {
@@ -35,7 +36,7 @@ impl AssetLoader for TalksLoader {
         &'a self,
         reader: &'a mut Reader,
         _settings: &'a Self::Settings,
-        load_context: &'a mut LoadContext,
+        _load_context: &'a mut LoadContext,
     ) -> BoxedFuture<'a, Result<Self::Asset, Self::Error>> {
         Box::pin(async move {
             let mut bytes = Vec::new();
@@ -49,7 +50,7 @@ impl AssetLoader for TalksLoader {
             let mut talk_actors = Vec::<RawActor>::with_capacity(actors.len());
             // let mut asset_deps = vec![];
             for actor in actors {
-                let mut talk_actor = RawActor {
+                let talk_actor = RawActor {
                     id: actor.id,
                     name: actor.name,
                     asset: None,
@@ -100,7 +101,7 @@ mod tests {
         let asset_server = asset_server.unwrap();
         let talk_handle: Handle<RawTalk> = asset_server.load("talks/simple.talk.ron");
         app.update();
-        
+
         let talk_assets = app.world.get_resource::<Assets<RawTalk>>();
         assert!(talk_assets.is_some());
 
