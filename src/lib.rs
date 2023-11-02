@@ -54,7 +54,7 @@ fn init_talk_handler(
         &mut CurrentChoices,
     )>,
 ) {
-    for ev in init_requests.iter() {
+    for ev in init_requests.read() {
         let talker_entity = talk_comps.get_mut(ev.0);
         if let Err(err) = talker_entity {
             error!("Talk could not be initialized: {}", err);
@@ -86,7 +86,7 @@ fn jump_action_handler(
         &mut CurrentChoices,
     )>,
 ) {
-    for ev in jump_requests.iter() {
+    for ev in jump_requests.read() {
         let talker_entity = talk_comps.get_mut(ev.0);
         if let Err(err) = talker_entity {
             error!("Jump action could not be done: {}", err);
@@ -121,7 +121,7 @@ fn next_action_handler(
         &mut CurrentChoices,
     )>,
 ) {
-    for ev in next_requests.iter() {
+    for ev in next_requests.read() {
         let talker_entity = talk_comps.get_mut(ev.0);
         if let Err(err) = talker_entity {
             error!("Next action could not be set: {}", err);
