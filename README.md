@@ -176,7 +176,8 @@ Check out the example in the `examples` folder to see how to use the plugin.
 Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
 | :--                 |  :--   |
-| `main`              | `0.11`  |
+| `main`              | `0.12`  |
+| `0.3.1`              | `0.12`  |
 | `0.3.0`              | `0.11`  |
 | `0.2.0`              | `0.11`  |
 | `0.1.1`              | `0.11`  |
