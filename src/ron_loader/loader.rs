@@ -101,6 +101,7 @@ mod tests {
         let asset_server = asset_server.unwrap();
         let talk_handle: Handle<RawTalk> = asset_server.load("talks/simple.talk.ron");
         app.update();
+        app.update();
 
         let talk_assets = app.world.get_resource::<Assets<RawTalk>>();
         assert!(talk_assets.is_some());
