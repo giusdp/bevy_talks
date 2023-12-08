@@ -1,4 +1,4 @@
-//! Talker module
+//! Talker Bundle with components for Bevy.
 use bevy::prelude::{Bundle, Component};
 
 use crate::prelude::{Actor, Choice, Talk, TalkNodeKind};

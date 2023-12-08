@@ -1,4 +1,4 @@
-//! Asset loader for Talks from "talks.ron" files.
+//! The ron Asset Loader.
 
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},

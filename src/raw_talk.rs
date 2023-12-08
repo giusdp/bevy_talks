@@ -1,4 +1,4 @@
-//! A module that defines the raw data structures used to build a Talk.
+//! The raw data structures used to build a Talk.
 //!
 use bevy::{
     prelude::{Asset, Handle, Image},

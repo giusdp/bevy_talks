@@ -1,5 +1,4 @@
-//! The main module of the crate. It contains the Talk struct and its
-//! builder.
+//! The core Talk structs and builder.
 use bevy::prelude::{Component, Handle, Image};
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};

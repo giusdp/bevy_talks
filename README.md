@@ -4,8 +4,8 @@
 [![][img_license]][license] 
 [![][img_tracking]][tracking] 
 [![][img_version]][crates]
-<!-- [![][img_doc]][doc]  -->
-<!-- [![][img_downloads]][crates] -->
+[![][img_doc]][doc] 
+[![][img_downloads]][crates]
 
 
 This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game, via *Talk*s components. 
@@ -201,14 +201,14 @@ additional terms or conditions.
 [bevy]: https://bevyengine.org/
 [renpy]: https://www.renpy.org/
 
-[img_bevy]: https://img.shields.io/badge/Bevy-0.11-blue
+[img_bevy]: https://img.shields.io/badge/Bevy-0.12.1-blue
 [img_version]: https://img.shields.io/crates/v/bevy_talks.svg
 [img_doc]: https://docs.rs/bevy_talks/badge.svg
 [img_license]: https://img.shields.io/badge/license-MIT%2FApache-blue.svg
 [img_downloads]:https://img.shields.io/crates/d/bevy_talks.svg
 [img_tracking]: https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue
 
-[bevycrate]: https://crates.io/crates/bevy/0.11.0
+[bevycrate]: https://crates.io/crates/bevy/0.12.1
 [crates]: https://crates.io/crates/bevy_talks
 [doc]: https://docs.rs/bevy_talks/
 [license]: https://github.com/giusdp/bevy_talks#license
