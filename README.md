@@ -7,6 +7,9 @@
 [![][img_doc]][doc] 
 [![][img_downloads]][crates]
 
+> [!WARNING]  
+> Be aware that `bevy_talks`'s API is still undergoing revisions (with possibly big architectural changes). Feedback on its ergonomics and developer experience (DX) is highly appreciated.
+
 
 This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game, via *Talk*s components. 
 A *Talk* is a directed graph where each node is an *action* that an actor can perform, 
@@ -17,7 +20,7 @@ just a sequence of texts forming a conversation between actors.
 
 You can have multiple entities each with their own *Talk*. Or you can make a VN-like game with one single Talk in the game.
 
-The heart of the Talk is a directed graph where each node is an `TalkNode` struct:
+The heart of the Talk is a directed graph where each node is a `TalkNode` struct:
 
 ```rust
 struct TalkNode {
@@ -104,6 +107,7 @@ Talk::build(&raw_sp)
 The plugin provides a `TalkerBundle` to give an entity the required components to handle its own dialogues.
 ```rust
 struct TalkerBundle {
+    /// The Talk to display.
     talk: Talk,
     /// The dialogue line component for a Talk.
     talk_text: CurrentText,
