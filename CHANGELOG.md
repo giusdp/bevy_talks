@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2023-11-04
+
+### Changed
+
+- Update to Bevy 0.12 with new asset system
+
 ## 0.3.0 - 2023-09-09
 
 ### Added
