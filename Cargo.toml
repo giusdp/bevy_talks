@@ -12,17 +12,17 @@ exclude = ["assets/", ".github/", "examples/"]
 
 
 [dependencies]
-bevy = { version = "0.12.0", default-features = false, features = [
+bevy = { version = "0.12.1", default-features = false, features = [
     "bevy_asset",
     "bevy_render",
 ] }
-thiserror = "1.0.48"
+thiserror = "1.0"
 serde = { version = "1" }
-serde_ron = { version = "0.8.1", package = "ron" }
-petgraph = "0.6.4"
+serde_ron = { version = "0.8", package = "ron" }
+petgraph = "0.6"
 
 [dev-dependencies]
-bevy = "0.12.0"
+bevy = "0.12"
 
 [[example]]
 name = "simple"
