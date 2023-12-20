@@ -50,4 +50,5 @@ jobs:
           publish_dir: ./docs/book
           # Don't store history of gh-pages branch
           # This ensures that the repository size doesn't grow too much
+          publish_branch: main
           force_orphan: true
