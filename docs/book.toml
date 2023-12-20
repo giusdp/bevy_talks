@@ -1,0 +1,6 @@
+[book]
+authors = ["Giuseppe De Palma"]
+language = "en"
+multilingual = false
+src = "src"
+title = "Docs for bevy_talks plugin"
