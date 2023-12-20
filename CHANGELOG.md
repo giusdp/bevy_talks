@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased - (0.4.0)
+
+### Added
+- Docs folder with an mdbook
+
 ## 0.3.1 - 2023-11-04
 
 ### Changed
