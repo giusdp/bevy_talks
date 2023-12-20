@@ -19,7 +19,7 @@ jobs:
         with:
           mdbook-version: "latest"
 
-      - run: mdbook build design
+      - run: mdbook build docs
 
   deploy:
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Check for missing pages in SUMMARY.md
-        working-directory: ./design
+        working-directory: ./docs
         run: ./verify_summary.sh
 
       - name: Setup mdBook
@@ -38,7 +38,7 @@ jobs:
           mdbook-version: "latest"
 
       - name: Build
-        working-directory: ./design
+        working-directory: ./docs
         run: mdbook build
 
       - name: Deploy
