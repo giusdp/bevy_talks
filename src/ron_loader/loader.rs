@@ -43,7 +43,7 @@ impl AssetLoader for TalksLoader {
             reader.read_to_end(&mut bytes).await?;
             let ron_talk = from_bytes::<RonTalk>(&bytes)?;
 
-            // build a RawTalk from the RonTalk by loading the Actor assets
+            // build a RawTalk Asset from the RonTalk
 
             // 1. Build the actors vec
             let actors = ron_talk.actors;
@@ -55,18 +55,11 @@ impl AssetLoader for TalksLoader {
                     name: actor.name,
                     asset: None,
                 };
-                // TODO: load the actor asset ? Maybe it's better to just focus on text for now
-                // if let Some(actor_asset) = actor.asset {
-                //     let path = Path::new(actor_asset.as_str()).to_owned();
-                //     let asset_path = AssetPath::new(path, None);
-                //     asset_deps.push(asset_path.clone());
-                //     let handle: Handle<Image> = load_context.get_handle(asset_path.clone());
-                //     talk_actor.asset = Some(handle);
-                // }
+
                 talk_actors.push(talk_actor);
             }
 
-            // build the raw_actions vec
+            // 2. build the raw_actions vec
             let mut raw_actions = Vec::<RawAction>::with_capacity(ron_talk.script.len());
             for action in ron_talk.script {
                 raw_actions.push(action.into());
