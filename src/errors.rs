@@ -1,4 +1,4 @@
-//! Errors for the builder module
+//! Errors that can happen when using `bevy_talks`.
 
 use thiserror::Error;
 

@@ -1,6 +1,6 @@
 [package]
 name = "bevy_talks"
-version = "0.3.1"
+version = "0.4.0-dev"
 edition = "2021"
 description = "A Bevy plugin to write dialogues for your characters to say and do things, together with player choices."
 repository = "https://github.com/giusdp/bevy_talks"

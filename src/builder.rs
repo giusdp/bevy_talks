@@ -11,9 +11,9 @@ use crate::prelude::{
     TalkNodeKind,
 };
 
-/// Builds a `Talk` instance from a `RawTalk` instance.
+/// Builds the Dialogue Graph from a `RawTalk` asset.
 ///
-/// This function performs two passes over the `RawTalk` instance: a validation pass and a graph build pass.
+/// This function performs two passes over the `RawTalk` asset: a validation pass and a graph build pass.
 /// In the validation pass, it checks that there are no duplicate ids both in actors and actions,
 /// that all the actors in the actions are present in the actors list,
 /// and that all the `next` fields and `choice.next` fields in the actions point to existing actions.
@@ -22,11 +22,11 @@ use crate::prelude::{
 ///
 /// # Arguments
 ///
-/// * `raw` - A reference to a `RawTalk` instance to build a `Talk` from.
+/// * `raw` - A reference to a `RawTalk` asset to build the graph from.
 ///
 /// # Returns
 ///
-/// A `Result` containing the `Talk` instance if the build was successful,
+/// A `Result` containing the graph root `Entity` if the build was successful,
 /// or a `TalkError` if there was an error during validation or graph building.
 ///
 /// # Examples
