@@ -3,4 +3,14 @@ authors = ["Giuseppe De Palma"]
 language = "en"
 multilingual = false
 src = "src"
-title = "Docs for bevy_talks plugin"
+title = "Bevy Talks"
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
