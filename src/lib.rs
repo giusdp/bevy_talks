@@ -16,6 +16,7 @@ use ron_loader::loader::TalksLoader;
 // use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 mod builder;
+pub mod builderv2;
 // pub mod display;
 // pub mod trigger;
 pub mod errors;
