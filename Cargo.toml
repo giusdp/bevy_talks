@@ -20,9 +20,11 @@ thiserror = "1.0"
 serde = { version = "1" }
 serde_ron = { version = "0.8", package = "ron" }
 petgraph = "0.6"
+aery = "0.5.2"
 
 [dev-dependencies]
 bevy = "0.12"
+rstest = "0.18.2"
 
 [[example]]
 name = "simple"
