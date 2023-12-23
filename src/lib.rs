@@ -10,6 +10,7 @@
 //! [`bevy_talks`] is a Bevy plugin that provides
 //! the basics to build and handle dialogues in games.
 
+use aery::prelude::*;
 use bevy::prelude::*;
 use prelude::*;
 use ron_loader::loader::TalksLoader;
@@ -26,12 +27,20 @@ pub mod raw_talk;
 pub mod ron_loader;
 pub mod talk;
 pub mod talker;
+pub mod talkv2;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
+///
+/// # Note
+/// If you are using [Aery](https://crates.io/crates/aery), add it to the App before this plugin, or just add this plugin.
+/// This plugin will add Aery if it's not in the app, since it is a unique plugin, having multiple will panic.
 pub struct TalksPlugin;
 
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
+        if !app.is_plugin_added::<Aery>() {
+            app.add_plugins(Aery);
+        }
         app.register_asset_loader(TalksLoader)
             .init_asset::<RawTalk>()
             .add_event::<InitTalkRequest>()

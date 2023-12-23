@@ -3,6 +3,7 @@ use bevy::prelude::{Component, Handle, Image};
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
+use crate::builderv2::TalkBuilder;
 use crate::{builder, prelude::*};
 
 /// An action node in a Talk.
@@ -45,23 +46,9 @@ pub enum TalkNodeKind {
     Choice,
 }
 
-/// A struct that represents a choice in a Talk.
-///
-/// This struct is used to define a choice in a Talk. It contains the text of the choice and
-/// the ID of the next action to perform if the choice is selected.
-#[derive(Debug, Clone)]
-pub struct Choice {
-    /// The text of the choice.
-    pub text: String,
-    /// The ID of the next action to jump to if the choice is selected.
-    pub next: NodeIndex,
-}
-
-/// A Talk is a directed graph of actions.
-/// The nodes of the graph are the actions, which are
-/// bevy entities with specific [`bevy_talks`] components.
-/// The Talk struct keeps track of the current action
-/// and provides functions to move to the next action.
+/// A Talk is a directed graph.
+/// A node is an [`Entity`] with with specific [`bevy_talks`] components (the [`TalkNodeBundle`]).
+/// The Talk component keeps track of the current node and provides functions to move to the next one.
 #[derive(Debug, Component, Default)]
 pub struct Talk {
     /// The graph that represents the Talk.
@@ -83,6 +70,11 @@ pub struct Talk {
 
 // API
 impl Talk {
+    /// Creates a new `TalkBuilder` instance.
+    pub fn builder() -> TalkBuilder {
+        TalkBuilder::default()
+    }
+
     /// Builds a `Talk` instance from a `RawTalk` instance.
     ///
     /// # Arguments
