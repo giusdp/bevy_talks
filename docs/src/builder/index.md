@@ -22,12 +22,14 @@ can be built with just a few lines of code:
 
 ```rust
 let talk_builder = Talk::builder().say("Hello").say(bob, "World");
-let talk_root_entity = talk_builder.build(&app.world); // it needs a world to spawn the entities
+let build_cmd = talk_builder.build();
 ```
 
-The `build` method, for each `say`, spawns an entity and inserts the `TalkNodeBundle`. It also connects the entities lineraly with a relationship forming a dialogue graph with 2 nodes. 
+The `build` method generates a Bevy `Command` callled `BuildTalkCommand` that you can `add` to the command queue in your systems.
 
-You can checkout all the methods that the builder provides in the [API docs](https://docs.rs/bevy_talks/latest/bevy_talks/builder/struct.TalkBuilder.html).
+The command, when applied, will first spawn the `TalkStart` entity, then for each `say` an entity with a `TalkNodeBundle`. It also connects the entities linearly with a relationship forming a dialogue graph. In the example above you would have 3 entities each in a relationship with the next one.
+
+You can check out all the methods that the builder provides in the [API docs](https://docs.rs/bevy_talks/latest/bevy_talks/builder/struct.TalkBuilder.html).
 
 ### Build Branching Conversations
 
@@ -47,28 +49,19 @@ graph LR
 let talk_builder = Talk::builder();
 
 talk_builder.say("How are you?")
-    .choice(vec![
-    Choice {
-        text: "I'm fine",
-        branch: Task::builder().say("I'm glad to hear that").branch(),
-    }, 
-    Choice {
-        text: "I'm not fine",
-        branch: Task::builder().say("I'm sorry to hear that").branch(),
-    }]);
+    .choose(vec![
+        ("I'm fine".to_string(), Talk::builder().say("I'm glad to hear that")), 
+        ("I'm notfine".to_string(), Talk::builder().say("I'm sorry to hear that")), 
+    ]);
 
-let talk_root_entity = talk_builder.build(&app.world);
+let talk_root_entity = talk_builder.build();
 ``` 
 
-The choice node expects a vector of `Choice` structs. Each `Choice` struct has a `text` field and a `branch` field. 
-
-The `text` field is the text to be displayed to the player. The `branch` field instead wants a "branch" of the conversation that is also built via a `TalkBuilder`.
-
-In this case, instead of calling `build` at the end, we call `branch` to create the branch of the conversation and to avoid spawning already all the entity nodes.
+The `choose` method expects a vector of tuples. The first element is the text field of the choice (to be displayed) and the second is the branch of the conversation, which effectively is another `TalkBuilder` instance.
 
 ### Multiple Branches
 
-To make the example a bit more complex, let's say that we have another choice in a branch:
+To make the example a bit more complex, let's say we have another choice in a branch:
 
 ```mermaid
 graph LR
@@ -84,35 +77,23 @@ graph LR
 ```rust
 let talk_builder = Talk::builder();
 
-let happy_branch = Talk::builder().say("I'm glad to hear that").branch();
+let happy_branch = Talk::builder().say("I'm glad to hear that");
+let sad_branch = Talk::builder().say("Why?")
+                .choose(vec![
+                    ("Jk, I'm fine".to_string(), happy_branch.clone()), 
+                    ("I want an editor!".to_string(), Talk::builder().say("Me too :("))
+                ]);
 
 talk_builder.say("How are you?")
-    .choice(vec![
-        Choice {
-            text: "I'm fine",
-            branch: happy_branch,
-        }, 
-        Choice {
-            text: "I'm not fine",
-            branch: Talk::builder()
-                .say("Why?")
-                .choice(vec![
-                    Choice {
-                        text: "Jk, I'm fine",
-                        branch: happy_branch,
-                    }, 
-                    Choice {
-                        text: "Cause I want a cool editor!",
-                        branch: Talk::builder().say("I know!").branch(),
-                    }]
-                .branch(),
-        }]
-    );
+    .choose(vec![
+        ("I'm fine".to_string(), happy_branch), 
+        ("I'm not fine".to_string, sad_branch),
+    ]);
 
-let talk_root_entity = talk_builder.build(&app.world);
+let build_command = talk_builder.build();
 ```
 
-As you can see, it's easy to keep branching the conversation. You can also reuse branches as we did with the `happy_branch` variable. The problem with this approach is that it can get quite verbose and hard to read. 
+As you can see, it's easy to keep branching the conversation and you can also reuse branches. The problem with this approach is that it can get quite verbose and hard to read. 
 
 It is recommended to use the asset files for more complex conversations, but this can be useful if you want to quickly give some lines of texts to an item, or an NPC, or you are generating the conversation procedurally.
 
@@ -137,7 +118,7 @@ talk_builder.say("World").connect_to(node_a).build(&app.world);
 ```
 
 The `node` method returns an identifier of the node, and we can use it to do manual connections. 
-If you want a one node loop, you can connect the node to itself.
+Note you cannot create one node loops since currently self referential relationships are not supported.
 
 You can also chain multiple `connect_to` calls to connect multiple nodes to the same node.
 
