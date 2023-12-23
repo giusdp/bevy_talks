@@ -36,9 +36,11 @@ impl Command for BuildTalkCommand {
 }
 
 /// A struct with the data to build a node.
+#[derive(Default)]
 struct BuildNode {
     /// The text of the node to build.
     text: String,
+    choices: Option<Vec<(String, TalkBuilder)>>,
 }
 
 /// An implementation of the builder pattern for the dialogue graph.
@@ -84,12 +86,42 @@ impl TalkBuilder {
     pub fn say(mut self, text: &str) -> Self {
         let talk_node = BuildNode {
             text: text.to_string(),
+            ..default()
         };
         self.main.push_back(talk_node);
         self
     }
+
+    /// Add a choice node that branches the conversation in different paths.
+    /// It will spawn a `ChoiceNode` entity.
+    ///
+    /// If you don't add any choices, a warning will be logged. A choice node without choices is a dead end,
+    /// therefore all the following nodes you've added won't be spawned as they are unreachable.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use bevy_talks::prelude::TalkBuilder;
+    ///
+    /// TalkBuilder::default().choose(vec![
+    ///     ("Choice 1", TalkBuilder::default().say("Hello")),
+    ///     ("Choice 2", TalkBuilder::default().say("World!")),
+    /// ]);
+    /// ```
+    pub fn choose(mut self, choices: Vec<(String, TalkBuilder)>) -> Self {
+        if choices.is_empty() {
+            error!("You are creating a choice node without any choices, this is likely a mistake.");
+        }
+
+        let choice_node = BuildNode {
+            text: "".to_string(),
+            choices: Some(choices),
+        };
+
+        self.main.push_back(choice_node);
+        self
+    }
     /*
-        pub fn choice() {}
 
         pub fn connect_to() {}
 
@@ -130,19 +162,13 @@ mod tests {
         TalkBuilder::default()
     }
 
-    #[test]
-    fn build_returns_command_with_queue() {
-        let builder = TalkBuilder::default().say("Hello").say("World!");
+    #[rstest]
+    fn build_returns_command_with_queue(talk_builder: TalkBuilder) {
+        let builder = talk_builder.say("Hello").say("World!");
         let build_talk_cmd = builder.build();
         assert_eq!(build_talk_cmd.build_node_queue.len(), 2);
         assert_eq!(build_talk_cmd.build_node_queue[0].text, "Hello");
         assert_eq!(build_talk_cmd.build_node_queue[1].text, "World!");
-    }
-
-    #[test]
-    fn say_adds_to_the_queue() {
-        let builder = TalkBuilder::default().say("Hello");
-        assert_eq!(builder.main.len(), 1);
     }
 
     #[rstest]
@@ -167,8 +193,7 @@ mod tests {
     #[case(0, 1)]
     #[case(1, 2)]
     #[case(2, 3)]
-    #[case(3, 4)]
-    #[case(4, 5)]
+    #[case(20, 21)]
     fn command_spawns_entities_with_say(
         mut talk_builder: TalkBuilder,
         #[case] node_number: u32,
@@ -193,8 +218,7 @@ mod tests {
     #[case(0, 0)]
     #[case(1, 2)]
     #[case(2, 3)]
-    #[case(3, 4)]
-    #[case(4, 5)]
+    #[case(100, 101)]
     fn command_spawn_linear_related_nodes(
         mut talk_builder: TalkBuilder,
         #[case] node_number: u32,
@@ -267,5 +291,16 @@ mod tests {
             let found = expected_texts.iter().any(|&s| s == t.0);
             assert!(found);
         }
+    }
+
+    #[rstest]
+    fn choose_adds_a_choice_node(talk_builder: TalkBuilder) {
+        let added_node = talk_builder
+            .choose(vec![("Hello".to_string(), TalkBuilder::default())])
+            .main
+            .pop_front()
+            .unwrap();
+        assert_eq!(added_node.text, "");
+        assert!(added_node.choices.is_some());
     }
 }
