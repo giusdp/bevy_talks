@@ -20,9 +20,10 @@ graph LR
 
 can be built with just a few lines of code:
 
-```rust
+```rust,no_run
 let talk_builder = Talk::builder().say("Hello").say(bob, "World");
 let build_cmd = talk_builder.build();
+commands.add(build_cmd);
 ```
 
 The `build` method generates a Bevy `Command` callled `BuildTalkCommand` that you can `add` to the command queue in your systems.
@@ -45,7 +46,7 @@ graph LR
     C --> E[Say]
 ```
 
-```rust
+```rust,no_run
 let talk_builder = Talk::builder();
 
 talk_builder.say("How are you?")
@@ -54,7 +55,7 @@ talk_builder.say("How are you?")
         ("I'm notfine".to_string(), Talk::builder().say("I'm sorry to hear that")), 
     ]);
 
-let talk_root_entity = talk_builder.build();
+let talk_build_cmd = talk_builder.build();
 ``` 
 
 The `choose` method expects a vector of tuples. The first element is the text field of the choice (to be displayed) and the second is the branch of the conversation, which effectively is another `TalkBuilder` instance.
@@ -74,7 +75,7 @@ graph LR
     F --> H[Say]
 ```
 
-```rust
+```rust,no_run
 let talk_builder = Talk::builder();
 
 let happy_branch = Talk::builder().say("I'm glad to hear that");
@@ -90,7 +91,7 @@ talk_builder.say("How are you?")
         ("I'm not fine".to_string, sad_branch),
     ]);
 
-let build_command = talk_builder.build();
+let talk_build_cmd = talk_builder.build();
 ```
 
 As you can see, it's easy to keep branching the conversation and you can also reuse branches. The problem with this approach is that it can get quite verbose and hard to read. 
@@ -112,9 +113,12 @@ graph LR
 ```
 
 ```rust
-let talk_builder = Talk::builder();
-let node_a = talk_builder.say("Hello").node();
-talk_builder.say("World").connect_to(node_a).build(&app.world);
+let talk_builder = Talk::builder().say("Hello");
+
+// grab latest node
+let node_a = talk_builder.node();
+
+let talk_build_cmd = talk_builder.say("World").connect_to(node_a).build();
 ```
 
 The `node` method returns an identifier of the node, and we can use it to do manual connections. 
@@ -136,30 +140,20 @@ graph LR
     F --> B
 ```
 
-Situations like this are somewhat common. You are talking to an NPC where only one choice lets you continue 
+Situations like this are somewhat common in games. You are talking to an NPC where only one choice lets you continue 
 and the others are just some flavour text or some extra lore. 
 
 ```rust
-let talk_builder = Talk::builder();
+let talk_builder = Talk::builder().say("Hello");
 
-let convo_start = talk_builder.say("Hello").node();
+// grab latest node
+let convo_start = talk_builder.node();
 
-convo_start
+talk_builder
     .say("Hey")
     .choice(vec![
-        Choice {
-            text: "Good Choice",
-            branch: Talk::builder()
-                .say("End of the conversation")
-                .branch(),
-        },
-        Choice {
-            text: "Wrong Choice",
-            branch: Talk::builder()
-                .say("Go Back")
-                .connect_to(convo_start)
-                .branch(),
-        }
-    )
-    .build(&app.world);
+        ("Good Choice", Talk::builder().say("End of the conversation")),
+        ("Wrong Choice", Talk::builder().say("Go Back").connect_to(convo_start))
+    ])
+    .build();
  ```
