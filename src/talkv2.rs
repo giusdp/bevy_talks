@@ -29,7 +29,7 @@ impl TalkNodeBundle {
     ///
     /// let text = "Hello, world!".to_string();
     /// let actors = vec!["Alice".to_string(), "Bob".to_string()];
-    /// let bundle = TalkNodeBundle::new(TalkText(text.clone()), Actors(actors.clone()));
+    /// let bundle = TalkNodeBundle::new(TalkText(text.clone()));
     ///
     /// assert_eq!(bundle.kind, NodeKind::Talk);
     /// assert_eq!(bundle.text.0, text);
