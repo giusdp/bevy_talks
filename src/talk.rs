@@ -71,7 +71,7 @@ pub struct Talk {
 // API
 impl Talk {
     /// Creates a new `TalkBuilder` instance.
-    pub fn builder() -> TalkBuilder {
+    pub fn builder() -> TalkBuilder<Empty> {
         TalkBuilder::default()
     }
 
