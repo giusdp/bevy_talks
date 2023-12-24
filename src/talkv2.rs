@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use petgraph::graph::NodeIndex;
 
 /// A bundle of component that defines a Talk node in the dialogue graph.
-/// Use TalkNodeBundle::new() to create a new TalkNodeBundle.
+/// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
 #[derive(Bundle, Default)]
 pub struct TalkNodeBundle {
     /// The kind of action that the node performs. This should be `NodeKind::Talk` as the TalkNodeBundle is used to create a talk node.
@@ -37,7 +37,7 @@ impl TalkNodeBundle {
     pub fn new(text: TalkText) -> Self {
         Self {
             kind: NodeKind::Talk,
-            text
+            text,
         }
     }
 }
@@ -74,9 +74,13 @@ pub enum NodeKind {
     Leave,
 }
 
-/// The text component to be displayed in a Talk Node.
+/// The text component to be displayed from a Talk Node.
 #[derive(Component, Default, Debug)]
 pub struct TalkText(pub String);
+
+/// The choices texts component to be displayed from a Choice Node.
+#[derive(Component, Default, Debug)]
+pub struct ChoicesTexts(pub Vec<String>);
 
 /// The Actors participating in a dialogue node.
 #[derive(Component, Default)]
