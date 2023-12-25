@@ -35,6 +35,38 @@ pub struct BuildTalkCommand {
     builder: TalkBuilder<NonEmpty>,
 }
 
+impl Command for BuildTalkCommand {
+    fn apply(self, world: &mut World) {
+        // spawn the start node
+        let start = world.spawn(TalkStart).id();
+
+        let mut build_node_entities = HashMap::new();
+
+        // First pass: spawn all the node entities and add them to the map with their build node id
+        spawn_dialogue_entities(&self.builder, &mut build_node_entities, world);
+
+        // Second pass: connect them to form the graph
+        add_relationships(start, self.builder, &mut build_node_entities, world);
+    }
+}
+
+/// A recursive function that spawns all the nodes from a talk builder and adds them in the given hashmap.
+/// It is used as the first pass of the building, so we have all the entities spawned and the build_node entities map filled.
+fn spawn_dialogue_entities(
+    talk_builder: &TalkBuilder<NonEmpty>,
+    mut build_node_entities: &mut HashMap<BuildNodeId, Entity>,
+    world: &mut World,
+) {
+    for n in talk_builder.queue.iter() {
+        let e = world.spawn_empty().id();
+        build_node_entities.insert(n.id.clone(), e);
+
+        for (_, inner_builder) in n.choices.iter() {
+            spawn_dialogue_entities(inner_builder, &mut build_node_entities, world);
+        }
+    }
+}
+
 /// A recursive function that spawns all the nodes in the queue and connects them to each other.
 ///
 /// # Arguments
@@ -47,12 +79,25 @@ pub struct BuildTalkCommand {
 ///
 /// A vector of leaf nodes spawned from the given builder. It is used internally during the recursion to connect
 /// a the leaves from the branches created from a choice node to the successive node in the queue.
-fn apply_build_cmd(
+fn add_relationships(
     root: Entity,
-    mut talk_builder: TalkBuilder<NonEmpty>,
+    talk_builder: TalkBuilder<NonEmpty>,
+    mut build_node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
 ) -> Vec<Entity> {
     let mut parent = root;
+
+    // Connect parent entity (choice node) to the given node.
+    if let Some(connect_node_id) = talk_builder.connect_parent {
+        let entity_to_connect_to = build_node_entities.get(&connect_node_id);
+
+        if let Some(e) = entity_to_connect_to {
+            world.entity_mut(parent).set::<FollowedBy>(*e);
+        } else {
+            error!("Attempted to connect a choice node to some specific node that is not (yet) present in the builder.");
+        }
+    }
+
     let mut leaves: Vec<Entity> = vec![];
     let mut previous_node_was_choice = false;
 
@@ -60,23 +105,10 @@ fn apply_build_cmd(
 
     // for each node in the queue, spawn it and connect it to the previous one
     while let Some(build_node) = peekable_queue.next() {
-        // spawn the child node
-        let child = world.spawn_empty().id();
-
-        // let's store the id -> entity mapping for later use
-        // Should we panic if the id is already present? It would only happen if the same UUIDv4 is generated twice
-        // but it's so unlikely that we might not care. I mean the UUIDs are only used for manual connections
-        // so even if that happens it might not be a problem anyway. It would only be a problem if you are
-        // trying to connect to two different nodes that got the same UUID.
-        // The most recent one would be always used, resulting in unintended connections (because it replaces the first one).
-        // I'm not gonna write code just to handle this impossible case.
-        // But I can feel the pain of the poor soul that could encounter this bug (if this library will ever be used).
-        // Ah-ah! I'll try to insert and if there is already a value, I will just generate another UUID and try again.
-        // NO seriously, it is so incomprehensibly improbable that we can just ignore it. It's a waste of time.
-        // I will leave this comment here for story telling purposes. It is a library about dialogues after all.
-        talk_builder
-            .manual_connections_map
-            .insert(build_node.id.clone(), child);
+        // retrieve the child node
+        let child = *build_node_entities
+            .get(&build_node.id)
+            .expect("Error! Dialogue node entity not found. Cannot build dialogue graph! :(");
 
         // if the choices are empty, it's a talk node
         match build_node.choices.is_empty() {
@@ -96,7 +128,8 @@ fn apply_build_cmd(
                 for (choice_text, inner_builder) in build_node.choices {
                     choices_texts.push(choice_text);
                     // recursively spawn the branches
-                    let branch_leaves = apply_build_cmd(child, inner_builder, world);
+                    let branch_leaves =
+                        add_relationships(child, inner_builder, &mut build_node_entities, world);
                     leaves.extend(branch_leaves);
                 }
                 // insert the ChoicesTexts component
@@ -108,7 +141,7 @@ fn apply_build_cmd(
 
         // Let's add the extra connections here
         process_manual_connections(
-            &talk_builder.manual_connections_map,
+            &build_node_entities,
             &build_node.manual_connections,
             child,
             world,
@@ -139,10 +172,7 @@ fn process_manual_connections(
 
             // if the node is not present, log a warning and skip it
             if entity_to_connect_to.is_none() {
-                warn!(
-                        "You attempted to connect a dialogue node with id {} that is not (yet) present in the builder. Skipping.",
-                        input_id
-                    );
+                warn!("You attempted to connect a dialogue node with that is not (yet) present in the builder. Skipping.");
                 continue;
             }
 
@@ -171,16 +201,6 @@ fn connect_to_previous(
     } else {
         // otherwise simply connect the parent to the child
         world.entity_mut(parent).set::<FollowedBy>(child);
-    }
-}
-
-impl Command for BuildTalkCommand {
-    fn apply(self, world: &mut World) {
-        // spawn the start node
-        let start = world.spawn(TalkStart).id();
-
-        // spawn the rest of the nodes
-        apply_build_cmd(start, self.builder, world);
     }
 }
 
@@ -230,8 +250,9 @@ struct BuildNode {
 pub struct TalkBuilder<T> {
     /// The main queue of nodes that will be spawned.
     queue: VecDeque<BuildNode>,
-    /// A helper map to handle extra connections.
-    manual_connections_map: HashMap<BuildNodeId, Entity>,
+    /// It is set when `connect_to` is called on an empty builder.
+    /// It signals the Command to connect the last node of the parent builder (in a choice node).
+    connect_parent: Option<BuildNodeId>,
     /// The marker to identify the state of the builder.
     marker: PhantomData<T>,
 }
@@ -239,7 +260,7 @@ impl Default for TalkBuilder<Empty> {
     fn default() -> TalkBuilder<Empty> {
         TalkBuilder {
             queue: VecDeque::default(),
-            manual_connections_map: HashMap::default(),
+            connect_parent: None,
             marker: PhantomData,
         }
     }
@@ -262,11 +283,11 @@ impl<T> TalkBuilder<T> {
             text: text.to_string(),
             ..default()
         };
-        self.queue.push_back(talk_node.clone());
+        self.queue.push_back(talk_node);
 
         TalkBuilder {
             queue: self.queue,
-            manual_connections_map: self.manual_connections_map,
+            connect_parent: self.connect_parent,
             marker: PhantomData,
         }
     }
@@ -322,7 +343,54 @@ impl<T> TalkBuilder<T> {
         self.queue.push_back(choice_node);
         TalkBuilder {
             queue: self.queue,
-            manual_connections_map: self.manual_connections_map,
+            connect_parent: self.connect_parent,
+            marker: PhantomData,
+        }
+    }
+
+    /// Create a relationship manually from the latest node to the node identified by the given id.
+    ///
+    /// # Note
+    /// If you call this method on an empty builder (a newly created one) it will try to connect
+    /// the parent builder last node, if any. This is the case when you do it inside
+    /// the construction of a choice node:
+    ///
+    /// ```rust,no_run
+    /// use bevy_talks::builderv2::TalkBuilder;
+    ///
+    /// let mut builder = TalkBuilder::default().say("hello");
+    /// let hello_id = builder.last_node_id();
+    /// builder = builder.choose(vec![
+    ///     ("Choice 1".to_string(), TalkBuilder::default().say("Hello")),
+    ///     ("Choice 2".to_string(), TalkBuilder::default().connect_to(hello_id))
+    /// ]);
+    /// ```
+    ///
+    /// For the "Choice 2" branch we just passed an empty builder calling `connect_to`. It will not find any previous node to use
+    /// so it will fall back to the parent node which is the choice node itself.
+    ///
+    /// If you call `connect_to` from an empty builder with not parent builder it will just do nothing.
+    ///
+    /// # Example
+    ///
+    /// If you want to form a loop (for example `start --> say <---> say`):
+    /// ```rust
+    /// use bevy_talks::builderv2::TalkBuilder;
+    ///
+    /// let mut builder = TalkBuilder::default().say("hello");
+    /// let hello_id = builder.last_node_id();
+    /// builder = builder.say("how are you?");
+    /// builder = builder.connect_to(hello_id);
+    /// ```
+    pub fn connect_to<E>(mut self, node_id: BuildNodeId) -> TalkBuilder<E> {
+        match self.queue.back_mut() {
+            None => self.connect_parent = Some(node_id),
+            Some(node) => node.manual_connections.push(node_id),
+        };
+
+        TalkBuilder {
+            queue: self.queue,
+            connect_parent: self.connect_parent,
             marker: PhantomData,
         }
     }
@@ -361,28 +429,6 @@ impl TalkBuilder<NonEmpty> {
     /// ```
     pub fn last_node_id(&self) -> BuildNodeId {
         self.queue.back().unwrap().id.clone()
-    }
-
-    /// Create a relationship manually from the latest node to the node identified by the given id.
-    ///
-    /// # Example
-    ///
-    /// If you want to form a loop (for example `start --> say <---> say`):
-    /// ```rust
-    /// use bevy_talks::builderv2::TalkBuilder;
-    ///
-    /// let mut builder = TalkBuilder::default().say("hello");
-    /// let hello_id = builder.last_node_id();
-    /// builder = builder.say("how are you?");
-    /// builder = builder.connect_to(hello_id);
-    /// ```
-    pub fn connect_to(mut self, node_id: BuildNodeId) -> TalkBuilder<NonEmpty> {
-        self.queue
-            .back_mut()
-            .unwrap()
-            .manual_connections
-            .push(node_id);
-        self
     }
 }
 
@@ -507,6 +553,25 @@ mod tests {
         assert_eq!(added_node.choices.len(), 1);
     }
 
+    #[test]
+    fn spawn_dialogue_entities_test() {
+        let mut app = App::new();
+
+        let builder = TalkBuilder::default()
+            .say("Hello")
+            .choose(vec![
+                ("Choice 1".to_string(), TalkBuilder::default().say("Hi")),
+                ("Choice 2".to_string(), TalkBuilder::default().say("World!")),
+            ])
+            .say("something");
+
+        let mut map = HashMap::new();
+        spawn_dialogue_entities(&builder, &mut map, &mut app.world);
+
+        assert_eq!(map.len(), 5);
+        assert_eq!(app.world.iter_entities().count(), 5);
+    }
+
     #[rstest]
     #[case(1, 4)]
     #[case(2, 7)]
@@ -621,6 +686,73 @@ mod tests {
         build_talk_cmd.apply(&mut app.world);
 
         assert_relationship_nodes(node_number, expected_related, 0, &mut app)
+    }
+
+    #[test]
+    fn connect_back_from_branch_book_example() {
+        // From the Branching and Manual Connections builder section
+        let talk_builder = TalkBuilder::default().say("Hello");
+
+        // grab latest node
+        let convo_start = talk_builder.last_node_id();
+
+        let cmd = talk_builder
+            .say("Hey")
+            .choose(vec![
+                (
+                    "Good Choice".to_string(),
+                    TalkBuilder::default().say("End of the conversation"),
+                ),
+                (
+                    "Wrong Choice".to_string(),
+                    TalkBuilder::default()
+                        .say("Go Back")
+                        .connect_to(convo_start),
+                ),
+            ])
+            .build();
+
+        let mut app = App::new();
+        cmd.apply(&mut app.world);
+
+        // TODO: I would like to assert on the actual structure of the graph but I can't do much with aery here.
+        assert_relationship_nodes(6, 6, 1, &mut app);
+    }
+
+    #[test]
+    fn connect_forward_from_book_example() {
+        // From the Connecting To The Same Node builder section
+        let end_branch_builder = TalkBuilder::default().say("The End"); // Create the end immediately
+        let end_node_id = end_branch_builder.last_node_id(); // <- grab the end node
+
+        // Create the good path
+        let good_branch = TalkBuilder::default().say("something").choose(vec![
+            (
+                "Bad Choice".to_string(),
+                TalkBuilder::default().connect_to(end_node_id.clone()),
+            ),
+            (
+                "Another Good Choice".to_string(),
+                TalkBuilder::default()
+                    .say("Before the end...")
+                    .connect_to(end_node_id),
+            ),
+        ]);
+
+        let build_cmd = TalkBuilder::default()
+            .choose(vec![
+                ("Good Choice".to_string(), good_branch),
+                // NB the builder is passed here. If we never add it and keep using connect_to
+                // the end node would never be created
+                ("Bad Choice".to_string(), end_branch_builder),
+            ])
+            .build();
+
+        let mut app = App::new();
+        build_cmd.apply(&mut app.world);
+
+        // TODO: I would like to assert on the actual structure of the graph but I can't do much with aery here.
+        assert_relationship_nodes(6, 6, 1, &mut app);
     }
 
     #[track_caller]
