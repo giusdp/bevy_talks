@@ -1,19 +1,20 @@
 //! The talk builder module.
 use aery::prelude::*;
-use bevy::ecs::system::Command;
 use bevy::prelude::*;
+use bevy::utils::hashbrown::HashMap;
+use bevy::{ecs::system::Command, utils::Uuid};
 use std::{collections::VecDeque, marker::PhantomData};
 
 use crate::prelude::{ChoicesTexts, TalkText};
 
 // region: - States -
 
-/// Type state to identify a TalkBuilder without any nodes added.
-#[derive(Default)]
+/// Type state to identify a `TalkBuilder` without any nodes added.
+#[derive(Default, Clone)]
 pub struct Empty;
 
-/// Type state to identify a TalkBuilder ready to build.
-#[derive(Default)]
+/// Type state to identify a `TalkBuilder` ready to build.
+#[derive(Default, Clone)]
 pub struct NonEmpty;
 // endregion: - States -
 
@@ -25,7 +26,7 @@ pub struct TalkStart;
 /// can have multiple branches.
 #[derive(Relation)]
 #[aery(Recursive, Poly)]
-struct FollowedBy;
+pub struct FollowedBy;
 
 /// The command that spawns a dialogue graph in the world.
 /// You can create this command via the `build` method of the [`TalkBuilder`] struct.
@@ -48,7 +49,7 @@ pub struct BuildTalkCommand {
 /// a the leaves from the branches created from a choice node to the successive node in the queue.
 fn apply_build_cmd(
     root: Entity,
-    talk_builder: TalkBuilder<NonEmpty>,
+    mut talk_builder: TalkBuilder<NonEmpty>,
     world: &mut World,
 ) -> Vec<Entity> {
     let mut parent = root;
@@ -61,6 +62,21 @@ fn apply_build_cmd(
     while let Some(build_node) = peekable_queue.next() {
         // spawn the child node
         let child = world.spawn_empty().id();
+
+        // let's store the id -> entity mapping for later use
+        // Should we panic if the id is already present? It would only happen if the same UUIDv4 is generated twice
+        // but it's so unlikely that we might not care. I mean the UUIDs are only used for manual connections
+        // so even if that happens it might not be a problem anyway. It would only be a problem if you are
+        // trying to connect to two different nodes that got the same UUID.
+        // The most recent one would be always used, resulting in unintended connections (because it replaces the first one).
+        // I'm not gonna write code just to handle this impossible case.
+        // But I can feel the pain of the poor soul that could encounter this bug (if this library will ever be used).
+        // Ah-ah! I'll try to insert and if there is already a value, I will just generate another UUID and try again.
+        // NO seriously, it is so incomprehensibly improbable that we can just ignore it. It's a waste of time.
+        // I will leave this comment here for story telling purposes. It is a library about dialogues after all.
+        talk_builder
+            .manual_connections_map
+            .insert(build_node.id.clone(), child);
 
         // if the choices are empty, it's a talk node
         match build_node.choices.is_empty() {
@@ -90,6 +106,14 @@ fn apply_build_cmd(
             }
         }
 
+        // Let's add the extra connections here
+        process_manual_connections(
+            &talk_builder.manual_connections_map,
+            &build_node.manual_connections,
+            child,
+            world,
+        );
+
         // if this is the last node, it's a leaf
         if peekable_queue.peek().is_none() {
             leaves.push(child);
@@ -101,6 +125,36 @@ fn apply_build_cmd(
     leaves
 }
 
+/// Connect the node to the given nodes.
+fn process_manual_connections(
+    manual_connections_map: &HashMap<BuildNodeId, Entity>,
+    manual_connections: &[BuildNodeId],
+    child: Entity,
+    world: &mut World,
+) {
+    if !manual_connections.is_empty() {
+        for input_id in manual_connections {
+            // get the entity node from the map
+            let entity_to_connect_to = manual_connections_map.get(input_id);
+
+            // if the node is not present, log a warning and skip it
+            if entity_to_connect_to.is_none() {
+                warn!(
+                        "You attempted to connect a dialogue node with id {} that is not (yet) present in the builder. Skipping.",
+                        input_id
+                    );
+                continue;
+            }
+
+            // connect it
+            world
+                .entity_mut(child)
+                .set::<FollowedBy>(*entity_to_connect_to.unwrap());
+        }
+    }
+}
+
+/// Connect the previous nodes to the new node.
 fn connect_to_previous(
     world: &mut World,
     parent: Entity,
@@ -130,19 +184,23 @@ impl Command for BuildTalkCommand {
     }
 }
 
+/// The ID of the nodes in the builder. It is used to identify the dialogue graph nodes before
+/// they are actually spawned in the world.
+/// It is useful to connect manually the nodes at build time with the `connect_to` method.
+pub type BuildNodeId = String;
+
 /// A struct with the data to build a node.
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct BuildNode {
+    /// The id of the node to build.
     id: BuildNodeId,
     /// The text of the node to build. If it's a choice node, it will be empty.
     text: String,
     /// The choices of the node to build. If it's a talk node, it will be empty.
     choices: Vec<(String, TalkBuilder<NonEmpty>)>,
+    /// The ids to add extra connections.
+    manual_connections: Vec<BuildNodeId>,
 }
-
-/// The ID of the nodes in the builder to identify the dialogue graph nodes before they are actually spawned in the world.
-/// It is used to connect manually the nodes at build time with the `connect_to` method.
-pub type BuildNodeId = usize;
 
 /// An implementation of the builder pattern for the dialogue graph.
 /// You can define dialogue graphs programmatically using this builder and
@@ -168,21 +226,26 @@ pub type BuildNodeId = usize;
 ///     commands.add(build_talk_cmd);
 /// }
 /// ```
+#[derive(Clone)]
 pub struct TalkBuilder<T> {
     /// The main queue of nodes that will be spawned.
     queue: VecDeque<BuildNode>,
+    /// A helper map to handle extra connections.
+    manual_connections_map: HashMap<BuildNodeId, Entity>,
+    /// The marker to identify the state of the builder.
     marker: PhantomData<T>,
 }
 impl Default for TalkBuilder<Empty> {
     fn default() -> TalkBuilder<Empty> {
         TalkBuilder {
             queue: VecDeque::default(),
+            manual_connections_map: HashMap::default(),
             marker: PhantomData,
         }
     }
 }
 
-impl<E> TalkBuilder<E> {
+impl<T> TalkBuilder<T> {
     /// Add a simple text node without any actor that will spawn a `TalkNode` entity.
     ///
     /// # Example
@@ -193,25 +256,21 @@ impl<E> TalkBuilder<E> {
     /// TalkBuilder::default().say("Hello").say("World!");
     /// ```
     pub fn say(mut self, text: &str) -> TalkBuilder<NonEmpty> {
-        let id = self.generate_id();
+        let id = Uuid::new_v4().to_string();
         let talk_node = BuildNode {
-            id,
+            id: id.clone(),
             text: text.to_string(),
             ..default()
         };
-        self.queue.push_back(talk_node);
+        self.queue.push_back(talk_node.clone());
 
         TalkBuilder {
             queue: self.queue,
+            manual_connections_map: self.manual_connections_map,
             marker: PhantomData,
         }
     }
 
-    /// Utility function to generate a build node ID.
-    /// If the queue is empty returns 0 otherwise the latest node id + 1.
-    fn generate_id(&self) -> BuildNodeId {
-        self.queue.back().map_or(0, |b| b.id + 1)
-    }
     /// Add a choice node that branches the conversation in different paths.
     /// It will spawn a `ChoiceNode` entity.
     ///
@@ -255,14 +314,15 @@ impl<E> TalkBuilder<E> {
         }
 
         let choice_node = BuildNode {
-            id: self.generate_id(),
-            text: "".to_string(),
+            id: Uuid::new_v4().to_string(),
             choices,
+            ..default()
         };
 
         self.queue.push_back(choice_node);
         TalkBuilder {
             queue: self.queue,
+            manual_connections_map: self.manual_connections_map,
             marker: PhantomData,
         }
     }
@@ -287,28 +347,43 @@ impl TalkBuilder<NonEmpty> {
         BuildTalkCommand { builder: self }
     }
 
-    /// Get a unique id for the latest node added to the builder.
-    /// These IDs are incremented sequentially as you add nodes.
+    /// Get a unique id (uuids v4) for the latest node added to the builder.
     /// You can use the returned id with `connect_to` to manually pair nodes.
     /// You could also guess the id number of a node if you are confident enough when connecting manually.
     ///
     /// # Example
     /// ```rust
-    ///
     /// use bevy_talks::builderv2::TalkBuilder;
     ///
     /// let builder = TalkBuilder::default().say("hello");
     ///
-    /// assert_eq!(builder.node(), 0);
+    /// println!("{}", builder.last_node_id());
     /// ```
-    pub fn node(&self) -> BuildNodeId {
-        self.queue.back().map_or(0, |b| b.id)
+    pub fn last_node_id(&self) -> BuildNodeId {
+        self.queue.back().unwrap().id.clone()
     }
-    /*
 
-        pub fn connect_to() {}
-
-    */
+    /// Create a relationship manually from the latest node to the node identified by the given id.
+    ///
+    /// # Example
+    ///
+    /// If you want to form a loop (for example `start --> say <---> say`):
+    /// ```rust
+    /// use bevy_talks::builderv2::TalkBuilder;
+    ///
+    /// let mut builder = TalkBuilder::default().say("hello");
+    /// let hello_id = builder.last_node_id();
+    /// builder = builder.say("how are you?");
+    /// builder = builder.connect_to(hello_id);
+    /// ```
+    pub fn connect_to(mut self, node_id: BuildNodeId) -> TalkBuilder<NonEmpty> {
+        self.queue
+            .back_mut()
+            .unwrap()
+            .manual_connections
+            .push(node_id);
+        self
+    }
 }
 
 #[cfg(test)]
@@ -410,7 +485,7 @@ mod tests {
         let mut query = app.world.query::<&TalkText>();
 
         // check length
-        assert_eq!(query.iter(&app.world).count(), node_number as usize);
+        assert_eq!(query.iter(&app.world).count(), node_number);
 
         // check texts
         for t in query.iter(&app.world) {
@@ -522,19 +597,30 @@ mod tests {
     }
 
     #[rstest]
-    #[case(1)]
-    #[case(2)]
-    #[case(10)]
-    fn node_returns_latest_id(talk_builder: TalkBuilder<Empty>, #[case] node_number: usize) {
+    #[case(2, 4)]
+    #[case(3, 5)]
+    fn connect_to_adds_relationship(
+        talk_builder: TalkBuilder<Empty>,
+        #[case] node_number: u32,
+        #[case] expected_related: usize,
+    ) {
+        let mut app = App::new();
         let mut tbuilder = talk_builder.say("hello");
-        let mut node_id = tbuilder.node();
-        assert_eq!(node_id, 0);
 
-        for i in 1..node_number {
+        let first_node = tbuilder.last_node_id();
+
+        tbuilder = tbuilder.say("hello there");
+
+        for _ in 1..node_number {
             tbuilder = tbuilder.say("hello there");
-            node_id = tbuilder.node();
-            assert_eq!(node_id, i);
         }
+
+        tbuilder = tbuilder.connect_to(first_node);
+
+        let build_talk_cmd = tbuilder.build();
+        build_talk_cmd.apply(&mut app.world);
+
+        assert_relationship_nodes(node_number, expected_related, 0, &mut app)
     }
 
     #[track_caller]
