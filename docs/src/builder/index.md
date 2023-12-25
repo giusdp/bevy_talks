@@ -112,11 +112,11 @@ graph LR
     C --> B
 ```
 
-```rust
+```rust,no_run
 let talk_builder = Talk::builder().say("Hello");
 
 // grab latest node
-let node_a = talk_builder.node();
+let node_a = talk_builder.last_node_id();
 
 let talk_build_cmd = talk_builder.say("World").connect_to(node_a).build();
 ```
@@ -143,17 +143,57 @@ graph LR
 Situations like this are somewhat common in games. You are talking to an NPC where only one choice lets you continue 
 and the others are just some flavour text or some extra lore. 
 
-```rust
+```rust,no_run
 let talk_builder = Talk::builder().say("Hello");
 
 // grab latest node
-let convo_start = talk_builder.node();
+let convo_start = talk_builder.last_node_id();
 
-talk_builder
+let build_cmd = talk_builder
     .say("Hey")
-    .choice(vec![
-        ("Good Choice", Talk::builder().say("End of the conversation")),
-        ("Wrong Choice", Talk::builder().say("Go Back").connect_to(convo_start))
+    .choose(vec![
+        ("Good Choice".to_string(), Talk::builder().say("End of the conversation")),
+        ("Wrong Choice".to_string(), Talk::builder().say("Go Back").connect_to(convo_start))
     ])
     .build();
  ```
+
+### Connecting To The Same Node
+
+Imagine you want to land on a node from multiple places like this:
+
+```mermaid
+graph LR
+    A((Start)) --> B[Choice]
+    B --> C[Say]
+    C --> D[Choice]
+    D --> E[Say]
+    D --> F[Say]
+    E --> F
+    B --> F
+```
+
+You have an initial choice that can take the player to the end of the conversation, or go for some chat and then another choices which either goes to the end or passes by a talk node first.
+
+You can think of that last talk node as its own branch that is pointed by multiple nodes. 
+
+```rust,no_run
+let end_branch_builder = Talk::builder().say("The End"); // Create the end immediately
+let end_node_id = end_branch_builder.last_node_id(); // <- grab the end node
+
+// Create the good path
+let good_branch = Talk::builder().say("something").choose(vec![
+    ("Bad Choice".to_string(), Talk::builder().connect_to(end_node_id.clone())),
+    (
+        "Another Good Choice".to_string(), 
+        Talk::builder().say("Before the end...").connect_to(end_node_id)
+    ),
+]);
+
+let build_cmd = Talk::builder().choose(vec![
+    ("Good Choice".to_string(), good_branch),
+    // NB the builder is passed here. If we never add it and keep using connect_to
+    // the end node would never be created
+    ("Bad Choice".to_string(), end_branch_builder) 
+]).build();
+```
