@@ -51,10 +51,10 @@ impl Command for BuildTalkCommand {
 }
 
 /// A recursive function that spawns all the nodes from a talk builder and adds them in the given hashmap.
-/// It is used as the first pass of the building, so we have all the entities spawned and the build_node entities map filled.
+/// It is used as the first pass of the building, so we have all the entities spawned and the `build_node_entities` map filled.
 fn spawn_dialogue_entities(
     talk_builder: &TalkBuilder<NonEmpty>,
-    mut build_node_entities: &mut HashMap<BuildNodeId, Entity>,
+    build_node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
 ) {
     for n in talk_builder.queue.iter() {
@@ -62,7 +62,7 @@ fn spawn_dialogue_entities(
         build_node_entities.insert(n.id.clone(), e);
 
         for (_, inner_builder) in n.choices.iter() {
-            spawn_dialogue_entities(inner_builder, &mut build_node_entities, world);
+            spawn_dialogue_entities(inner_builder, build_node_entities, world);
         }
     }
 }
@@ -82,7 +82,7 @@ fn spawn_dialogue_entities(
 fn add_relationships(
     root: Entity,
     talk_builder: TalkBuilder<NonEmpty>,
-    mut build_node_entities: &mut HashMap<BuildNodeId, Entity>,
+    build_node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
 ) -> Vec<Entity> {
     let mut parent = root;
@@ -129,7 +129,7 @@ fn add_relationships(
                     choices_texts.push(choice_text);
                     // recursively spawn the branches
                     let branch_leaves =
-                        add_relationships(child, inner_builder, &mut build_node_entities, world);
+                        add_relationships(child, inner_builder, build_node_entities, world);
                     leaves.extend(branch_leaves);
                 }
                 // insert the ChoicesTexts component
@@ -141,7 +141,7 @@ fn add_relationships(
 
         // Let's add the extra connections here
         process_manual_connections(
-            &build_node_entities,
+            build_node_entities,
             &build_node.manual_connections,
             child,
             world,
@@ -160,7 +160,7 @@ fn add_relationships(
 
 /// Connect the node to the given nodes.
 fn process_manual_connections(
-    manual_connections_map: &HashMap<BuildNodeId, Entity>,
+    build_node_entities: &HashMap<BuildNodeId, Entity>,
     manual_connections: &[BuildNodeId],
     child: Entity,
     world: &mut World,
@@ -168,7 +168,7 @@ fn process_manual_connections(
     if !manual_connections.is_empty() {
         for input_id in manual_connections {
             // get the entity node from the map
-            let entity_to_connect_to = manual_connections_map.get(input_id);
+            let entity_to_connect_to = build_node_entities.get(input_id);
 
             // if the node is not present, log a warning and skip it
             if entity_to_connect_to.is_none() {
