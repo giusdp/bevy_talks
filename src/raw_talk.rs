@@ -203,7 +203,7 @@ fn validate_all_nexts(actions: &IndexMap<ActionId, RawAction>) -> Result<(), Bui
 
 #[cfg(test)]
 mod tests {
-    use crate::{builderr::FollowedBy, prelude::*};
+    use crate::{builder::FollowedBy, prelude::*};
 
     use aery::{edges::Root, operations::utils::Relations, tuple_traits::RelationEntries};
     use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};

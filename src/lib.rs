@@ -16,11 +16,7 @@ use prelude::*;
 use ron_loader::loader::TalksLoader;
 // use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
-mod builder;
-mod builderr;
-// pub mod builderv2;
-// pub mod display;
-// pub mod trigger;
+pub mod builder;
 pub mod errors;
 pub mod events;
 pub mod prelude;

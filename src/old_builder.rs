@@ -287,33 +287,3 @@ fn check_duplicate_actor_ids(actors: &[RawActor]) -> Result<(), BuildTalkError> 
 //         let res = build(&raw_sp).err();
 //         assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
 //     }
-
-//     #[test]
-//     fn build_not_found_in_choice() {
-//         let raw_sp = RawTalk {
-//             actors: default(),
-//             script: vec![RawAction {
-//                 choices: vec![RawChoice {
-//                     next: 2,
-//                     text: default(),
-//                 }],
-//                 ..default()
-//             }],
-//         };
-//         let res = build(&raw_sp).err();
-//         assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
-//     }
-
-//     #[test]
-//     fn build_duplicate_id() {
-//         let raw_sp = RawTalk {
-//             actors: default(),
-//             script: vec![
-//                 RawAction { id: 1, ..default() },
-//                 RawAction { id: 1, ..default() },
-//             ],
-//         };
-//         let res = build(&raw_sp).err();
-//         assert_eq!(res, Some(BuildTalkError::DuplicateActionId(1)));
-//     }
-// }
