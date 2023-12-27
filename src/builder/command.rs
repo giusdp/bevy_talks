@@ -4,10 +4,7 @@ use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
 use crate::prelude::{Choices, StartTalk, TalkText};
 
-use super::{
-    builder::{BuildNodeId, TalkBuilder},
-    FollowedBy,
-};
+use super::*;
 
 /// The command that spawns a dialogue graph in the world.
 /// You can create this command via the `build` method of the [`TalkBuilder`] struct.
@@ -194,7 +191,6 @@ mod tests {
     use rstest::rstest;
 
     use super::*;
-    use crate::prelude::TalkBuilder;
 
     #[test]
     fn test_spawn_dialogue_entities() {

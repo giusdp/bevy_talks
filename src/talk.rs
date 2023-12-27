@@ -141,7 +141,25 @@ pub struct Talk {
 }
 
 impl Talk {
-    /// Parse the asset into a [`TalkBuilder`] that lets you spawn the dialogue graph.
+    /// Parses the `Talk` asset into a [`TalkBuilder`] ready to spawn the dialogue graph.
+    ///
+    /// This function validates the `Talk` asset (checks that the `next` and `choice.next` fields point to existing actions)
+    /// and then creates and fills a [`TalkBuilder`] with all the actions.
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use bevy::prelude::*;
+    /// use bevy_talks::prelude::*;
+    ///
+    /// fn spawn_system(mut commands: Commands, talk_handle: Handle<Talk>, assets: Res<Assets<Talk>>) {
+    ///     let talk = assets.get(talk_handle).unwrap();
+    ///     let builder = talk.clone().into_builder().unwrap();
+    ///     let build_cmd = builder.build();
+    ///     commands.add(build_cmd);
+    /// }
+    /// ```
+    ///
     pub fn into_builder(self) -> Result<TalkBuilder, BuildTalkError> {
         if self.script.is_empty() {
             return Err(BuildTalkError::EmptyTalk);
@@ -166,6 +184,7 @@ impl Talk {
     }
 }
 
+/// Build the builder
 fn build_pass(
     starting_action_id: usize,
     actions: &IndexMap<ActionId, Action>,
