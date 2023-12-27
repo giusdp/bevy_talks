@@ -141,26 +141,8 @@ pub struct Talk {
 }
 
 impl Talk {
-    /// Parses the `Talk` asset into a [`TalkBuilder`] ready to spawn the dialogue graph.
-    ///
-    /// This function validates the `Talk` asset (checks that the `next` and `choice.next` fields point to existing actions)
-    /// and then creates and fills a [`TalkBuilder`] with all the actions.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use bevy::prelude::*;
-    /// use bevy_talks::prelude::*;
-    ///
-    /// fn spawn_system(mut commands: Commands, talk_handle: Handle<Talk>, assets: Res<Assets<Talk>>) {
-    ///     let talk = assets.get(talk_handle).unwrap();
-    ///     let builder = talk.clone().into_builder().unwrap();
-    ///     let build_cmd = builder.build();
-    ///     commands.add(build_cmd);
-    /// }
-    /// ```
-    ///
-    pub fn into_builder(self) -> Result<TalkBuilder, BuildTalkError> {
+    /// Take a builder and fill it with the talk actions
+    pub(crate) fn fill_builder(&self, builder: TalkBuilder) -> Result<TalkBuilder, BuildTalkError> {
         if self.script.is_empty() {
             return Err(BuildTalkError::EmptyTalk);
         }
@@ -168,8 +150,6 @@ impl Talk {
         self.validation_pass()?;
 
         let mut visited = HashMap::with_capacity(self.script.len());
-
-        let builder = TalkBuilder::default();
 
         let start_id = self.script.keys().next().unwrap();
 
@@ -274,17 +254,22 @@ mod tests {
     use aery::{edges::Root, operations::utils::Relations, tuple_traits::RelationEntries};
     use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
     use indexmap::{indexmap, IndexMap};
-    use rstest::rstest;
+    use rstest::{fixture, rstest};
 
-    #[test]
-    fn error_into_builder_empty() {
-        let res = Talk::default().into_builder();
+    #[fixture]
+    fn builder() -> TalkBuilder {
+        TalkBuilder::default()
+    }
+
+    #[rstest]
+    fn error_into_builder_empty(builder: TalkBuilder) {
+        let res = Talk::default().fill_builder(builder);
         assert!(res.is_err());
         assert_eq!(res.err(), Some(BuildTalkError::EmptyTalk));
     }
 
-    #[test]
-    fn error_invalid_next_action() {
+    #[rstest]
+    fn error_invalid_next_action(builder: TalkBuilder) {
         let talk = Talk {
             script: indexmap! {0 => Action {
                 next: Some(2),
@@ -292,12 +277,12 @@ mod tests {
             }},
             ..default()
         };
-        let res = talk.into_builder().err();
+        let res = talk.fill_builder(builder).err();
         assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
     }
 
-    #[test]
-    fn error_not_found_in_choice() {
+    #[rstest]
+    fn error_not_found_in_choice(builder: TalkBuilder) {
         let talk = Talk {
             actors: default(),
             script: indexmap! {
@@ -310,7 +295,7 @@ mod tests {
                 },
             },
         };
-        let res = talk.into_builder().err();
+        let res = talk.fill_builder(builder).err();
         assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
     }
 
@@ -320,7 +305,7 @@ mod tests {
     #[case(10)]
     #[case(200)]
     #[case(1000)]
-    fn linear_talk_nodes(#[case] nodes: usize) {
+    fn linear_talk_nodes(builder: TalkBuilder, #[case] nodes: usize) {
         let mut script = IndexMap::with_capacity(nodes);
         let mut map = HashMap::with_capacity(nodes);
         for index in 0..nodes {
@@ -349,7 +334,10 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.into_builder().unwrap().build().apply(&mut app.world);
+        talk.fill_builder(builder)
+            .unwrap()
+            .build()
+            .apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(
@@ -360,8 +348,8 @@ mod tests {
         assert_on_talk_nodes(app, map);
     }
 
-    #[test]
-    fn talk_nodes_with_loop() {
+    #[rstest]
+    fn talk_nodes_with_loop(builder: TalkBuilder) {
         let script = indexmap! {
             1 => Action { text: "1".to_string(), next: Some(10), ..default() },
             2 => Action { text: "2".to_string(), next: Some(10), ..default() },
@@ -374,7 +362,10 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.into_builder().unwrap().build().apply(&mut app.world);
+        talk.fill_builder(builder)
+            .unwrap()
+            .build()
+            .apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
@@ -386,8 +377,8 @@ mod tests {
         assert_on_talk_nodes(app, map);
     }
 
-    #[test]
-    fn choice_pointing_to_talks() {
+    #[rstest]
+    fn choice_pointing_to_talks(builder: TalkBuilder) {
         let script = indexmap! {
             0 =>
             Action {
@@ -408,7 +399,10 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.into_builder().unwrap().build().apply(&mut app.world);
+        talk.fill_builder(builder)
+            .unwrap()
+            .build()
+            .apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 2);
@@ -425,8 +419,8 @@ mod tests {
         assert_on_choice_nodes(&mut app, map);
     }
 
-    #[test]
-    fn connect_back_from_branch_book_example() {
+    #[rstest]
+    fn connect_back_from_branch_book_example(builder: TalkBuilder) {
         // From the Branching and Manual Connections builder section
         let script = indexmap! {
             0 => Action { text: "First Text".to_string(), next: Some(1), ..default() },
@@ -449,7 +443,10 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.into_builder().unwrap().build().apply(&mut app.world);
+        talk.fill_builder(builder)
+            .unwrap()
+            .build()
+            .apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 4);
@@ -472,8 +469,8 @@ mod tests {
         assert_on_talk_nodes(app, talk_map);
     }
 
-    #[test]
-    fn connect_forward_from_book_example() {
+    #[rstest]
+    fn connect_forward_from_book_example(builder: TalkBuilder) {
         // From the Connecting To The Same Node builder section
         let script = indexmap! {
             0 =>
@@ -504,7 +501,10 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.into_builder().unwrap().build().apply(&mut app.world);
+        talk.fill_builder(builder)
+            .unwrap()
+            .build()
+            .apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
