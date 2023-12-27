@@ -42,13 +42,12 @@ pub(crate) struct RonAction {
 impl From<RonAction> for RawAction {
     fn from(val: RonAction) -> Self {
         RawAction {
-            id: val.id,
             kind: val.action.into(),
             actors: val.actors,
             choices: val
                 .choices
-                .map(|c| c.into_iter().map(|c| c.into()).collect()),
-            text: val.text,
+                .map_or(vec![], |c| c.into_iter().map(|c| c.into()).collect()),
+            text: val.text.unwrap_or_default(),
             next: val.next,
         }
     }

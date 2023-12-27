@@ -5,10 +5,11 @@ use bevy::{
     log::error,
     utils::BoxedFuture,
 };
+use indexmap::IndexMap;
 use serde_ron::de::from_bytes;
 use thiserror::Error;
 
-use crate::prelude::{RawAction, RawActor, RawTalk};
+use crate::prelude::{ActionId, RawAction, RawActor, RawTalk};
 
 use super::types::RonTalk;
 
@@ -25,6 +26,9 @@ pub enum RonLoaderError {
     /// A [RON Error](ron::error::SpannedError)
     #[error("Could not parse RON: {0}")]
     RonError(#[from] serde_ron::error::SpannedError),
+    /// Multiple actions have same id error
+    #[error("multiple actions have same id: {0}")]
+    DuplicateActionId(ActionId),
 }
 
 impl AssetLoader for TalksLoader {
@@ -60,9 +64,13 @@ impl AssetLoader for TalksLoader {
             }
 
             // 2. build the raw_actions vec
-            let mut raw_actions = Vec::<RawAction>::with_capacity(ron_talk.script.len());
+            let mut raw_actions =
+                IndexMap::<ActionId, RawAction>::with_capacity(ron_talk.script.len());
             for action in ron_talk.script {
-                raw_actions.push(action.into());
+                let id = action.id;
+                if raw_actions.insert(id, action.into()).is_some() {
+                    return Err(RonLoaderError::DuplicateActionId(id));
+                }
             }
 
             let raw_talk = RawTalk {

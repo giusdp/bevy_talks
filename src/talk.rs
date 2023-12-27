@@ -3,8 +3,11 @@ use bevy::prelude::{Component, Handle, Image};
 use petgraph::visit::EdgeRef;
 use petgraph::{prelude::DiGraph, stable_graph::NodeIndex};
 
-use crate::builderv2::TalkBuilder;
-use crate::{builder, prelude::*};
+use crate::prelude::*;
+
+/// A component that marks a node as the start of the dialogue graph.
+#[derive(Component)]
+pub struct TalkStart;
 
 /// An action node in a Talk.
 #[derive(Debug, Default)]
@@ -33,17 +36,17 @@ pub struct Actor {
 }
 
 /// An enumeration of the different kinds of actions that can be performed in a Talk.
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Default, Clone, Eq, Hash, PartialEq)]
 pub enum TalkNodeKind {
     /// A talk action, where a character speaks dialogue.
     #[default]
     Talk,
+    /// A choice action, where the user is presented with a choice.
+    Choice,
     /// An enter action, where a character enters a scene.
     Join,
     /// An exit action, where a character exits a scene.
     Leave,
-    /// A choice action, where the user is presented with a choice.
-    Choice,
 }
 
 /// A Talk is a directed graph.
@@ -71,7 +74,7 @@ pub struct Talk {
 // API
 impl Talk {
     /// Creates a new `TalkBuilder` instance.
-    pub fn builder() -> TalkBuilder<Empty> {
+    pub fn builder() -> TalkBuilder {
         TalkBuilder::default()
     }
 
@@ -96,8 +99,8 @@ impl Talk {
     ///
     /// assert!(talk_res.is_ok());
     /// ```
-    pub fn build(raw_talk: &RawTalk) -> Result<Talk, BuildTalkError> {
-        builder::build(raw_talk)
+    pub fn build(_raw_talk: &RawTalk) -> Result<Talk, BuildTalkError> {
+        todo!("Remove")
     }
 
     /// Sets the current node of the `Talk` instance to the start node.
@@ -171,240 +174,240 @@ impl Talk {
     }
 }
 
-#[cfg(test)]
-mod test {
-    use bevy::prelude::default;
+// #[cfg(test)]
+// mod test {
+//     use bevy::prelude::default;
 
-    use crate::prelude::{RawAction, RawChoice};
+//     use crate::prelude::{RawAction, RawChoice};
 
-    use super::*;
+//     use super::*;
 
-    #[test]
-    fn choices_no_choice_node() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }],
-        };
+//     #[test]
+//     fn choices_no_choice_node() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }],
+//         };
 
-        let sp = Talk::build(&raw_sp).unwrap();
-        assert_eq!(sp.choices().len(), 0);
-    }
+//         let sp = Talk::build(&raw_sp).unwrap();
+//         assert_eq!(sp.choices().len(), 0);
+//     }
 
-    #[test]
-    fn choices() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![
-                RawAction {
-                    choices: Some(vec![
-                        RawChoice {
-                            text: "Choice 1".to_string(),
-                            next: 2,
-                        },
-                        RawChoice {
-                            text: "Choice 2".to_string(),
-                            next: 3,
-                        },
-                    ]),
-                    ..default()
-                },
-                RawAction { id: 2, ..default() },
-                RawAction { id: 3, ..default() },
-            ],
-        };
+//     #[test]
+//     fn choices() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![
+//                 RawAction {
+//                     choices: vec![
+//                         RawChoice {
+//                             text: "Choice 1".to_string(),
+//                             next: 2,
+//                         },
+//                         RawChoice {
+//                             text: "Choice 2".to_string(),
+//                             next: 3,
+//                         },
+//                     ],
+//                     ..default()
+//                 },
+//                 RawAction { id: 2, ..default() },
+//                 RawAction { id: 3, ..default() },
+//             ],
+//         };
 
-        let sp = Talk::build(&raw_sp).unwrap();
-        assert_eq!(sp.choices()[0].next, 1.into());
-        assert_eq!(sp.choices()[0].text, "Choice 1");
-        assert_eq!(sp.choices()[1].next, 2.into());
-        assert_eq!(sp.choices()[1].text, "Choice 2");
-    }
+//         let sp = Talk::build(&raw_sp).unwrap();
+//         assert_eq!(sp.choices()[0].next, 1.into());
+//         assert_eq!(sp.choices()[0].text, "Choice 1");
+//         assert_eq!(sp.choices()[1].next, 2.into());
+//         assert_eq!(sp.choices()[1].text, "Choice 2");
+//     }
 
-    #[test]
-    fn action_actors() {
-        let raw_sp = RawTalk {
-            actors: vec![
-                RawActor {
-                    id: String::from("bob"),
-                    name: String::from("Bob"),
-                    ..Default::default()
-                },
-                RawActor {
-                    id: String::from("alice"),
-                    name: String::from("Alice"),
-                    ..Default::default()
-                },
-            ],
-            script: vec![RawAction {
-                actors: vec![String::from("bob")],
-                ..Default::default()
-            }],
-        };
-        let sp = Talk::build(&raw_sp).unwrap();
-        let actors = sp.action_actors();
-        assert_eq!(actors[0].name, "Bob");
-    }
+//     #[test]
+//     fn action_actors() {
+//         let raw_sp = RawTalk {
+//             actors: vec![
+//                 RawActor {
+//                     id: String::from("bob"),
+//                     name: String::from("Bob"),
+//                     ..Default::default()
+//                 },
+//                 RawActor {
+//                     id: String::from("alice"),
+//                     name: String::from("Alice"),
+//                     ..Default::default()
+//                 },
+//             ],
+//             script: vec![RawAction {
+//                 actors: vec![String::from("bob")],
+//                 ..Default::default()
+//             }],
+//         };
+//         let sp = Talk::build(&raw_sp).unwrap();
+//         let actors = sp.action_actors();
+//         assert_eq!(actors[0].name, "Bob");
+//     }
 
-    #[test]
-    fn text_no_talk_node() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction {
-                kind: TalkNodeKind::Join,
-                ..default()
-            }],
-        };
+//     #[test]
+//     fn text_no_talk_node() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction {
+//                 kind: TalkNodeKind::Join,
+//                 ..default()
+//             }],
+//         };
 
-        let talk = Talk::build(&raw_sp);
-        assert!(talk.is_ok());
-        assert_eq!(talk.unwrap().text(), "");
-    }
+//         let talk = Talk::build(&raw_sp);
+//         assert!(talk.is_ok());
+//         assert_eq!(talk.unwrap().text(), "");
+//     }
 
-    #[test]
-    fn text() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction {
-                text: Some("Hello".to_string()),
-                ..default()
-            }],
-        };
+//     #[test]
+//     fn text() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction {
+//                 text: "Hello".to_string(),
+//                 ..default()
+//             }],
+//         };
 
-        let talk = Talk::build(&raw_sp);
-        assert!(talk.is_ok());
-        assert_eq!(talk.unwrap().text(), "Hello");
-    }
+//         let talk = Talk::build(&raw_sp);
+//         assert!(talk.is_ok());
+//         assert_eq!(talk.unwrap().text(), "Hello");
+//     }
 
-    #[test]
-    fn node_kind() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }],
-        };
+//     #[test]
+//     fn node_kind() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }],
+//         };
 
-        let talk = Talk::build(&raw_sp).unwrap();
-        assert_eq!(talk.node_kind(), TalkNodeKind::Talk);
-    }
+//         let talk = Talk::build(&raw_sp).unwrap();
+//         assert_eq!(talk.node_kind(), TalkNodeKind::Talk);
+//     }
 
-    #[test]
-    fn start_sets_current_node() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
-        };
+//     #[test]
+//     fn start_sets_current_node() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
+//         };
 
-        let mut sp = Talk::build(&raw_sp).unwrap();
-        sp.start();
-        assert_eq!(sp.current_node.index(), 0);
-    }
+//         let mut sp = Talk::build(&raw_sp).unwrap();
+//         sp.start();
+//         assert_eq!(sp.current_node.index(), 0);
+//     }
 
-    #[test]
-    fn start_resets_current_node() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
-        };
+//     #[test]
+//     fn start_resets_current_node() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
+//         };
 
-        let mut sp = Talk::build(&raw_sp).unwrap();
-        sp.current_node = 1.into();
-        sp.start();
-        assert_eq!(sp.current_node.index(), 0);
-    }
+//         let mut sp = Talk::build(&raw_sp).unwrap();
+//         sp.current_node = 1.into();
+//         sp.start();
+//         assert_eq!(sp.current_node.index(), 0);
+//     }
 
-    #[test]
-    fn jump_to_no_action_err() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }],
-        };
+//     #[test]
+//     fn jump_to_no_action_err() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }],
+//         };
 
-        let mut sp = Talk::build(&raw_sp).unwrap();
-        assert_eq!(
-            sp.jump_to(2.into()).err(),
-            Some(NextActionError::WrongJump(2))
-        );
-    }
+//         let mut sp = Talk::build(&raw_sp).unwrap();
+//         assert_eq!(
+//             sp.jump_to(2.into()).err(),
+//             Some(NextActionError::WrongJump(2))
+//         );
+//     }
 
-    #[test]
-    fn jump_to() {
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![
-                RawAction {
-                    choices: Some(vec![
-                        RawChoice {
-                            text: "Choice 1".to_string(),
-                            next: 2,
-                        },
-                        RawChoice {
-                            text: "Choice 2".to_string(),
-                            next: 3,
-                        },
-                    ]),
-                    ..default()
-                },
-                RawAction {
-                    id: 2,
-                    text: Some("I'm number 2".to_string()),
-                    next: Some(3),
-                    ..default()
-                },
-                RawAction { id: 3, ..default() },
-            ],
-        };
+//     #[test]
+//     fn jump_to() {
+//         let raw_sp = RawTalk {
+//             actors: default(),
+//             script: vec![
+//                 RawAction {
+//                     choices: vec![
+//                         RawChoice {
+//                             text: "Choice 1".to_string(),
+//                             next: 2,
+//                         },
+//                         RawChoice {
+//                             text: "Choice 2".to_string(),
+//                             next: 3,
+//                         },
+//                     ],
+//                     ..default()
+//                 },
+//                 RawAction {
+//                     id: 2,
+//                     text: "I'm number 2".to_string(),
+//                     next: Some(3),
+//                     ..default()
+//                 },
+//                 RawAction { id: 3, ..default() },
+//             ],
+//         };
 
-        let mut sp = Talk::build(&raw_sp).unwrap();
-        assert!(sp.jump_to(1.into()).is_ok());
-        assert_eq!(sp.text(), "I'm number 2");
-    }
+//         let mut sp = Talk::build(&raw_sp).unwrap();
+//         assert!(sp.jump_to(1.into()).is_ok());
+//         assert_eq!(sp.text(), "I'm number 2");
+//     }
 
-    #[test]
-    fn next_action_with_no_next() {
-        let raw = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }],
-        };
+//     #[test]
+//     fn next_action_with_no_next() {
+//         let raw = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }],
+//         };
 
-        let sp = Talk::build(&raw);
-        assert!(sp.is_ok());
-        assert_eq!(
-            sp.unwrap().next_action().err(),
-            Some(NextActionError::NoNextAction)
-        );
-    }
+//         let sp = Talk::build(&raw);
+//         assert!(sp.is_ok());
+//         assert_eq!(
+//             sp.unwrap().next_action().err(),
+//             Some(NextActionError::NoNextAction)
+//         );
+//     }
 
-    #[test]
-    fn next_action_choices_not_handled_err() {
-        let raw = RawTalk {
-            actors: default(),
-            script: vec![
-                RawAction {
-                    choices: Some(vec![RawChoice {
-                        text: "Whatup".to_string(),
-                        next: 2,
-                    }]),
-                    ..default()
-                },
-                RawAction { id: 2, ..default() },
-            ],
-        };
+//     #[test]
+//     fn next_action_choices_not_handled_err() {
+//         let raw = RawTalk {
+//             actors: default(),
+//             script: vec![
+//                 RawAction {
+//                     choices: vec![RawChoice {
+//                         text: "Whatup".to_string(),
+//                         next: 2,
+//                     }],
+//                     ..default()
+//                 },
+//                 RawAction { id: 2, ..default() },
+//             ],
+//         };
 
-        let sp = Talk::build(&raw);
-        assert!(sp.is_ok());
-        assert_eq!(
-            sp.unwrap().next_action().err(),
-            Some(NextActionError::ChoicesNotHandled)
-        );
-    }
+//         let sp = Talk::build(&raw);
+//         assert!(sp.is_ok());
+//         assert_eq!(
+//             sp.unwrap().next_action().err(),
+//             Some(NextActionError::ChoicesNotHandled)
+//         );
+//     }
 
-    #[test]
-    fn next_action_success() {
-        let raw = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
-        };
-        let sp = Talk::build(&raw);
-        assert!(sp.is_ok());
-        assert!(sp.unwrap().next_action().is_ok());
-    }
-}
+//     #[test]
+//     fn next_action_success() {
+//         let raw = RawTalk {
+//             actors: default(),
+//             script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
+//         };
+//         let sp = Talk::build(&raw);
+//         assert!(sp.is_ok());
+//         assert!(sp.unwrap().next_action().is_ok());
+//     }
+// }

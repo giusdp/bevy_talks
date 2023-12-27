@@ -156,6 +156,8 @@ fn next_action_handler(
 #[cfg(test)]
 mod tests {
 
+    use indexmap::IndexMap;
+
     use crate::prelude::RawAction;
 
     use super::*;
@@ -170,15 +172,14 @@ mod tests {
     #[test]
     fn init_talk_handler() {
         let mut app = minimal_app();
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction {
-                text: Some("Hello".to_string()),
-                ..default()
-            }],
+        let mut script = IndexMap::<usize, RawAction>::with_capacity(1);
+        script.insert(0, RawAction { ..default() });
+        let talk = RawTalk {
+            script,
+            ..default()
         };
 
-        let sp = Talk::build(&raw_sp);
+        let sp = Talk::build(&talk);
         assert!(sp.is_ok());
 
         let e = app
@@ -199,12 +200,14 @@ mod tests {
     #[test]
     fn next_action_handler() {
         let mut app = minimal_app();
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![RawAction { ..default() }, RawAction { id: 2, ..default() }],
-        };
 
-        let sp = Talk::build(&raw_sp);
+        let mut script = IndexMap::<usize, RawAction>::with_capacity(2);
+        script.insert(0, RawAction { ..default() });
+        script.insert(2, RawAction { ..default() });
+        let mut talk = RawTalk::default();
+        talk.script = script;
+
+        let sp = Talk::build(&talk);
         assert!(sp.is_ok());
 
         let e = app
@@ -226,16 +229,14 @@ mod tests {
     #[test]
     fn jump_action_handler() {
         let mut app = minimal_app();
-        let raw_sp = RawTalk {
-            actors: default(),
-            script: vec![
-                RawAction { ..default() },
-                RawAction { id: 2, ..default() },
-                RawAction { id: 3, ..default() },
-            ],
-        };
+        let mut script = IndexMap::<usize, RawAction>::with_capacity(3);
+        script.insert(0, RawAction { ..default() });
+        script.insert(2, RawAction { ..default() });
+        script.insert(3, RawAction { ..default() });
+        let mut talk = RawTalk::default();
+        talk.script = script;
 
-        let sp = Talk::build(&raw_sp);
+        let sp = Talk::build(&talk);
         assert!(sp.is_ok());
 
         let e = app
