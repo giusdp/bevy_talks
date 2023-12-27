@@ -954,7 +954,6 @@ dependencies = [
  "aery",
  "bevy",
  "indexmap 2.1.0",
- "petgraph",
  "ron",
  "rstest",
  "serde",

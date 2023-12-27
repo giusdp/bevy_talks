@@ -2,14 +2,92 @@
 //!
 use std::collections::HashSet;
 
-use bevy::{
-    prelude::{Asset, Handle, Image},
-    reflect::TypePath,
-    utils::HashMap,
-};
+use bevy::{prelude::*, reflect::TypePath, utils::HashMap};
 use indexmap::IndexMap;
 
-use crate::prelude::{Actor, BuildNodeId, BuildTalkError, TalkBuilder, TalkNodeKind};
+use crate::prelude::{BuildNodeId, BuildTalkError, TalkBuilder};
+
+/// A component that marks a node as the start of the dialogue graph.
+#[derive(Component)]
+pub struct StartTalk;
+
+/// A bundle of component that defines a Talk node in the dialogue graph.
+/// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
+#[derive(Bundle, Default)]
+pub struct TalkNodeBundle {
+    /// The kind of action that the node performs. This should be `NodeKind::Talk` as the TalkNodeBundle is used to create a talk node.
+    pub kind: NodeKind,
+    /// The text to be displayed by the talk node.
+    pub text: TalkText,
+}
+
+impl TalkNodeBundle {
+    /// Creates a new `TalkNodeBundle` with the specified `text` and `actors`.
+    /// The node kind is set to `NodeKind::Talk`.
+    ///
+    /// # Arguments
+    ///
+    /// * `text` - The text to be displayed in the talk node.
+    /// * `actors` - The list of actors participating in the talk node.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_talks::prelude::*;
+    ///
+    /// let text = "Hello, world!".to_string();
+    /// let actors = vec!["Alice".to_string(), "Bob".to_string()];
+    /// let bundle = TalkNodeBundle::new(TalkText(text.clone()));
+    ///
+    /// assert_eq!(bundle.kind, NodeKind::Talk);
+    /// assert_eq!(bundle.text.0, text);
+    /// ```
+    pub fn new(text: TalkText) -> Self {
+        Self {
+            kind: NodeKind::Talk,
+            text,
+        }
+    }
+}
+
+/// An enumeration of the different kinds of actions that can be performed in a Talk.
+#[derive(Component, Debug, Default, Clone, Hash, Eq, PartialEq)]
+pub enum NodeKind {
+    /// A talk action, where a character speaks dialogue.
+    #[default]
+    Talk,
+    /// A choice action, where the user is presented with a choice.
+    Choice,
+    /// An enter action, where a character enters a scene.
+    Join,
+    /// An exit action, where a character exits a scene.
+    Leave,
+}
+
+/// The text component to be displayed from a Talk Node.
+#[derive(Component, Default, Debug)]
+pub struct TalkText(pub String);
+
+/// The choices texts component to be displayed from a Choice Node.
+#[derive(Component, Default, Debug)]
+pub struct Choices(pub Vec<String>);
+
+/// The Actors participating in a dialogue node.
+#[derive(Component, Default)]
+pub struct Actors(pub Vec<String>);
+
+/// A struct that represents an actor in a Talk.
+///
+/// This struct is used to define an actor in a Talk. It contains the ID of the actor, the
+/// name of the character that the actor plays, and an optional asset that represents the actor's
+/// appearance or voice.
+#[derive(Debug, Clone, Default)]
+pub struct Actor {
+    /// The name of the character that the actor plays.
+    pub name: String,
+    /// An optional asset for the actor.
+    pub asset: Option<Handle<Image>>,
+}
 
 /// A unique identifier for an action in a Talk.
 ///
@@ -76,7 +154,7 @@ fn build_pass(
     let mut done = false;
     while !done {
         match the_action.kind {
-            TalkNodeKind::Talk => {
+            NodeKind::Talk => {
                 builder = builder.say(&the_action.text);
                 visited.insert(the_id, builder.last_node_id());
 
@@ -93,7 +171,7 @@ fn build_pass(
                     done = true; // reached an end node
                 }
             }
-            TalkNodeKind::Choice => {
+            NodeKind::Choice => {
                 let mut choice_vec = Vec::with_capacity(the_action.choices.len());
 
                 for c in the_action.choices.iter() {
@@ -115,8 +193,8 @@ fn build_pass(
                 visited.insert(the_id, builder.last_node_id());
                 done = true; // no other nodes to visit from a choice (nexts are not used in this case)
             }
-            TalkNodeKind::Join => todo!(),
-            TalkNodeKind::Leave => todo!(),
+            NodeKind::Join => todo!(),
+            NodeKind::Leave => todo!(),
         }
     }
 
@@ -132,7 +210,7 @@ fn build_pass(
 #[derive(Debug, Default, Clone, Eq, Hash, PartialEq)]
 pub struct RawAction {
     /// The kind of action.
-    pub kind: TalkNodeKind,
+    pub kind: NodeKind,
     /// The actors involved in the action.
     pub actors: Vec<ActorId>,
     /// Any choices that the user can make during the action.
@@ -285,7 +363,7 @@ mod tests {
         let mut app = App::new();
         talk.into_builder().unwrap().build().apply(&mut app.world);
 
-        assert_eq!(app.world.query::<&TalkStart>().iter(&app.world).count(), 1);
+        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(
             app.world.query::<&TalkText>().iter(&app.world).count(),
             nodes
@@ -310,7 +388,7 @@ mod tests {
         let mut app = App::new();
         talk.into_builder().unwrap().build().apply(&mut app.world);
 
-        assert_eq!(app.world.query::<&TalkStart>().iter(&app.world).count(), 1);
+        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
 
         let mut map = HashMap::new();
@@ -329,7 +407,7 @@ mod tests {
                     RawChoice { text: "Choice 1".to_string(), next: 1, },
                     RawChoice { text: "Choice 2".to_string(), next: 2, },
                 ],
-                kind: TalkNodeKind::Choice,
+                kind: NodeKind::Choice,
                 ..default()
             },
             1 => RawAction { text: "Hello".to_string(), next: Some(2), ..default() },
@@ -344,12 +422,9 @@ mod tests {
         let mut app = App::new();
         talk.into_builder().unwrap().build().apply(&mut app.world);
 
-        assert_eq!(app.world.query::<&TalkStart>().iter(&app.world).count(), 1);
+        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 2);
-        assert_eq!(
-            app.world.query::<&ChoicesTexts>().iter(&app.world).count(),
-            1
-        );
+        assert_eq!(app.world.query::<&Choices>().iter(&app.world).count(), 1);
         assert_eq!(
             app.world
                 .query::<Root<FollowedBy>>()
@@ -374,7 +449,7 @@ mod tests {
                     RawChoice { text: "Choice 1".to_string(), next: 3, },
                     RawChoice { text: "Choice 2".to_string(), next: 4, },
                 ],
-                kind: TalkNodeKind::Choice,
+                kind: NodeKind::Choice,
                 ..default()
             },
             3 => RawAction { text: "Third Text (End)".to_string(), ..default() },
@@ -388,12 +463,9 @@ mod tests {
         let mut app = App::new();
         talk.into_builder().unwrap().build().apply(&mut app.world);
 
-        assert_eq!(app.world.query::<&TalkStart>().iter(&app.world).count(), 1);
+        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 4);
-        assert_eq!(
-            app.world.query::<&ChoicesTexts>().iter(&app.world).count(),
-            1
-        );
+        assert_eq!(app.world.query::<&Choices>().iter(&app.world).count(), 1);
         assert_eq!(
             app.world
                 .query::<Root<FollowedBy>>()
@@ -422,7 +494,7 @@ mod tests {
                     RawChoice { text: "First Choice 1".to_string(), next: 1, },
                     RawChoice { text: "First Choice 2".to_string(), next: 2, },
                 ],
-                kind: TalkNodeKind::Choice,
+                kind: NodeKind::Choice,
                 ..default()
             },
             1 => RawAction { text: "First Text".to_string(), next: Some(3), ..default() },
@@ -433,7 +505,7 @@ mod tests {
                     RawChoice { text: "Second Choice 1".to_string(), next: 2, },
                     RawChoice { text: "Second Choice 2".to_string(), next: 4, },
                 ],
-                kind: TalkNodeKind::Choice,
+                kind: NodeKind::Choice,
                 ..default()
             },
             4 => RawAction { text: "Second Text".to_string(), next: Some(2), ..default() },
@@ -446,12 +518,9 @@ mod tests {
         let mut app = App::new();
         talk.into_builder().unwrap().build().apply(&mut app.world);
 
-        assert_eq!(app.world.query::<&TalkStart>().iter(&app.world).count(), 1);
+        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
-        assert_eq!(
-            app.world.query::<&ChoicesTexts>().iter(&app.world).count(),
-            2
-        );
+        assert_eq!(app.world.query::<&Choices>().iter(&app.world).count(), 2);
         assert_eq!(
             app.world
                 .query::<Root<FollowedBy>>()
@@ -502,7 +571,7 @@ mod tests {
     fn assert_on_choice_nodes(app: &mut App, map: HashMap<usize, (Vec<u32>, Vec<&str>)>) {
         for (e, t, edges) in app
             .world
-            .query::<(Entity, &ChoicesTexts, Relations<FollowedBy>)>()
+            .query::<(Entity, &Choices, Relations<FollowedBy>)>()
             .iter(&app.world)
         {
             let eid = e.index() as usize;

@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::prelude::{ActionId, ActorId, RawAction, RawChoice, TalkNodeKind};
+use crate::prelude::{ActionId, ActorId, NodeKind, RawAction, RawChoice};
 
 /// The ron talk asset type.
 ///
@@ -106,13 +106,13 @@ pub(crate) enum RonActionKind {
     Choice,
 }
 
-impl From<RonActionKind> for TalkNodeKind {
+impl From<RonActionKind> for NodeKind {
     fn from(val: RonActionKind) -> Self {
         match val {
-            RonActionKind::Talk => TalkNodeKind::Talk,
-            RonActionKind::Join => TalkNodeKind::Join,
-            RonActionKind::Leave => TalkNodeKind::Leave,
-            RonActionKind::Choice => TalkNodeKind::Choice,
+            RonActionKind::Talk => NodeKind::Talk,
+            RonActionKind::Join => NodeKind::Join,
+            RonActionKind::Leave => NodeKind::Leave,
+            RonActionKind::Choice => NodeKind::Choice,
         }
     }
 }
