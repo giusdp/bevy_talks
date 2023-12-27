@@ -1,3 +1,4 @@
+//! Programmatically build Talks
 use aery::prelude::*;
 
 pub mod builder;

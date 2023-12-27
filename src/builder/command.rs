@@ -1,7 +1,8 @@
+//! The Bevy Command to spawn Talk entity graphs
 use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
-use crate::prelude::{ChoicesTexts, TalkStart, TalkText};
+use crate::prelude::{Choices, StartTalk, TalkText};
 
 use super::{
     builder::{BuildNodeId, TalkBuilder},
@@ -18,7 +19,7 @@ pub struct BuildTalkCommand {
 impl Command for BuildTalkCommand {
     fn apply(self, world: &mut World) {
         // spawn the start node
-        let start = world.spawn(TalkStart).id();
+        let start = world.spawn(StartTalk).id();
 
         let mut build_node_entities = HashMap::new();
 
@@ -114,7 +115,7 @@ fn form_graph(
                     leaves.extend(branch_leaves);
                 }
                 // insert the ChoicesTexts component
-                world.entity_mut(child).insert(ChoicesTexts(choices_texts));
+                world.entity_mut(child).insert(Choices(choices_texts));
 
                 previous_node_was_choice = true;
             }
@@ -407,7 +408,7 @@ mod integration_tests {
         #[case] choice_node_number: usize,
         #[case] expected_nodes_in_relation: usize,
     ) {
-        use crate::prelude::ChoicesTexts;
+        use crate::prelude::Choices;
 
         let mut app = App::new();
 
@@ -420,7 +421,7 @@ mod integration_tests {
 
         talk_builder.build().apply(&mut app.world);
 
-        let mut query = app.world.query::<&ChoicesTexts>();
+        let mut query = app.world.query::<&Choices>();
 
         // check length
         assert_eq!(query.iter(&app.world).count(), choice_node_number as usize);

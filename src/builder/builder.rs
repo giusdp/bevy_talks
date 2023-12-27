@@ -153,7 +153,7 @@ impl TalkBuilder {
     /// the construction of a choice node:
     ///
     /// ```rust,no_run
-    /// use bevy_talks::builderv2::TalkBuilder;
+    /// use bevy_talks::prelude::TalkBuilder;
     ///
     /// let mut builder = TalkBuilder::default().say("hello");
     /// let hello_id = builder.last_node_id();
@@ -172,7 +172,7 @@ impl TalkBuilder {
     ///
     /// If you want to form a loop (for example `start --> say <---> say`):
     /// ```rust
-    /// use bevy_talks::builderv2::TalkBuilder;
+    /// use bevy_talks::prelude::TalkBuilder;
     ///
     /// let mut builder = TalkBuilder::default().say("hello");
     /// let hello_id = builder.last_node_id();
@@ -196,7 +196,7 @@ impl TalkBuilder {
     ///
     /// # Example
     /// ```rust
-    /// use bevy_talks::builderv2::TalkBuilder;
+    /// use bevy_talks::prelude::TalkBuilder;
     ///
     /// let builder = TalkBuilder::default().say("hello");
     ///
