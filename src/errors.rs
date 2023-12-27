@@ -28,9 +28,6 @@ pub enum BuildTalkError {
     /// The talk is empty
     #[error("the talk is empty")]
     EmptyTalk,
-    /// The actor id is duplicated
-    #[error("the actor id {0} is duplicated")]
-    DuplicateActorId(String),
     /// An action has a non-existent actor
     #[error("the action {0} has specified a non existent actor {1}")]
     InvalidActor(ActionId, String),
