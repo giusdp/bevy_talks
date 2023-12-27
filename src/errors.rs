@@ -25,15 +25,15 @@ pub enum NextActionError {
 /// Errors when building a Talk
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum BuildTalkError {
+    /// The talk is empty
+    #[error("the talk is empty")]
+    EmptyTalk,
     /// The actor id is duplicated
     #[error("the actor id {0} is duplicated")]
     DuplicateActorId(String),
     /// An action has a non-existent actor
     #[error("the action {0} has specified a non existent actor {1}")]
     InvalidActor(ActionId, String),
-    /// Multiple actions have same id error
-    #[error("multiple actions have same id: {0}")]
-    DuplicateActionId(ActionId),
     /// An action has the next field pointing to a non-existent action
     #[error("the action {0} is pointing to id {1} which was not found")]
     InvalidNextAction(ActionId, ActionId),
