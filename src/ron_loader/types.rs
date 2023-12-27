@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::prelude::{ActionId, ActorId, NodeKind, RawAction, RawChoice};
+use crate::prelude::{Action, ActionId, ActorId, Choice, NodeKind};
 
 /// The ron talk asset type.
 ///
@@ -39,9 +39,9 @@ pub(crate) struct RonAction {
     pub(crate) next: Option<ActionId>,
 }
 
-impl From<RonAction> for RawAction {
+impl From<RonAction> for Action {
     fn from(val: RonAction) -> Self {
-        RawAction {
+        Action {
             kind: val.action.into(),
             actors: val.actors,
             choices: val
@@ -79,9 +79,9 @@ pub(crate) struct RonChoice {
     pub(crate) next: ActionId,
 }
 
-impl From<RonChoice> for RawChoice {
+impl From<RonChoice> for Choice {
     fn from(val: RonChoice) -> Self {
-        RawChoice {
+        Choice {
             text: val.text,
             next: val.next,
         }

@@ -7,9 +7,78 @@ use indexmap::IndexMap;
 
 use crate::prelude::{BuildNodeId, BuildTalkError, TalkBuilder};
 
+/// A unique identifier for an action in a Talk.
+///
+/// This type alias is used to define a unique identifier for an action in a Talk. Each action
+/// in the Talk is assigned a unique ID, which is used to link the actions together in the
+/// Talk graph.
+pub(crate) type ActionId = usize;
+
+/// A unique identifier for an actor in a Talk.
+///
+/// An `ActorId` is a `String` that uniquely identifies an actor in a Talk. It is used to
+/// associate actions with the actors that perform them.
+///
+pub(crate) type ActorId = String;
+
+/// A struct that represents an action in a Talk.
+///
+/// This struct is used to define an action in a Talk. It contains the ID of the action, the
+/// kind of action, the actors involved in the action, any choices that the user can make during
+/// the action, the text of the action, the ID of the next action to perform, whether the action is
+/// the start of the Talk, and any sound effect associated with the action.
+#[derive(Debug, Default, Clone, Eq, Hash, PartialEq)]
+pub(crate) struct Action {
+    /// The kind of action.
+    pub(crate) kind: NodeKind,
+    /// The actors involved in the action.
+    pub(crate) actors: Vec<ActorId>,
+    /// Any choices that the user can make during the action.
+    pub(crate) choices: Vec<Choice>,
+    /// The text of the action.
+    pub(crate) text: String,
+    /// The ID of the next action to perform.
+    pub(crate) next: Option<ActionId>,
+}
+/// A struct that represents a choice in a Talk.
+///
+/// This struct is used to define a choice in a Talk. It contains the text of the choice and
+/// the ID of the next action to perform if the choice is selected.
+#[derive(Default, Debug, Clone, Eq, Hash, PartialEq)]
+pub(crate) struct Choice {
+    /// The text of the choice.
+    pub(crate) text: String,
+    /// The ID of the next action to perform if the choice is selected.
+    pub(crate) next: ActionId,
+}
+/// A struct that represents an actor in a Talk.
+///
+/// This struct is used to define an actor in a Talk. It contains the ID of the actor, the
+/// name of the character that the actor plays, and an optional asset that represents the actor's
+/// appearance or voice.
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Actor {
+    /// The name of the character that the actor plays.
+    pub(crate) name: String,
+}
+
 /// A component that marks a node as the start of the dialogue graph.
 #[derive(Component)]
 pub struct StartTalk;
+
+/// An enumeration of the different kinds of actions that can be performed in a Talk.
+#[derive(Component, Debug, Default, Clone, Hash, Eq, PartialEq)]
+pub enum NodeKind {
+    /// A talk action, where a character speaks dialogue.
+    #[default]
+    Talk,
+    /// A choice action, where the user is presented with a choice.
+    Choice,
+    /// An enter action, where a character enters a scene.
+    Join,
+    /// An exit action, where a character exits a scene.
+    Leave,
+}
 
 /// A bundle of component that defines a Talk node in the dialogue graph.
 /// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
@@ -50,20 +119,6 @@ impl TalkNodeBundle {
     }
 }
 
-/// An enumeration of the different kinds of actions that can be performed in a Talk.
-#[derive(Component, Debug, Default, Clone, Hash, Eq, PartialEq)]
-pub enum NodeKind {
-    /// A talk action, where a character speaks dialogue.
-    #[default]
-    Talk,
-    /// A choice action, where the user is presented with a choice.
-    Choice,
-    /// An enter action, where a character enters a scene.
-    Join,
-    /// An exit action, where a character exits a scene.
-    Leave,
-}
-
 /// The text component to be displayed from a Talk Node.
 #[derive(Component, Default, Debug)]
 pub struct TalkText(pub String);
@@ -76,44 +131,17 @@ pub struct Choices(pub Vec<String>);
 #[derive(Component, Default)]
 pub struct Actors(pub Vec<String>);
 
-/// A struct that represents an actor in a Talk.
-///
-/// This struct is used to define an actor in a Talk. It contains the ID of the actor, the
-/// name of the character that the actor plays, and an optional asset that represents the actor's
-/// appearance or voice.
-#[derive(Debug, Clone, Default)]
-pub struct Actor {
-    /// The name of the character that the actor plays.
-    pub name: String,
-    /// An optional asset for the actor.
-    pub asset: Option<Handle<Image>>,
-}
-
-/// A unique identifier for an action in a Talk.
-///
-/// This type alias is used to define a unique identifier for an action in a Talk. Each action
-/// in the Talk is assigned a unique ID, which is used to link the actions together in the
-/// Talk graph.
-pub(crate) type ActionId = usize;
-
-/// A unique identifier for an actor in a Talk.
-///
-/// An `ActorId` is a `String` that uniquely identifies an actor in a Talk. It is used to
-/// associate actions with the actors that perform them.
-///
-pub(crate) type ActorId = String;
-
 /// A struct that represents a Raw Talk.
 #[derive(Asset, Debug, Default, Clone, TypePath)]
-pub struct RawTalk {
+pub struct Talk {
     /// The list of actions that make up the Talk.
-    pub script: IndexMap<ActionId, RawAction>,
+    pub(crate) script: IndexMap<ActionId, Action>,
     /// The list of actors that appear in the Talk.
-    pub actors: Vec<RawActor>,
+    pub(crate) actors: IndexMap<ActorId, Actor>,
 }
 
-impl RawTalk {
-    /// Parse the asset into a builder that lets you spawn the dialogue graph.
+impl Talk {
+    /// Parse the asset into a [`TalkBuilder`] that lets you spawn the dialogue graph.
     pub fn into_builder(self) -> Result<TalkBuilder, BuildTalkError> {
         if self.script.is_empty() {
             return Err(BuildTalkError::EmptyTalk);
@@ -132,9 +160,6 @@ impl RawTalk {
 
     /// Validate the asset.
     pub(crate) fn validation_pass(&self) -> Result<(), BuildTalkError> {
-        // // Check that there are no duplicate ids
-        // check_duplicate_action_ids(&self.script)?;
-
         // Check all the nexts and choice.next (they should point to existing actions)
         validate_all_nexts(&self.script)?;
         Ok(())
@@ -143,7 +168,7 @@ impl RawTalk {
 
 fn build_pass(
     starting_action_id: usize,
-    actions: &IndexMap<ActionId, RawAction>,
+    actions: &IndexMap<ActionId, Action>,
     mut builder: TalkBuilder,
     visited: &mut HashMap<usize, BuildNodeId>,
 ) -> Result<TalkBuilder, BuildTalkError> {
@@ -164,7 +189,7 @@ fn build_pass(
                         builder = builder.connect_to(visited[&next].clone());
                         done = true; // no need to continue
                     }
-                    // move to the next actino
+                    // move to the next action
                     the_action = &actions[&next];
                     the_id = next;
                 } else {
@@ -201,67 +226,11 @@ fn build_pass(
     Ok(builder)
 }
 
-/// A struct that represents an action in a Talk.
-///
-/// This struct is used to define an action in a Talk. It contains the ID of the action, the
-/// kind of action, the actors involved in the action, any choices that the user can make during
-/// the action, the text of the action, the ID of the next action to perform, whether the action is
-/// the start of the Talk, and any sound effect associated with the action.
-#[derive(Debug, Default, Clone, Eq, Hash, PartialEq)]
-pub struct RawAction {
-    /// The kind of action.
-    pub kind: NodeKind,
-    /// The actors involved in the action.
-    pub actors: Vec<ActorId>,
-    /// Any choices that the user can make during the action.
-    pub choices: Vec<RawChoice>,
-    /// The text of the action.
-    pub text: String,
-    /// The ID of the next action to perform.
-    pub next: Option<ActionId>,
-}
-
-/// A struct that represents an actor in a Talk.
-///
-/// This struct is used to define an actor in a Talk. It contains the ID of the actor, the
-/// name of the character that the actor plays, and an optional asset that represents the actor's
-/// appearance or voice.
-#[derive(Debug, Clone, Default)]
-pub struct RawActor {
-    /// The ID of the actor.
-    pub id: ActorId,
-    /// The name of the character that the actor plays.
-    pub name: String,
-    /// An optional asset that represents the actor's appearance or voice.
-    pub asset: Option<Handle<Image>>,
-}
-
-impl From<RawActor> for Actor {
-    fn from(val: RawActor) -> Self {
-        Actor {
-            name: val.name,
-            asset: val.asset,
-        }
-    }
-}
-
-/// A struct that represents a choice in a Talk.
-///
-/// This struct is used to define a choice in a Talk. It contains the text of the choice and
-/// the ID of the next action to perform if the choice is selected.
-#[derive(Default, Debug, Clone, Eq, Hash, PartialEq)]
-pub struct RawChoice {
-    /// The text of the choice.
-    pub text: String,
-    /// The ID of the next action to perform if the choice is selected.
-    pub next: ActionId,
-}
-
 /// Check if all `next` fields and `Choice` `next` fields in a `Vec<RawAction>` point to real actions.
 /// If the action has choices, the `next` field is not checked.
 ///
 /// Returns a `TalkError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `RawAction`s do not point to real actions.
-fn validate_all_nexts(actions: &IndexMap<ActionId, RawAction>) -> Result<(), BuildTalkError> {
+fn validate_all_nexts(actions: &IndexMap<ActionId, Action>) -> Result<(), BuildTalkError> {
     let id_set = actions.keys().cloned().collect::<HashSet<_>>();
     for (id, action) in actions {
         if !action.choices.is_empty() {
@@ -290,15 +259,15 @@ mod tests {
 
     #[test]
     fn error_into_builder_empty() {
-        let res = RawTalk::default().into_builder();
+        let res = Talk::default().into_builder();
         assert!(res.is_err());
         assert_eq!(res.err(), Some(BuildTalkError::EmptyTalk));
     }
 
     #[test]
     fn error_invalid_next_action() {
-        let talk = RawTalk {
-            script: indexmap! {0 => RawAction {
+        let talk = Talk {
+            script: indexmap! {0 => Action {
                 next: Some(2),
                 ..default()
             }},
@@ -310,14 +279,14 @@ mod tests {
 
     #[test]
     fn error_not_found_in_choice() {
-        let talk = RawTalk {
+        let talk = Talk {
             actors: default(),
             script: indexmap! {
-                0 => RawAction {
-                    choices: vec![RawChoice { next: 2, ..default()}],
+                0 => Action {
+                    choices: vec![Choice { next: 2, ..default()}],
                     ..default()
                 },
-                1 => RawAction {
+                1 => Action {
                     ..default()
                 },
             },
@@ -338,7 +307,7 @@ mod tests {
         for index in 0..nodes {
             script.insert(
                 index,
-                RawAction {
+                Action {
                     text: "Hello".to_string(),
                     next: if nodes > 1 && index < nodes - 1 {
                         Some(index + 1)
@@ -355,7 +324,7 @@ mod tests {
             };
             map.insert(index + 1, (target, "Hello"));
         }
-        let talk = RawTalk {
+        let talk = Talk {
             script,
             ..default()
         };
@@ -375,12 +344,12 @@ mod tests {
     #[test]
     fn talk_nodes_with_loop() {
         let script = indexmap! {
-            1 => RawAction { text: "1".to_string(), next: Some(10), ..default() },
-            2 => RawAction { text: "2".to_string(), next: Some(10), ..default() },
-            10 => RawAction { text: "10".to_string(), next: Some(2), ..default() },
+            1 => Action { text: "1".to_string(), next: Some(10), ..default() },
+            2 => Action { text: "2".to_string(), next: Some(10), ..default() },
+            10 => Action { text: "10".to_string(), next: Some(2), ..default() },
         };
 
-        let talk = RawTalk {
+        let talk = Talk {
             script,
             ..default()
         };
@@ -402,19 +371,19 @@ mod tests {
     fn choice_pointing_to_talks() {
         let script = indexmap! {
             0 =>
-            RawAction {
+            Action {
                 choices: vec![
-                    RawChoice { text: "Choice 1".to_string(), next: 1, },
-                    RawChoice { text: "Choice 2".to_string(), next: 2, },
+                    Choice { text: "Choice 1".to_string(), next: 1, },
+                    Choice { text: "Choice 2".to_string(), next: 2, },
                 ],
                 kind: NodeKind::Choice,
                 ..default()
             },
-            1 => RawAction { text: "Hello".to_string(), next: Some(2), ..default() },
-            2 => RawAction { text: "Fin".to_string(), ..default() },
+            1 => Action { text: "Hello".to_string(), next: Some(2), ..default() },
+            2 => Action { text: "Fin".to_string(), ..default() },
         };
 
-        let talk = RawTalk {
+        let talk = Talk {
             script,
             ..default()
         };
@@ -441,21 +410,21 @@ mod tests {
     fn connect_back_from_branch_book_example() {
         // From the Branching and Manual Connections builder section
         let script = indexmap! {
-            0 => RawAction { text: "First Text".to_string(), next: Some(1), ..default() },
-            1 => RawAction { text: "Second Text".to_string(), next: Some(2), ..default() },
+            0 => Action { text: "First Text".to_string(), next: Some(1), ..default() },
+            1 => Action { text: "Second Text".to_string(), next: Some(2), ..default() },
             2 =>
-            RawAction {
+            Action {
                 choices: vec![
-                    RawChoice { text: "Choice 1".to_string(), next: 3, },
-                    RawChoice { text: "Choice 2".to_string(), next: 4, },
+                    Choice { text: "Choice 1".to_string(), next: 3, },
+                    Choice { text: "Choice 2".to_string(), next: 4, },
                 ],
                 kind: NodeKind::Choice,
                 ..default()
             },
-            3 => RawAction { text: "Third Text (End)".to_string(), ..default() },
-            4 => RawAction { text: "Fourth Text".to_string(), next: Some(0), ..default() },
+            3 => Action { text: "Third Text (End)".to_string(), ..default() },
+            4 => Action { text: "Fourth Text".to_string(), next: Some(0), ..default() },
         };
-        let talk = RawTalk {
+        let talk = Talk {
             script,
             ..default()
         };
@@ -489,28 +458,28 @@ mod tests {
         // From the Connecting To The Same Node builder section
         let script = indexmap! {
             0 =>
-            RawAction {
+            Action {
                 choices: vec![
-                    RawChoice { text: "First Choice 1".to_string(), next: 1, },
-                    RawChoice { text: "First Choice 2".to_string(), next: 2, },
+                    Choice { text: "First Choice 1".to_string(), next: 1, },
+                    Choice { text: "First Choice 2".to_string(), next: 2, },
                 ],
                 kind: NodeKind::Choice,
                 ..default()
             },
-            1 => RawAction { text: "First Text".to_string(), next: Some(3), ..default() },
-            2 => RawAction { text: "Last Text".to_string(), next: None, ..default() },
+            1 => Action { text: "First Text".to_string(), next: Some(3), ..default() },
+            2 => Action { text: "Last Text".to_string(), next: None, ..default() },
             3 =>
-            RawAction {
+            Action {
                 choices: vec![
-                    RawChoice { text: "Second Choice 1".to_string(), next: 2, },
-                    RawChoice { text: "Second Choice 2".to_string(), next: 4, },
+                    Choice { text: "Second Choice 1".to_string(), next: 2, },
+                    Choice { text: "Second Choice 2".to_string(), next: 4, },
                 ],
                 kind: NodeKind::Choice,
                 ..default()
             },
-            4 => RawAction { text: "Second Text".to_string(), next: Some(2), ..default() },
+            4 => Action { text: "Second Text".to_string(), next: Some(2), ..default() },
         };
-        let talk = RawTalk {
+        let talk = Talk {
             script,
             ..default()
         };

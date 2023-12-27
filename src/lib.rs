@@ -20,8 +20,8 @@ pub mod builder;
 pub mod errors;
 pub mod events;
 pub mod prelude;
-pub mod raw_talk;
 pub mod ron_loader;
+pub mod talk;
 // pub mod talker;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
@@ -37,7 +37,7 @@ impl Plugin for TalksPlugin {
             app.add_plugins(Aery);
         }
         app.register_asset_loader(TalksLoader)
-            .init_asset::<RawTalk>()
+            .init_asset::<Talk>()
             .add_event::<InitTalkRequest>()
             .add_event::<NextActionRequest>()
             .add_event::<JumpToActionRequest>()

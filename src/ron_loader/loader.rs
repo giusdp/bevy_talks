@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use serde_ron::de::from_bytes;
 use thiserror::Error;
 
-use crate::prelude::{ActionId, RawAction, RawActor, RawTalk};
+use crate::prelude::{Action, ActionId, Actor, ActorId, Talk};
 
 use super::types::RonTalk;
 
@@ -29,10 +29,13 @@ pub enum RonLoaderError {
     /// Multiple actions have same id error
     #[error("multiple actions have same id: {0}")]
     DuplicateActionId(ActionId),
+    /// The actor id is duplicated
+    #[error("the actor id {0} is duplicated")]
+    DuplicateActorId(String),
 }
 
 impl AssetLoader for TalksLoader {
-    type Asset = RawTalk;
+    type Asset = Talk;
     type Settings = ();
     type Error = RonLoaderError;
 
@@ -51,21 +54,19 @@ impl AssetLoader for TalksLoader {
 
             // 1. Build the actors vec
             let actors = ron_talk.actors;
-            let mut talk_actors = Vec::<RawActor>::with_capacity(actors.len());
+            let mut talk_actors = IndexMap::<ActorId, Actor>::with_capacity(actors.len());
             // let mut asset_deps = vec![];
             for actor in actors {
-                let talk_actor = RawActor {
-                    id: actor.id,
-                    name: actor.name,
-                    asset: None,
-                };
-
-                talk_actors.push(talk_actor);
+                let talk_actor = Actor { name: actor.name };
+                let id = actor.id;
+                if talk_actors.insert(id.clone(), talk_actor).is_some() {
+                    return Err(RonLoaderError::DuplicateActorId(id));
+                }
             }
 
             // 2. build the raw_actions vec
             let mut raw_actions =
-                IndexMap::<ActionId, RawAction>::with_capacity(ron_talk.script.len());
+                IndexMap::<ActionId, Action>::with_capacity(ron_talk.script.len());
             for action in ron_talk.script {
                 let id = action.id;
                 if raw_actions.insert(id, action.into()).is_some() {
@@ -73,7 +74,7 @@ impl AssetLoader for TalksLoader {
                 }
             }
 
-            let raw_talk = RawTalk {
+            let raw_talk = Talk {
                 actors: talk_actors,
                 script: raw_actions,
             };
@@ -91,7 +92,7 @@ impl AssetLoader for TalksLoader {
 mod tests {
     use bevy::prelude::{AssetServer, Assets, Handle};
 
-    use crate::{prelude::RawTalk, tests::minimal_app};
+    use crate::{prelude::Talk, tests::minimal_app};
 
     #[test]
     fn test_parse_raw_talk() {
@@ -100,11 +101,11 @@ mod tests {
         assert!(asset_server.is_some());
 
         let asset_server = asset_server.unwrap();
-        let talk_handle: Handle<RawTalk> = asset_server.load("talks/simple.talk.ron");
+        let talk_handle: Handle<Talk> = asset_server.load("talks/simple.talk.ron");
         app.update();
         app.update();
 
-        let talk_assets = app.world.get_resource::<Assets<RawTalk>>();
+        let talk_assets = app.world.get_resource::<Assets<Talk>>();
         assert!(talk_assets.is_some());
 
         let talk_assets = talk_assets.unwrap();
