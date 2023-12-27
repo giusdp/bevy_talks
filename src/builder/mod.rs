@@ -4,6 +4,8 @@ use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
+use crate::prelude::{BuildTalkError, Talk};
+
 use self::command::BuildTalkCommand;
 
 pub mod command;
@@ -66,6 +68,35 @@ pub struct TalkBuilder {
 }
 
 impl TalkBuilder {
+    /// Parses the `Talk` asset into a [`TalkBuilder`] ready to spawn the dialogue graph.
+    ///
+    /// This function also validates the `Talk` asset (checks that the `next` and `choice.next` fields point to existing actions)
+    /// and then fills the [`TalkBuilder`] with all the actions.
+    ///
+    /// # Errors
+    ///
+    /// If the `Talk` asset is not valid, this function will return a [`BuildTalkError`].
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// use bevy::prelude::*;
+    /// use bevy_talks::prelude::*;
+    ///
+    /// #[derive(Resource)]
+    /// struct ATalkHandle(Handle<Talk>);
+    ///
+    /// fn spawn_system(mut commands: Commands, talk_handle: Res<ATalkHandle>, assets: Res<Assets<Talk>>) {
+    ///     let talk = assets.get(&talk_handle.0).unwrap();
+    ///     let talk_builder = TalkBuilder::default().from_asset(talk).unwrap();
+    ///     commands.add(talk_builder.build());
+    /// }
+    /// ```
+    ///
+    pub fn from_asset(self, talk: &Talk) -> Result<TalkBuilder, BuildTalkError> {
+        talk.fill_builder(self)
+    }
+
     /// Generate a `BuildTalkCommand` that will spawn all the dialogue nodes
     /// and connect them to each other to form a dialogue graph.
     ///
