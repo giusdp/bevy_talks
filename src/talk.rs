@@ -80,7 +80,7 @@ pub enum NodeKind {
     Leave,
 }
 
-/// A bundle of component that defines a Talk node in the dialogue graph.
+/// The components that define a Talk node in the dialogue graph.
 /// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
 #[derive(Bundle, Default)]
 pub struct TalkNodeBundle {
@@ -91,30 +91,56 @@ pub struct TalkNodeBundle {
 }
 
 impl TalkNodeBundle {
-    /// Creates a new `TalkNodeBundle` with the specified `text` and `actors`.
+    /// Creates a new `TalkNodeBundle` with the specified `text`.
     /// The node kind is set to `NodeKind::Talk`.
     ///
-    /// # Arguments
+    /// # Example
     ///
-    /// * `text` - The text to be displayed in the talk node.
-    /// * `actors` - The list of actors participating in the talk node.
-    ///
-    /// # Examples
-    ///
-    /// ```
+    /// ```rust
     /// use bevy_talks::prelude::*;
     ///
     /// let text = "Hello, world!".to_string();
     /// let actors = vec!["Alice".to_string(), "Bob".to_string()];
-    /// let bundle = TalkNodeBundle::new(TalkText(text.clone()));
+    /// let bundle = TalkNodeBundle::new(text.clone());
     ///
     /// assert_eq!(bundle.kind, NodeKind::Talk);
     /// assert_eq!(bundle.text.0, text);
     /// ```
-    pub fn new(text: TalkText) -> Self {
+    pub fn new(text: String) -> Self {
         Self {
             kind: NodeKind::Talk,
-            text,
+            text: TalkText(text),
+        }
+    }
+}
+
+/// The components that defines a `Choice` node in the dialogue graph.
+/// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
+#[derive(Bundle, Default)]
+pub struct ChoiceNodeBundle {
+    /// Should be `NodeKind::Choice` for the choice node.
+    pub kind: NodeKind,
+    /// The choices of the node.
+    pub choices: Choices,
+}
+
+impl ChoiceNodeBundle {
+    /// Creates a new `ChoiceNodeBundle`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use bevy_talks::prelude::*;
+    ///
+    /// let bundle = ChoiceNodeBundle::new(vec!["Choice 1".to_string(), "Choice 2".to_string()]);
+    ///
+    /// assert_eq!(bundle.kind, NodeKind::Choice);
+    /// assert_eq!(bundle.choices.0[0], "Choice 1".to_string());
+    /// ```
+    pub fn new(cs: Vec<String>) -> Self {
+        Self {
+            kind: NodeKind::Choice,
+            choices: Choices(cs),
         }
     }
 }
@@ -178,23 +204,7 @@ fn build_pass(
     let mut done = false;
     while !done {
         match the_action.kind {
-            NodeKind::Talk => {
-                builder = builder.say(&the_action.text);
-                visited.insert(the_id, builder.last_node_id());
-
-                if let Some(next) = the_action.next {
-                    // just connect if already processed
-                    if visited.get(&next).is_some() {
-                        builder = builder.connect_to(visited[&next].clone());
-                        done = true; // no need to continue
-                    }
-                    // move to the next action
-                    the_action = &actions[&next];
-                    the_id = next;
-                } else {
-                    done = true; // reached an end node
-                }
-            }
+            NodeKind::Talk => builder = builder.say(&the_action.text),
             NodeKind::Choice => {
                 let mut choice_vec = Vec::with_capacity(the_action.choices.len());
 
@@ -209,16 +219,29 @@ fn build_pass(
                     } else {
                         inner_builder = build_pass(next, actions, inner_builder, visited)?;
                     }
-
                     choice_vec.push((text, inner_builder));
                 }
 
                 builder = builder.choose(choice_vec);
                 visited.insert(the_id, builder.last_node_id());
-                done = true; // no other nodes to visit from a choice (nexts are not used in this case)
+                break; // no other nodes to visit from a choice (nexts are not used in this case)
             }
-            NodeKind::Join => todo!(),
-            NodeKind::Leave => todo!(),
+            NodeKind::Join => builder = builder.join(),
+            NodeKind::Leave => builder = builder.leave(),
+        }
+
+        visited.insert(the_id, builder.last_node_id());
+        if let Some(next) = the_action.next {
+            // just connect if already processed
+            if visited.get(&next).is_some() {
+                builder = builder.connect_to(visited[&next].clone());
+                done = true; // no need to continue
+            }
+            // move to the next action
+            the_action = &actions[&next];
+            the_id = next;
+        } else {
+            done = true; // reached an end node
         }
     }
 
