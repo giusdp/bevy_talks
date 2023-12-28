@@ -2,7 +2,7 @@
 use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
-use crate::prelude::{Choices, StartTalk, TalkText};
+use crate::prelude::{ChoiceNodeBundle, Choices, StartTalk, TalkNodeBundle, TalkText};
 
 use super::*;
 
@@ -90,15 +90,15 @@ fn form_graph(
             .expect("Error! Dialogue node entity not found. Cannot build dialogue graph! :(");
 
         // if the choices are empty, it's a talk node
-        match build_node.choices.is_empty() {
-            true => {
-                // insert the TalkText component
-                world.entity_mut(child).insert(TalkText(build_node.text));
+        match build_node.kind {
+            NodeKind::Talk => {
+                world
+                    .entity_mut(child)
+                    .insert(TalkNodeBundle::new(build_node.text));
                 connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
                 previous_node_was_choice = false;
             }
-            false => {
-                // otherwise it's a choice node.
+            NodeKind::Choice => {
                 connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
 
                 // We have to spawn the branches from the inner builders
@@ -112,9 +112,21 @@ fn form_graph(
                     leaves.extend(branch_leaves);
                 }
                 // insert the ChoicesTexts component
-                world.entity_mut(child).insert(Choices(choices_texts));
+                world
+                    .entity_mut(child)
+                    .insert(ChoiceNodeBundle::new(choices_texts));
 
                 previous_node_was_choice = true;
+            }
+            NodeKind::Join => {
+                world.entity_mut(child).insert(NodeKind::Join);
+                connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
+                previous_node_was_choice = false;
+            }
+            NodeKind::Leave => {
+                world.entity_mut(child).insert(NodeKind::Leave);
+                connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
+                previous_node_was_choice = false;
             }
         }
 

@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
-use crate::prelude::{BuildTalkError, Talk};
+use crate::prelude::{BuildTalkError, NodeKind, Talk};
 
 use self::command::BuildTalkCommand;
 
@@ -26,6 +26,8 @@ pub type BuildNodeId = String;
 pub(crate) struct BuildNode {
     /// The id of the node to build.
     pub(crate) id: BuildNodeId,
+    /// The kind of the node to build.
+    pub(crate) kind: NodeKind,
     /// The text of the node to build. If it's a choice node, it will be empty.
     pub(crate) text: String,
     /// The choices of the node to build. If it's a talk node, it will be empty.
@@ -129,6 +131,7 @@ impl TalkBuilder {
         let talk_node = BuildNode {
             id: id.clone(),
             text: text.to_string(),
+            kind: NodeKind::Talk,
             ..default()
         };
         self.queue.push_back(talk_node);
@@ -178,10 +181,33 @@ impl TalkBuilder {
         let choice_node = BuildNode {
             id: Uuid::new_v4().to_string(),
             choices,
+            kind: NodeKind::Choice,
             ..default()
         };
 
         self.queue.push_back(choice_node);
+        self
+    }
+
+    /// Add a Join node to the dialogue graph.
+    pub fn join(mut self) -> TalkBuilder {
+        let join_node = BuildNode {
+            id: Uuid::new_v4().to_string(),
+            kind: NodeKind::Join,
+            ..default()
+        };
+        self.queue.push_back(join_node);
+        self
+    }
+
+    /// Add a Leave node to the dialogue graph.
+    pub fn leave(mut self) -> TalkBuilder {
+        let leave_node = BuildNode {
+            id: Uuid::new_v4().to_string(),
+            kind: NodeKind::Leave,
+            ..default()
+        };
+        self.queue.push_back(leave_node);
         self
     }
 
@@ -267,6 +293,8 @@ mod tests {
         assert_eq!(build_talk_cmd.builder.queue.len(), 2);
         assert_eq!(build_talk_cmd.builder.queue[0].text, "Hello");
         assert_eq!(build_talk_cmd.builder.queue[1].text, "World!");
+        assert_eq!(build_talk_cmd.builder.queue[0].kind, NodeKind::Talk);
+        assert_eq!(build_talk_cmd.builder.queue[1].kind, NodeKind::Talk);
     }
 
     #[rstest]
@@ -297,6 +325,7 @@ mod tests {
             .unwrap();
         assert_eq!(added_node.text, "");
         assert_eq!(added_node.choices.len(), 1);
+        assert_eq!(added_node.kind, NodeKind::Choice);
     }
 
     #[rstest]
@@ -325,9 +354,23 @@ mod tests {
     }
 
     #[rstest]
-    fn last_node_id_returns_last_node_id(talk_builder: TalkBuilder) {
+    fn test_last_node_id(talk_builder: TalkBuilder) {
         let builder = talk_builder.say("hello");
         let id = builder.last_node_id();
         assert_eq!(id, builder.queue[0].id);
+    }
+
+    #[rstest]
+    fn test_join(talk_builder: TalkBuilder) {
+        let builder = talk_builder.join();
+        assert_eq!(builder.queue.len(), 1);
+        assert_eq!(builder.queue[0].kind, NodeKind::Join);
+    }
+
+    #[rstest]
+    fn test_leave(talk_builder: TalkBuilder) {
+        let builder = talk_builder.leave();
+        assert_eq!(builder.queue.len(), 1);
+        assert_eq!(builder.queue[0].kind, NodeKind::Leave);
     }
 }
