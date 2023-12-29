@@ -8,17 +8,15 @@ use crate::prelude::ActionId;
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
     /// NextRequest event emitted for a talk where the current action has no next action.
-    #[error("Nno next action found.")]
+    #[error("No next action found.")]
     NoNextAction,
     /// NextRequest event emitted for a talk where the current action is a choice action.
     #[error("Cannot advance a choice action.")]
     ChoicesNotHandled,
-
     /// JumpToActionRequest event emitted for a talk
     /// where an action with given id does not exist.
     #[error("jumped to action {0}, but it does not exist")]
     WrongJump(usize),
-
     /// NextRequest event emitted for a talk that does not exist.
     #[error("No talk was found")]
     NoTalk,
