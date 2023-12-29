@@ -7,19 +7,21 @@ use crate::prelude::ActionId;
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
-    /// Talk::next_action() was called on a Talk
-    /// where the current action has no next action.
-    #[error("current action has no next")]
+    /// NextRequest event emitted for a talk where the current action has no next action.
+    #[error("Nno next action found.")]
     NoNextAction,
-    /// Talk::next_action() was called on a Talk
-    /// where the current action is a choice action.
-    #[error("current action is a choice action")]
+    /// NextRequest event emitted for a talk where the current action is a choice action.
+    #[error("Cannot advance a choice action.")]
     ChoicesNotHandled,
 
-    /// Talk::jump_to(id) was called on a Talk
+    /// JumpToActionRequest event emitted for a talk
     /// where an action with given id does not exist.
     #[error("jumped to action {0}, but it does not exist")]
     WrongJump(usize),
+
+    /// NextRequest event emitted for a talk that does not exist.
+    #[error("No talk was found")]
+    NoTalk,
 }
 
 /// Errors when building a Talk
