@@ -7,6 +7,21 @@ use indexmap::IndexMap;
 
 use crate::prelude::{BuildNodeId, BuildTalkError, TalkBuilder};
 
+/// The Talk component. It's used to identify the parent entity of dialogue entity graphs.
+/// Build entities with Talk components via the [`TalkBuilder`] to correctly setup the dialogue graph.
+#[derive(Component, Default)]
+pub struct Talk {
+    /// The text of the current talk node
+    pub current_text: String,
+    /// The current node kind
+    pub current_kind: NodeKind, // TODO: add a Start node kind?
+}
+
+/// Marker component for the current node in a Talk.
+#[derive(Component)]
+#[component(storage = "SparseSet")]
+pub(crate) struct CurrentNode;
+
 /// A unique identifier for an action in a Talk.
 ///
 /// This type alias is used to define a unique identifier for an action in a Talk. Each action
@@ -157,16 +172,16 @@ pub struct Choices(pub Vec<String>);
 #[derive(Component, Default)]
 pub struct Actors(pub Vec<String>);
 
-/// A struct that represents a Raw Talk.
+/// The asset representation of a Talk.
 #[derive(Asset, Debug, Default, Clone, TypePath)]
-pub struct Talk {
+pub struct TalkData {
     /// The list of actions that make up the Talk.
     pub(crate) script: IndexMap<ActionId, Action>,
     /// The list of actors that appear in the Talk.
     pub(crate) actors: IndexMap<ActorId, Actor>,
 }
 
-impl Talk {
+impl TalkData {
     /// Take a builder and fill it with the talk actions
     pub(crate) fn fill_builder(&self, builder: TalkBuilder) -> Result<TalkBuilder, BuildTalkError> {
         if self.script.is_empty() {
@@ -286,14 +301,14 @@ mod tests {
 
     #[rstest]
     fn error_into_builder_empty(builder: TalkBuilder) {
-        let res = Talk::default().fill_builder(builder);
+        let res = TalkData::default().fill_builder(builder);
         assert!(res.is_err());
         assert_eq!(res.err(), Some(BuildTalkError::EmptyTalk));
     }
 
     #[rstest]
     fn error_invalid_next_action(builder: TalkBuilder) {
-        let talk = Talk {
+        let talk = TalkData {
             script: indexmap! {0 => Action {
                 next: Some(2),
                 ..default()
@@ -306,7 +321,7 @@ mod tests {
 
     #[rstest]
     fn error_not_found_in_choice(builder: TalkBuilder) {
-        let talk = Talk {
+        let talk = TalkData {
             actors: default(),
             script: indexmap! {
                 0 => Action {
@@ -351,7 +366,7 @@ mod tests {
             };
             map.insert(index + 1, (target, "Hello"));
         }
-        let talk = Talk {
+        let talk = TalkData {
             script,
             ..default()
         };
@@ -379,7 +394,7 @@ mod tests {
             10 => Action { text: "10".to_string(), next: Some(2), ..default() },
         };
 
-        let talk = Talk {
+        let talk = TalkData {
             script,
             ..default()
         };
@@ -416,7 +431,7 @@ mod tests {
             2 => Action { text: "Fin".to_string(), ..default() },
         };
 
-        let talk = Talk {
+        let talk = TalkData {
             script,
             ..default()
         };
@@ -460,7 +475,7 @@ mod tests {
             3 => Action { text: "Third Text (End)".to_string(), ..default() },
             4 => Action { text: "Fourth Text".to_string(), next: Some(0), ..default() },
         };
-        let talk = Talk {
+        let talk = TalkData {
             script,
             ..default()
         };
@@ -518,7 +533,7 @@ mod tests {
             },
             4 => Action { text: "Second Text".to_string(), next: Some(2), ..default() },
         };
-        let talk = Talk {
+        let talk = TalkData {
             script,
             ..default()
         };

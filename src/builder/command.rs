@@ -2,7 +2,7 @@
 use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
-use crate::prelude::{ChoiceNodeBundle, Choices, StartTalk, TalkNodeBundle, TalkText};
+use crate::prelude::{ChoiceNodeBundle, CurrentNode, StartTalk, Talk, TalkNodeBundle};
 
 use super::*;
 
@@ -16,15 +16,21 @@ pub struct BuildTalkCommand {
 impl Command for BuildTalkCommand {
     fn apply(self, world: &mut World) {
         // spawn the start node
-        let start = world.spawn(StartTalk).id();
+        let start = &world.spawn((StartTalk, CurrentNode)).id();
 
         let mut build_node_entities = HashMap::new();
 
         // First pass: spawn all the node entities and add them to the map with their build node id
-        spawn_dialogue_entities(&self.builder, &mut build_node_entities, world);
+        let ents = spawn_dialogue_entities(&self.builder, &mut build_node_entities, world);
+
+        let mut manager = world.spawn(Talk::default());
+        manager.add_child(*start);
+        for e in ents {
+            manager.add_child(e);
+        }
 
         // Second pass: connect them to form the graph
-        form_graph(start, self.builder, &mut build_node_entities, world);
+        form_graph(*start, self.builder, &mut build_node_entities, world);
     }
 }
 
@@ -34,15 +40,18 @@ fn spawn_dialogue_entities(
     talk_builder: &TalkBuilder,
     build_node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
-) {
+) -> Vec<Entity> {
+    let mut entities: Vec<Entity> = Vec::with_capacity(talk_builder.queue.len());
     for n in talk_builder.queue.iter() {
         let e = world.spawn_empty().id();
+        entities.push(e);
         build_node_entities.insert(n.id.clone(), e);
 
         for (_, inner_builder) in n.choices.iter() {
             spawn_dialogue_entities(inner_builder, build_node_entities, world);
         }
     }
+    entities
 }
 
 /// A recursive function that spawns all the nodes in the queue and connects them to each other.

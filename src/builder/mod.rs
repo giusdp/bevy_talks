@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
-use crate::prelude::{BuildTalkError, NodeKind, Talk};
+use crate::prelude::{BuildTalkError, NodeKind, TalkData};
 
 use self::command::BuildTalkCommand;
 
@@ -95,7 +95,7 @@ impl TalkBuilder {
     /// }
     /// ```
     ///
-    pub fn from_asset(self, talk: &Talk) -> Result<TalkBuilder, BuildTalkError> {
+    pub fn from_asset(self, talk: &TalkData) -> Result<TalkBuilder, BuildTalkError> {
         talk.fill_builder(self)
     }
 

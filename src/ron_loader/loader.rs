@@ -9,7 +9,7 @@ use indexmap::IndexMap;
 use serde_ron::de::from_bytes;
 use thiserror::Error;
 
-use crate::prelude::{Action, ActionId, Actor, ActorId, Talk};
+use crate::prelude::{Action, ActionId, Actor, ActorId, TalkData};
 
 use super::types::RonTalk;
 
@@ -35,7 +35,7 @@ pub enum RonLoaderError {
 }
 
 impl AssetLoader for TalksLoader {
-    type Asset = Talk;
+    type Asset = TalkData;
     type Settings = ();
     type Error = RonLoaderError;
 
@@ -74,7 +74,7 @@ impl AssetLoader for TalksLoader {
                 }
             }
 
-            let raw_talk = Talk {
+            let raw_talk = TalkData {
                 actors: talk_actors,
                 script: raw_actions,
             };
@@ -92,7 +92,7 @@ impl AssetLoader for TalksLoader {
 mod tests {
     use bevy::prelude::{AssetServer, Assets, Handle};
 
-    use crate::{prelude::Talk, tests::minimal_app};
+    use crate::{prelude::TalkData, tests::minimal_app};
 
     #[test]
     fn test_parse_raw_talk() {
@@ -101,11 +101,11 @@ mod tests {
         assert!(asset_server.is_some());
 
         let asset_server = asset_server.unwrap();
-        let talk_handle: Handle<Talk> = asset_server.load("talks/simple.talk.ron");
+        let talk_handle: Handle<TalkData> = asset_server.load("talks/simple.talk.ron");
         app.update();
         app.update();
 
-        let talk_assets = app.world.get_resource::<Assets<Talk>>();
+        let talk_assets = app.world.get_resource::<Assets<TalkData>>();
         assert!(talk_assets.is_some());
 
         let talk_assets = talk_assets.unwrap();

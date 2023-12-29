@@ -26,9 +26,9 @@ indexmap = "2.1.0"
 bevy = "0.12"
 rstest = "0.18.2"
 
-# [[example]]
-# name = "simple"
-# path = "examples/simple.rs"
+[[example]]
+name = "simple"
+path = "examples/simple.rs"
 
 # [[example]]
 # name = "choices"

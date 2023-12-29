@@ -7,14 +7,12 @@
 // Unhelpful for systems
 #![allow(clippy::too_many_arguments)]
 
-//! [`bevy_talks`] is a Bevy plugin that provides
-//! the basics to build and handle dialogues in games.
+//! [`bevy_talks`] is a Bevy plugin that provides the basics to build and handle dialogues in games.
 
-use aery::prelude::*;
+use aery::{prelude::*, tuple_traits::RelationEntries};
 use bevy::prelude::*;
 use prelude::*;
 use ron_loader::loader::TalksLoader;
-// use trigger::{OnEnableTrigger, OnUseTrigger, TalkTriggerer};
 
 pub mod builder;
 pub mod errors;
@@ -37,15 +35,18 @@ impl Plugin for TalksPlugin {
             app.add_plugins(Aery);
         }
         app.register_asset_loader(TalksLoader)
-            .init_asset::<Talk>()
+            .init_asset::<TalkData>()
             .add_event::<InitTalkRequest>()
             .add_event::<NextActionRequest>()
             .add_event::<JumpToActionRequest>()
-            // .add_systems(
-            //     Update,
-            //     (init_talk_handler, next_action_handler, jump_action_handler),
-            // )
-            ;
+            .add_systems(Update, next_handler.pipe(error_handler));
+    }
+}
+
+fn error_handler(In(result): In<Result<(), NextActionError>>) {
+    match result {
+        Ok(_) => (),
+        Err(err) => error!("Error: {err}"),
     }
 }
 
@@ -112,48 +113,87 @@ impl Plugin for TalksPlugin {
 //     }
 // }
 
-// /// Handles `NextActionRequest` events by advancing the active Talk to the next action.
-// ///
-// /// This function is a Bevy system that listens for `NextActionRequest` events.
-// /// It calls `next_action` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
-// /// if the reached action is an enter or exit action, respectively.
-// fn next_action_handler(
-//     mut next_requests: EventReader<NextActionRequest>,
-//     mut talk_comps: Query<(
-//         &mut Talk,
-//         &mut CurrentText,
-//         &mut CurrentActors,
-//         &mut CurrentNodeKind,
-//         &mut CurrentChoices,
-//     )>,
-// ) {
-//     for ev in next_requests.read() {
-//         let talker_entity = talk_comps.get_mut(ev.0);
-//         if let Err(err) = talker_entity {
-//             error!("Next action could not be set: {}", err);
-//             continue;
-//         }
+/// Handles `NextActionRequest` events by advancing the active Talk to the next action.
+///
+/// This function is a Bevy system that listens for `NextActionRequest` events.
+/// It calls `next_action` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
+/// if the reached action is an enter or exit action, respectively.
+fn next_handler(
+    mut commands: Commands,
+    mut next_requests: EventReader<NextActionRequest>,
+    mut talks: Query<&mut Talk>,
+    current_nodes: Query<(Entity, &Parent, Relations<FollowedBy>), With<CurrentNode>>,
+    node_kind_comps: Query<&NodeKind>,
+    talk_comps: Query<&TalkText>,
+) -> Result<(), NextActionError> {
+    for event in next_requests.read() {
+        for (node_entity, talk_parent, edges) in &current_nodes {
+            let talk_entity = talk_parent.get();
+            // if this is the talk we want to advance
+            if talk_entity == event.0 {
+                let targets = edges.targets(FollowedBy);
+                if targets.len() == 1 {
+                    // move the current node component to the next one
+                    let next_node = move_current_node(&mut commands, node_entity, targets);
+                    let talk = talks.get_mut(talk_entity).unwrap();
+                    let next_kind = node_kind_comps.get(next_node).unwrap();
+                    set_next_action(next_kind, &talk_comps, next_node, talk);
 
-//         let (mut talk, mut text, mut ca, mut kind, mut cc) = talker_entity.unwrap();
-//         match talk.next_action() {
-//             Ok(()) => {
-//                 text.0 = talk.text().to_string();
-//                 ca.0 = talk.action_actors();
-//                 kind.0 = talk.node_kind();
-//                 cc.0 = talk.choices();
-//                 debug!("Next action set.");
-//             }
-//             Err(err) => error!("Next action could not be set: {}", err),
-//         }
-//     }
-// }
+                    return Ok(());
+                } else if targets.len() > 1 {
+                    return Err(NextActionError::ChoicesNotHandled);
+                } else {
+                    return Err(NextActionError::NoNextAction);
+                }
+            }
+        }
+        return Err(NextActionError::NoTalk);
+    }
+
+    Ok(())
+}
+
+fn move_current_node(
+    commands: &mut Commands<'_, '_>,
+    node_entity: Entity,
+    targets: &[Entity],
+) -> Entity {
+    commands.entity(node_entity).remove::<CurrentNode>();
+    let next_node = targets[0];
+    commands.entity(next_node).insert(CurrentNode);
+    next_node
+}
+
+fn set_next_action(
+    next_kind: &NodeKind,
+    talk_comps: &Query<'_, '_, &TalkText>,
+    next_node: Entity,
+    mut talk: Mut<'_, Talk>,
+) {
+    match next_kind {
+        NodeKind::Talk => {
+            let next_text = talk_comps.get(next_node).unwrap().0.clone();
+            talk.current_text = next_text;
+            talk.current_kind = NodeKind::Talk;
+        }
+        NodeKind::Choice => todo!(),
+        NodeKind::Join => {
+            talk.current_text = "".to_string();
+            talk.current_kind = NodeKind::Join
+        }
+        NodeKind::Leave => {
+            talk.current_text = "".to_string();
+            talk.current_kind = NodeKind::Leave
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
 
-    // use indexmap::IndexMap;
-
-    // use crate::prelude::RawAction;
+    use crate::prelude::Action;
+    use bevy::ecs::system::Command;
+    use indexmap::indexmap;
 
     use super::*;
 
@@ -192,34 +232,87 @@ mod tests {
     //         assert_eq!(tt.0, "Hello");
     //     }
 
-    //     #[test]
-    //     fn next_action_handler() {
-    //         let mut app = minimal_app();
+    #[test]
+    fn test_next_handler_with_talk_nodes() {
+        let mut app = minimal_app();
 
-    //         let mut script = IndexMap::<usize, RawAction>::with_capacity(2);
-    //         script.insert(0, RawAction { ..default() });
-    //         script.insert(2, RawAction { ..default() });
-    //         let mut talk = RawTalk::default();
-    //         talk.script = script;
+        let script = indexmap! {
+            0 => Action { text: "Hello".to_string(), next: Some(2), ..default() },
+            2 => Action { text: "Hello 2".to_string(), ..default() },
+        };
+        let mut talk_asset = TalkData::default();
+        talk_asset.script = script;
 
-    //         let sp = Talk::build(&talk);
-    //         assert!(sp.is_ok());
+        let builder = TalkBuilder::default().from_asset(&talk_asset).unwrap();
 
-    //         let e = app
-    //             .world
-    //             .spawn(TalkerBundle {
-    //                 talk: sp.unwrap(),
-    //                 ..default()
-    //             })
-    //             .id();
+        builder.build().apply(&mut app.world);
+        let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_kind, NodeKind::Talk);
 
-    //         app.world.send_event(NextActionRequest(e));
-    //         app.update();
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
 
-    //         let sp_spawned = app.world.get::<Talk>(e).unwrap();
+        // let sp_spawned = app.world.get::<Talk>(e).unwrap();
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "Hello".to_string());
+        assert_eq!(t.current_kind, NodeKind::Talk);
 
-    //         assert_eq!(sp_spawned.current_node.index(), 1);
-    //     }
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
+
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "Hello 2".to_string());
+        assert_eq!(t.current_kind, NodeKind::Talk);
+    }
+
+    #[test]
+    fn test_next_handler_with_join_and_leave_nodes() {
+        let mut app = minimal_app();
+
+        let script = indexmap! {
+            0 => Action { kind: NodeKind::Join, next: Some(1), ..default() },
+            1 => Action { text: "Hello".to_string(), next: Some(2), ..default() },
+            2 => Action { kind: NodeKind::Leave, ..default() },
+        };
+
+        let mut talk_asset = TalkData::default();
+        talk_asset.script = script;
+
+        let builder = TalkBuilder::default().from_asset(&talk_asset).unwrap();
+
+        builder.build().apply(&mut app.world);
+        let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_kind, NodeKind::Talk);
+
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
+
+        // let sp_spawned = app.world.get::<Talk>(e).unwrap();
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_kind, NodeKind::Join);
+
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
+
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "Hello".to_string());
+        assert_eq!(t.current_kind, NodeKind::Talk);
+
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
+
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_kind, NodeKind::Leave);
+    }
 
     //     #[test]
     //     fn jump_action_handler() {
