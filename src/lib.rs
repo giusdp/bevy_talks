@@ -250,7 +250,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().into_builder(&talk_asset).unwrap();
+        let builder = TalkBuilder::default().into_builder(&talk_asset);
 
         builder.build().apply(&mut app.world);
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
@@ -288,7 +288,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().into_builder(&talk_asset).unwrap();
+        let builder = TalkBuilder::default().into_builder(&talk_asset);
 
         builder.build().apply(&mut app.world);
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);

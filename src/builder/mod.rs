@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
-use crate::prelude::{Actor, ActorError, ActorSlug, BuildTalkError, NodeKind, TalkData};
+use crate::prelude::{Actor, ActorError, ActorSlug, NodeKind, TalkData};
 
 use self::command::BuildTalkCommand;
 
@@ -87,12 +87,12 @@ impl TalkBuilder {
     ///
     /// fn spawn_system(mut commands: Commands, talk_handle: Res<ATalkHandle>, assets: Res<Assets<TalkData>>) {
     ///     let talk = assets.get(&talk_handle.0).unwrap();
-    ///     let talk_builder = TalkBuilder::default().into_builder(talk).unwrap();
+    ///     let talk_builder = TalkBuilder::default().into_builder(talk);
     ///     commands.add(talk_builder.build());
     /// }
     /// ```
     ///
-    pub fn into_builder(self, talk: &TalkData) -> Result<TalkBuilder, BuildTalkError> {
+    pub fn into_builder(self, talk: &TalkData) -> TalkBuilder {
         talk.fill_builder(self)
     }
 
