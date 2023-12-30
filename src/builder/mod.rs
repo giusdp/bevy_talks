@@ -15,7 +15,7 @@ pub mod command;
 pub type BuildNodeId = String;
 
 /// A struct with the data to build a node.
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub(crate) struct BuildNode {
     /// The id of the node to build.
     pub(crate) id: BuildNodeId,
@@ -55,7 +55,7 @@ pub(crate) struct BuildNode {
 ///     commands.add(build_talk_cmd);
 /// }
 /// ```
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct TalkBuilder {
     /// The main queue of nodes that will be spawned.
     pub(crate) queue: VecDeque<BuildNode>,
@@ -192,10 +192,11 @@ impl TalkBuilder {
     }
 
     /// Add a Join node to the dialogue graph.
-    pub fn join(mut self) -> TalkBuilder {
+    pub fn join(mut self, actor_slugs: &[ActorSlug]) -> TalkBuilder {
         let join_node = BuildNode {
             id: Uuid::new_v4().to_string(),
             kind: NodeKind::Join,
+            actors: actor_slugs.to_vec(),
             ..default()
         };
         self.queue.push_back(join_node);
@@ -203,10 +204,11 @@ impl TalkBuilder {
     }
 
     /// Add a Leave node to the dialogue graph.
-    pub fn leave(mut self) -> TalkBuilder {
+    pub fn leave(mut self, actor_slugs: &[ActorSlug]) -> TalkBuilder {
         let leave_node = BuildNode {
             id: Uuid::new_v4().to_string(),
             kind: NodeKind::Leave,
+            actors: actor_slugs.to_vec(),
             ..default()
         };
         self.queue.push_back(leave_node);
@@ -310,6 +312,30 @@ impl TalkBuilder {
         self.queue.push_back(talk_node);
         Ok(self)
     }
+
+    /// Add a talk node with multiple actors.
+    /// It will spawn an entity with `TalkText` connected with the actor entities identified by the slugs.
+    pub fn actors_say(
+        mut self,
+        actor_slugs: &[ActorSlug],
+        text: impl Into<String>,
+    ) -> Result<TalkBuilder, ActorError> {
+        for slug in actor_slugs.iter() {
+            if !self.actors.iter().any(|a| a.slug == *slug) {
+                return Err(ActorError::Invalid(slug.clone()));
+            }
+        }
+        let id = Uuid::new_v4().to_string();
+        let talk_node = BuildNode {
+            id: id.clone(),
+            text: text.into(),
+            kind: NodeKind::Talk,
+            actors: actor_slugs.to_vec(),
+            ..default()
+        };
+        self.queue.push_back(talk_node);
+        Ok(self)
+    }
 }
 
 #[cfg(test)]
@@ -398,14 +424,16 @@ mod tests {
 
     #[rstest]
     fn test_join(talk_builder: TalkBuilder) {
-        let builder = talk_builder.join();
+        let actors = vec!["actor1".to_string(), "actor2".to_string()];
+        let builder = talk_builder.join(&actors);
         assert_eq!(builder.queue.len(), 1);
         assert_eq!(builder.queue[0].kind, NodeKind::Join);
     }
 
     #[rstest]
     fn test_leave(talk_builder: TalkBuilder) {
-        let builder = talk_builder.leave();
+        let actors = vec!["actor1".to_string(), "actor2".to_string()];
+        let builder = talk_builder.leave(&actors);
         assert_eq!(builder.queue.len(), 1);
         assert_eq!(builder.queue[0].kind, NodeKind::Leave);
     }
