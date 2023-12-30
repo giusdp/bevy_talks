@@ -1,62 +1,75 @@
 (
   actors: [
-    ( id: "ferris", name: "Ferris" ), 
-    ( id: "bevy", name: "Bevy" ),
+    ( slug: "ferris", name: "Ferris" ), 
+    ( slug: "bevy", name: "Bevy" ),
   ],
   script: [
     (
       id: 1,
-      text: Some("Here comes the two stars: Ferris and Bevy.")
+      text: Some("Here comes the two stars: Ferris and Bevy."),
+      next: Some(90)
     ),
     (
-      id: 90,
+      id: 90, // No reason for 90, just to test that you can put any number as ID, doesn't have to be in order.
       action: Join,
-      actors: [ "ferris" ]
+      actors: [ "ferris" ],
+      next: Some(2)
     ),
     (
       id: 2,
       actors: [ "ferris" ],
-      text: Some("Rust is awesome!!!")
+      text: Some("Rust is awesome!!!"),
+      next: Some(3)
     ),
     (
       id: 3,
-      text: Some("A joyful laughter from a nowhere to be seen audience.")
+      text: Some("A joyful laughter from a nowhere to be seen audience."),
+      next: Some(91)
     ),
     (
       id: 91,
       action: Join,
-      actors: [ "bevy" ]
+      actors: [ "bevy" ],
+      next: Some(4)
     ),
     (
       id: 4,
       actors: [ "bevy" ],
-      text: Some("Right! I'm so happy to be here! Love you all!")
+      text: Some("Right! I'm so happy to be here! Love you all!"),
+      next: Some(5)
     ),
     (
       id: 5,
-      text: Some("You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd.")
+      text: Some("You can hear people get up to whistle and applaud. Ferris and Bevy smile, looking straight at the crowd."),
+      next: Some(6)
     ),
     (
       id: 6,
-      text: Some("You follow their gaze. Only a black, silent camera is there.")
+      text: Some("You follow their gaze. Only a black, silent camera is there."),
+      next: Some(7)
     ),
     (
       id: 7,
       actors: [ "ferris" ],
-      text: Some("And what about you?")
+      text: Some("And what about you?"),
+      next: Some(8)
     ),
     (
       id: 8,
-      text: Some("You quicky say that you love it, of course, as everyone else.")
+      text: Some("You quicky say that you love it, of course, as everyone else."),
+      next: Some(9)
     ),
     (
       id: 9,
-      text: Some("Everyone clapped.")
+      text: Some("Everyone clapped."),
+      next: Some(10)
     ),
     (
       id: 10,
       action: Leave,
-      actors: [ "ferris", "bevy" ]
+      actors: [ "ferris", "bevy" ],
+      next: Some(11)
+
     ),
     (
       id: 11,
