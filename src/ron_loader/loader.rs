@@ -35,6 +35,9 @@ pub enum RonLoaderError {
     /// An action has the next field pointing to a non-existent action
     #[error("the action {0} is pointing to id {1} which was not found")]
     InvalidNextAction(ActionId, ActionId),
+    /// An action has a non-existent actor
+    #[error("An action is performed by actor {0}, but it was not defined in the actors.")]
+    InvalidActorSlug(ActorSlug),
 }
 
 impl AssetLoader for TalksLoader {
@@ -83,6 +86,7 @@ impl AssetLoader for TalksLoader {
             }
 
             validate_all_nexts(&raw_actions)?; // check if all nexts point to real actions
+            validate_actors(slug_set, &raw_actions)?;
 
             let raw_talk = TalkData {
                 actors: talk_actors,
@@ -96,6 +100,21 @@ impl AssetLoader for TalksLoader {
     fn extensions(&self) -> &[&str] {
         &["talk.ron"]
     }
+}
+
+/// Check if the actions use only actors that are defined in the talk.
+fn validate_actors(
+    actor_slugs: HashSet<ActorSlug>,
+    actions: &IndexMap<ActionId, Action>,
+) -> Result<(), RonLoaderError> {
+    for action in actions.values() {
+        for slug in action.actors.iter() {
+            if !actor_slugs.contains(slug) {
+                return Err(RonLoaderError::InvalidActorSlug(slug.clone()));
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Check if all `next` fields and `Choice` `next` fields in a `Vec<RawAction>` point to real actions.
@@ -184,5 +203,39 @@ mod tests {
         };
         let res = validate_all_nexts(&talk.script);
         assert!(res.is_err());
+    }
+
+    #[test]
+    fn test_validate_actors_valid() {
+        let mut actor_slugs = HashSet::<ActorSlug>::new();
+        actor_slugs.insert("actor1".to_string());
+        actor_slugs.insert("actor2".to_string());
+
+        let actions = indexmap! {
+            0 => Action {
+                actors: vec!["actor1".to_string()],
+                ..default()
+            },
+            1 => Action {
+                actors: vec!["actor1".to_string(), "actor2".to_string()],
+                ..default()
+            },
+        };
+        assert!(validate_actors(actor_slugs, &actions).is_ok());
+    }
+
+    #[test]
+    fn test_validate_actors_invalid() {
+        let mut actor_slugs = HashSet::<ActorSlug>::new();
+        actor_slugs.insert("actor1".to_string());
+        actor_slugs.insert("actor2".to_string());
+        let actions = indexmap! {
+            0 => Action {
+                actors: vec!["actor3".to_string()],
+                ..default()
+            },
+        };
+        let result = validate_actors(actor_slugs, &actions);
+        assert!(result.is_err());
     }
 }

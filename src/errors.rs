@@ -22,17 +22,6 @@ pub enum NextActionError {
     NoTalk,
 }
 
-/// Errors when building a Talk
-#[derive(Error, Debug, PartialEq, Eq)]
-pub enum BuildTalkError {
-    /// The talk is empty
-    #[error("the talk is empty")]
-    EmptyTalk,
-    /// The Handle did not have a Talk loaded
-    #[error("the handle did not have a Talk loaded")]
-    TalkNotLoaded,
-}
-
 /// Errors when using an actor
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum ActorError {

@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 
 use crate::{
     actors::ActorSlug,
-    prelude::{Actor, BuildNodeId, BuildTalkError, TalkBuilder},
+    prelude::{Actor, BuildNodeId, TalkBuilder},
 };
 
 /// The relationship of the dialogue nodes.
@@ -165,7 +165,9 @@ pub struct TalkText(pub String);
 #[derive(Component, Default, Debug)]
 pub struct Choices(pub Vec<String>);
 
-/// The asset representation of a Talk.
+/// The asset representation of a Talk. It is assumed to represent a well formed Talk,
+/// because the loader should have already validated it while loading.
+///
 #[derive(Asset, Debug, Default, Clone, TypePath)]
 pub struct TalkData {
     /// The list of actions that make up the Talk.
@@ -176,17 +178,14 @@ pub struct TalkData {
 
 impl TalkData {
     /// Take a builder and fill it with the talk actions
-    pub(crate) fn fill_builder(
-        &self,
-        mut builder: TalkBuilder,
-    ) -> Result<TalkBuilder, BuildTalkError> {
-        if self.script.is_empty() {
-            return Err(BuildTalkError::EmptyTalk);
-        }
-
+    pub(crate) fn fill_builder(&self, mut builder: TalkBuilder) -> TalkBuilder {
         builder = builder.add_actors(self.actors.clone());
 
         let mut visited = HashMap::with_capacity(self.script.len());
+
+        if self.script.is_empty() {
+            return builder;
+        }
 
         let start_id = self.script.keys().next().unwrap();
 
@@ -200,7 +199,7 @@ fn prepare_builder(
     actions: &IndexMap<ActionId, Action>,
     mut builder: TalkBuilder,
     visited: &mut HashMap<usize, BuildNodeId>,
-) -> Result<TalkBuilder, BuildTalkError> {
+) -> TalkBuilder {
     // get the first action
     let mut the_action = &actions[&starting_action_id];
     let mut the_id = starting_action_id;
@@ -221,7 +220,7 @@ fn prepare_builder(
                     if visited.get(&next).is_some() {
                         inner_builder = inner_builder.connect_to(visited[&next].clone());
                     } else {
-                        inner_builder = prepare_builder(next, actions, inner_builder, visited)?;
+                        inner_builder = prepare_builder(next, actions, inner_builder, visited);
                     }
                     choice_vec.push((text, inner_builder));
                 }
@@ -249,7 +248,7 @@ fn prepare_builder(
         }
     }
 
-    Ok(builder)
+    builder
 }
 
 #[cfg(test)]
@@ -264,13 +263,6 @@ mod tests {
     #[fixture]
     fn builder() -> TalkBuilder {
         TalkBuilder::default()
-    }
-
-    #[rstest]
-    fn error_into_builder_empty(builder: TalkBuilder) {
-        let res = TalkData::default().fill_builder(builder);
-        assert!(res.is_err());
-        assert_eq!(res.err(), Some(BuildTalkError::EmptyTalk));
     }
 
     #[rstest]
@@ -308,10 +300,7 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.fill_builder(builder)
-            .unwrap()
-            .build()
-            .apply(&mut app.world);
+        talk.fill_builder(builder).build().apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(
@@ -336,10 +325,7 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.fill_builder(builder)
-            .unwrap()
-            .build()
-            .apply(&mut app.world);
+        talk.fill_builder(builder).build().apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
@@ -373,10 +359,7 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.fill_builder(builder)
-            .unwrap()
-            .build()
-            .apply(&mut app.world);
+        talk.fill_builder(builder).build().apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 2);
@@ -417,10 +400,7 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.fill_builder(builder)
-            .unwrap()
-            .build()
-            .apply(&mut app.world);
+        talk.fill_builder(builder).build().apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 4);
@@ -475,10 +455,7 @@ mod tests {
         };
 
         let mut app = App::new();
-        talk.fill_builder(builder)
-            .unwrap()
-            .build()
-            .apply(&mut app.world);
+        talk.fill_builder(builder).build().apply(&mut app.world);
 
         assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
         assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
