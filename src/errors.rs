@@ -2,7 +2,7 @@
 
 use thiserror::Error;
 
-use crate::prelude::{ActionId, ActorSlug};
+use crate::prelude::ActorSlug;
 
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -28,15 +28,9 @@ pub enum BuildTalkError {
     /// The talk is empty
     #[error("the talk is empty")]
     EmptyTalk,
-    /// An action has a non-existent actor
-    #[error("the action {0} has specified a non existent actor {1}")]
-    InvalidActor(ActionId, ActorSlug),
-    /// An action has the next field pointing to a non-existent action
-    #[error("the action {0} is pointing to id {1} which was not found")]
-    InvalidNextAction(ActionId, ActionId),
     /// The Handle did not have a Talk loaded
     #[error("the handle did not have a Talk loaded")]
-    RawTalkNotLoaded,
+    TalkNotLoaded,
 }
 
 /// Errors when using an actor

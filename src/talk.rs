@@ -1,7 +1,5 @@
 //! The Main types for a Talk.
 
-use std::collections::HashSet;
-
 use aery::prelude::*;
 use bevy::{prelude::*, reflect::TypePath, utils::HashMap};
 use indexmap::IndexMap;
@@ -186,9 +184,6 @@ impl TalkData {
             return Err(BuildTalkError::EmptyTalk);
         }
 
-        // Check all the nexts and choice.next (they should point to existing actions)
-        validate_all_nexts(&self.script)?;
-
         builder = builder.add_actors(self.actors.clone());
 
         let mut visited = HashMap::with_capacity(self.script.len());
@@ -257,28 +252,6 @@ fn prepare_builder(
     Ok(builder)
 }
 
-/// Check if all `next` fields and `Choice` `next` fields in a `Vec<RawAction>` point to real actions.
-/// If the action has choices, the `next` field is not checked.
-///
-/// Returns a `TalkError::InvalidNextAction` error if any of the `next` fields or `Choice` `next` fields in the `RawAction`s do not point to real actions.
-fn validate_all_nexts(actions: &IndexMap<ActionId, Action>) -> Result<(), BuildTalkError> {
-    let id_set = actions.keys().cloned().collect::<HashSet<_>>();
-    for (id, action) in actions {
-        if !action.choices.is_empty() {
-            for choice in action.choices.iter() {
-                if !id_set.contains(&choice.next) {
-                    return Err(BuildTalkError::InvalidNextAction(*id, choice.next));
-                }
-            }
-        } else if let Some(next_id) = &action.next {
-            if !id_set.contains(next_id) {
-                return Err(BuildTalkError::InvalidNextAction(*id, *next_id));
-            }
-        }
-    }
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{prelude::*, FollowedBy};
@@ -298,37 +271,6 @@ mod tests {
         let res = TalkData::default().fill_builder(builder);
         assert!(res.is_err());
         assert_eq!(res.err(), Some(BuildTalkError::EmptyTalk));
-    }
-
-    #[rstest]
-    fn error_invalid_next_action(builder: TalkBuilder) {
-        let talk = TalkData {
-            script: indexmap! {0 => Action {
-                next: Some(2),
-                ..default()
-            }},
-            ..default()
-        };
-        let res = talk.fill_builder(builder).err();
-        assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
-    }
-
-    #[rstest]
-    fn error_not_found_in_choice(builder: TalkBuilder) {
-        let talk = TalkData {
-            actors: default(),
-            script: indexmap! {
-                0 => Action {
-                    choices: vec![Choice { next: 2, ..default()}],
-                    ..default()
-                },
-                1 => Action {
-                    ..default()
-                },
-            },
-        };
-        let res = talk.fill_builder(builder).err();
-        assert_eq!(res, Some(BuildTalkError::InvalidNextAction(0, 2)));
     }
 
     #[rstest]
