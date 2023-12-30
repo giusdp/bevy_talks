@@ -25,10 +25,12 @@ pub struct PerformedBy;
 /// Build entities with Talk components via the [`TalkBuilder`] to correctly setup the dialogue graph.
 #[derive(Component, Default)]
 pub struct Talk {
-    /// The text of the current talk node
+    /// The text of the current node (if not a Talk node it's empty)
     pub current_text: String,
-    /// The current node kind
+    /// The kind of the current node
     pub current_kind: NodeKind, // TODO: add a Start node kind?
+    /// The actor(s) name of the current node
+    pub current_actors: Vec<String>,
 }
 
 /// Marker component for the current node in a Talk.
@@ -207,7 +209,17 @@ fn prepare_builder(
     let mut done = false;
     while !done {
         match the_action.kind {
-            NodeKind::Talk => builder = builder.say(&the_action.text),
+            NodeKind::Talk => {
+                builder = match the_action.actors.len() {
+                    0 => builder.say(&the_action.text),
+                    1 => builder
+                        .actor_say(&the_action.actors[0], &the_action.text)
+                        .unwrap(), // safe because the asset was already validated during loading
+                    2.. => builder
+                        .actors_say(&the_action.actors, &the_action.text)
+                        .unwrap(),
+                }
+            }
             NodeKind::Choice => {
                 let mut choice_vec = Vec::with_capacity(the_action.choices.len());
 
@@ -229,8 +241,8 @@ fn prepare_builder(
                 visited.insert(the_id, builder.last_node_id());
                 break; // no other nodes to visit from a choice (nexts are not used in this case)
             }
-            NodeKind::Join => builder = builder.join(),
-            NodeKind::Leave => builder = builder.leave(),
+            NodeKind::Join => builder = builder.join(&the_action.actors),
+            NodeKind::Leave => builder = builder.leave(&the_action.actors),
         }
 
         visited.insert(the_id, builder.last_node_id());
@@ -476,6 +488,56 @@ mod tests {
         talk_map.insert(5, (Some(4), "Second Text"));
         assert_on_choice_nodes(&mut app, choice_map);
         assert_on_talk_nodes(app, talk_map);
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    #[case(10)]
+    #[case(200)]
+    fn linear_talk_nodes_with_actors(builder: TalkBuilder, #[case] nodes: usize) {
+        let actors = vec![
+            Actor::new("actor1", "Actor 1"),
+            Actor::new("actor2", "Actor 2"),
+            Actor::new("actor3", "Actor 3"),
+        ];
+
+        let mut script = IndexMap::with_capacity(nodes);
+        let mut map = HashMap::with_capacity(nodes);
+        for index in 0..nodes {
+            script.insert(
+                index,
+                Action {
+                    text: "Hello".to_string(),
+                    next: if nodes > 1 && index < nodes - 1 {
+                        Some(index + 1)
+                    } else {
+                        None
+                    },
+                    actors: vec![actors[index % 3].slug.clone()],
+                    ..default()
+                },
+            );
+            let target = if nodes > 1 && index < nodes - 1 {
+                Some((index + 2) as u32)
+            } else {
+                None
+            };
+            map.insert(index + 1, (target, "Hello"));
+        }
+        let talk = TalkData { script, actors };
+
+        let mut app = App::new();
+        talk.fill_builder(builder).build().apply(&mut app.world);
+
+        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
+        assert_eq!(
+            app.world.query::<&TalkText>().iter(&app.world).count(),
+            nodes
+        );
+        assert_eq!(app.world.query::<&Actor>().iter(&app.world).count(), 3);
+
+        assert_on_talk_nodes(app, map);
     }
 
     /// Asserts that the talk nodes are correct. It wants a map to check the targets of the edges.

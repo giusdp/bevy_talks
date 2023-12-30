@@ -125,6 +125,8 @@ fn next_handler(
     mut next_requests: EventReader<NextActionRequest>,
     mut talks: Query<&mut Talk>,
     current_nodes: Query<(Entity, &Parent, Relations<FollowedBy>), With<CurrentNode>>,
+    performers: Query<Relations<PerformedBy>>,
+    actors: Query<&Actor>,
     node_kind_comps: Query<&NodeKind>,
     talk_comps: Query<&TalkText>,
 ) -> Result<(), NextActionError> {
@@ -132,22 +134,22 @@ fn next_handler(
     if maybe_event.is_none() {
         return Ok(());
     }
-    let event = maybe_event.unwrap();
+    let event_talk_ent = maybe_event.unwrap().0;
 
-    for (node_entity, talk_parent, edges) in &current_nodes {
-        let talk_entity = talk_parent.get();
+    for (current_node, talk_parent, edges) in &current_nodes {
+        let talk_ent = talk_parent.get();
         // if this is the talk we want to advance
-        if talk_entity == event.0 {
+        if talk_ent == event_talk_ent {
             let targets = edges.targets(FollowedBy);
             match targets.len() {
                 0 => return Err(NextActionError::NoNextAction),
                 1 => {
                     // move the current node component to the next one
-                    let next_node = move_current_node(&mut commands, node_entity, targets);
-                    let talk = talks.get_mut(talk_entity).unwrap();
+                    let next_node = move_current_node(&mut commands, current_node, targets[0]);
+                    let mut this_talk = talks.get_mut(talk_ent).unwrap();
                     let next_kind = node_kind_comps.get(next_node).unwrap();
-                    update_talk_with_next_node(next_kind, &talk_comps, next_node, talk);
-
+                    update_talk_with_next_node(next_node, &mut this_talk, next_kind, &talk_comps);
+                    update_talk_current_actors(next_node, this_talk, performers, actors);
                     return Ok(());
                 }
                 2.. => return Err(NextActionError::ChoicesNotHandled),
@@ -159,23 +161,18 @@ fn next_handler(
 }
 
 /// Moves the current node component from the current node to the next one.
-fn move_current_node(
-    commands: &mut Commands<'_, '_>,
-    node_entity: Entity,
-    targets: &[Entity],
-) -> Entity {
-    commands.entity(node_entity).remove::<CurrentNode>();
-    let next_node = targets[0];
-    commands.entity(next_node).insert(CurrentNode);
-    next_node
+fn move_current_node(commands: &mut Commands<'_, '_>, current: Entity, next: Entity) -> Entity {
+    commands.entity(current).remove::<CurrentNode>();
+    commands.entity(next).insert(CurrentNode);
+    next
 }
 
 /// Updates the current text, actors, node kind and choices of the active Talk based on the next node kind.
 fn update_talk_with_next_node(
+    next_node: Entity,
+    talk: &mut Mut<'_, Talk>,
     next_kind: &NodeKind,
     talk_comps: &Query<'_, '_, &TalkText>,
-    next_node: Entity,
-    mut talk: Mut<'_, Talk>,
 ) {
     match next_kind {
         NodeKind::Talk => {
@@ -183,7 +180,10 @@ fn update_talk_with_next_node(
             talk.current_text = next_text;
             talk.current_kind = NodeKind::Talk;
         }
-        NodeKind::Choice => todo!(),
+        NodeKind::Choice => {
+            talk.current_text = "".to_string();
+            talk.current_kind = NodeKind::Choice
+        }
         NodeKind::Join => {
             talk.current_text = "".to_string();
             talk.current_kind = NodeKind::Join
@@ -193,6 +193,23 @@ fn update_talk_with_next_node(
             talk.current_kind = NodeKind::Leave
         }
     }
+}
+
+/// Updates the current actors of the given Talk.
+fn update_talk_current_actors(
+    next_node: Entity,
+    mut talk: Mut<'_, Talk>,
+    performers: Query<Relations<PerformedBy>>,
+    actors: Query<&Actor>,
+) {
+    let mut actor_names = Vec::<String>::new();
+    for edges in &performers.get(next_node) {
+        for performer_ent in edges.targets(PerformedBy) {
+            let actor = actors.get(*performer_ent).unwrap();
+            actor_names.push(actor.name.clone());
+        }
+    }
+    talk.current_actors = actor_names;
 }
 
 #[cfg(test)]

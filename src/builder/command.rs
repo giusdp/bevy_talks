@@ -40,6 +40,7 @@ impl Command for BuildTalkCommand {
         for node in self.builder.queue.iter() {
             if !node.actors.is_empty() {
                 let node_ent = node_entities.get(&node.id).unwrap();
+
                 for actor in node.actors.iter() {
                     let actor_ent = actor_ents.get(actor).unwrap();
                     world.entity_mut(*node_ent).set::<PerformedBy>(*actor_ent);
