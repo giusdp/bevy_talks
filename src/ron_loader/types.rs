@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::prelude::{Action, ActionId, ActorId, Choice, NodeKind};
+use crate::prelude::{Action, ActionId, ActorSlug, Choice, NodeKind};
 
 /// The ron talk asset type.
 ///
@@ -30,7 +30,7 @@ pub(crate) struct RonAction {
     pub(crate) action: RonActionKind,
     /// The actors involved in the action.
     #[serde(default)]
-    pub(crate) actors: Vec<ActorId>,
+    pub(crate) actors: Vec<ActorSlug>,
     /// Any choices that the user can make during the action.
     pub(crate) choices: Option<Vec<RonChoice>>,
     /// The text of the action.
@@ -61,7 +61,7 @@ impl From<RonAction> for Action {
 #[derive(Debug, Deserialize, Clone, Default)]
 pub(crate) struct RonActor {
     /// A string identifying uniquely the actor.
-    pub(crate) id: ActorId,
+    pub(crate) slug: ActorSlug,
     /// The name of the character that the actor plays.
     pub(crate) name: String,
     // An optional asset that represents the actor's appearance or voice.

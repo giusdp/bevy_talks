@@ -3,13 +3,13 @@
 use bevy::{
     asset::{io::Reader, AssetLoader, AsyncReadExt, LoadContext},
     log::error,
-    utils::BoxedFuture,
+    utils::{hashbrown::HashSet, BoxedFuture},
 };
 use indexmap::IndexMap;
 use serde_ron::de::from_bytes;
 use thiserror::Error;
 
-use crate::prelude::{Action, ActionId, Actor, ActorId, TalkData};
+use crate::prelude::{Action, ActionId, Actor, ActorSlug, TalkData};
 
 use super::types::RonTalk;
 
@@ -29,9 +29,9 @@ pub enum RonLoaderError {
     /// Multiple actions have same id error
     #[error("multiple actions have same id: {0}")]
     DuplicateActionId(ActionId),
-    /// The actor id is duplicated
-    #[error("the actor id {0} is duplicated")]
-    DuplicateActorId(String),
+    /// The actor slug is duplicated
+    #[error("the actor slug {0} is duplicated")]
+    DuplicateActorSlug(String),
 }
 
 impl AssetLoader for TalksLoader {
@@ -50,18 +50,23 @@ impl AssetLoader for TalksLoader {
             reader.read_to_end(&mut bytes).await?;
             let ron_talk = from_bytes::<RonTalk>(&bytes)?;
 
-            // build a RawTalk Asset from the RonTalk
+            // build a TalkData Asset from the RonTalk
 
             // 1. Build the actors vec
             let actors = ron_talk.actors;
-            let mut talk_actors = IndexMap::<ActorId, Actor>::with_capacity(actors.len());
+            let mut talk_actors = Vec::<Actor>::with_capacity(actors.len());
+
+            let mut slug_set = HashSet::<ActorSlug>::with_capacity(actors.len());
+
             // let mut asset_deps = vec![];
             for actor in actors {
-                let talk_actor = Actor { name: actor.name };
-                let id = actor.id;
-                if talk_actors.insert(id.clone(), talk_actor).is_some() {
-                    return Err(RonLoaderError::DuplicateActorId(id));
+                let slug = actor.slug.clone();
+
+                if !slug_set.insert(slug.clone()) {
+                    return Err(RonLoaderError::DuplicateActorSlug(slug));
                 }
+                let talk_actor = Actor::new(slug.clone(), actor.name);
+                talk_actors.push(talk_actor)
             }
 
             // 2. build the raw_actions vec
@@ -93,6 +98,8 @@ mod tests {
     use bevy::prelude::{AssetServer, Assets, Handle};
 
     use crate::{prelude::TalkData, tests::minimal_app};
+
+    // TODO: test for the RonLoaderErrors
 
     #[test]
     fn test_parse_raw_talk() {
