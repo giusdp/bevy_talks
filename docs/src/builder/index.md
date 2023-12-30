@@ -3,7 +3,7 @@
 You can build dialogue graphs programmatically using an implementation of the builder pattern: `TalkBuilder`. 
 
 > [&#9432;] 
-> The `TalkBuilder` is also what is used under the hood to build the graphs from the asset files.
+> The `TalkBuilder` is also used under the hood to build the graphs from the asset files.
 
 If you need to generate procedurally dialogue graphs, or you just don't like the asset files, you can use this approach.
 
