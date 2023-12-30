@@ -1,20 +1,13 @@
 //! Programmatically build Talks
-use aery::prelude::*;
 use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
-use crate::prelude::{BuildTalkError, NodeKind, TalkData};
+use crate::prelude::{Actor, ActorError, ActorSlug, BuildTalkError, NodeKind, TalkData};
 
 use self::command::BuildTalkCommand;
 
 pub mod command;
-
-/// The relationship of the dialogue nodes.
-/// It needs to be Poly because the choice nodes can have multiple branches.
-#[derive(Relation)]
-#[aery(Recursive, Poly)]
-pub struct FollowedBy;
 
 /// The ID of the nodes in the builder. It is used to identify the dialogue graph nodes before
 /// they are actually spawned in the world.
@@ -34,6 +27,8 @@ pub(crate) struct BuildNode {
     pub(crate) choices: Vec<(String, TalkBuilder)>,
     /// The ids to add extra connections.
     pub(crate) manual_connections: Vec<BuildNodeId>,
+    /// The actors slugs that are performing the node action.
+    pub(crate) actors: Vec<ActorSlug>,
 }
 
 /// An implementation of the builder pattern for the dialogue graph.
@@ -64,6 +59,8 @@ pub(crate) struct BuildNode {
 pub struct TalkBuilder {
     /// The main queue of nodes that will be spawned.
     pub(crate) queue: VecDeque<BuildNode>,
+    /// The queue of actors that will be spawned and connected to the nodes.
+    pub(crate) actors: Vec<Actor>,
     /// It is set when `connect_to` is called on an empty builder.
     /// It signals the Command to connect the last node of the parent builder (in a choice node).
     pub(crate) connect_parent: Option<BuildNodeId>,
@@ -75,9 +72,9 @@ impl TalkBuilder {
     /// This function also validates the `Talk` asset (checks that the `next` and `choice.next` fields point to existing actions)
     /// and then fills the [`TalkBuilder`] with all the actions.
     ///
-    /// # Errors
+    /// # Errors
     ///
-    /// If the `Talk` asset is not valid, this function will return a [`BuildTalkError`].
+    /// If the `TalkData` asset is not valid, this function will return a [`BuildTalkError`].
     ///
     /// # Example
     ///
@@ -86,16 +83,16 @@ impl TalkBuilder {
     /// use bevy_talks::prelude::*;
     ///
     /// #[derive(Resource)]
-    /// struct ATalkHandle(Handle<Talk>);
+    /// struct ATalkHandle(Handle<TalkData>);
     ///
-    /// fn spawn_system(mut commands: Commands, talk_handle: Res<ATalkHandle>, assets: Res<Assets<Talk>>) {
+    /// fn spawn_system(mut commands: Commands, talk_handle: Res<ATalkHandle>, assets: Res<Assets<TalkData>>) {
     ///     let talk = assets.get(&talk_handle.0).unwrap();
-    ///     let talk_builder = TalkBuilder::default().from_asset(talk).unwrap();
+    ///     let talk_builder = TalkBuilder::default().into_builder(talk).unwrap();
     ///     commands.add(talk_builder.build());
     /// }
     /// ```
     ///
-    pub fn from_asset(self, talk: &TalkData) -> Result<TalkBuilder, BuildTalkError> {
+    pub fn into_builder(self, talk: &TalkData) -> Result<TalkBuilder, BuildTalkError> {
         talk.fill_builder(self)
     }
 
@@ -126,11 +123,11 @@ impl TalkBuilder {
     ///
     /// TalkBuilder::default().say("Hello").say("World!");
     /// ```
-    pub fn say(mut self, text: &str) -> TalkBuilder {
+    pub fn say(mut self, text: impl Into<String>) -> TalkBuilder {
         let id = Uuid::new_v4().to_string();
         let talk_node = BuildNode {
             id: id.clone(),
-            text: text.to_string(),
+            text: text.into(),
             kind: NodeKind::Talk,
             ..default()
         };
@@ -169,14 +166,19 @@ impl TalkBuilder {
     /// use bevy_talks::prelude::TalkBuilder;
     ///
     /// TalkBuilder::default().choose(vec![
-    ///     ("Choice 1".to_string(), TalkBuilder::default().say("Hello")),
-    ///     ("Choice 2".to_string(), TalkBuilder::default().say("World!")),
+    ///     ("Choice 1", TalkBuilder::default().say("Hello")),
+    ///     ("Choice 2", TalkBuilder::default().say("World!")),
     /// ]).say("Hi");
     /// ```
-    pub fn choose(mut self, choices: Vec<(String, TalkBuilder)>) -> TalkBuilder {
+    pub fn choose(mut self, choices: Vec<(impl Into<String>, TalkBuilder)>) -> TalkBuilder {
         if choices.is_empty() {
             warn!("You attempted to add a choice node without any choices. It will be treated as a talk node to avoid dead ends.");
         }
+
+        let choices = choices
+            .into_iter()
+            .map(|(text, builder)| (text.into(), builder))
+            .collect::<Vec<_>>();
 
         let choice_node = BuildNode {
             id: Uuid::new_v4().to_string(),
@@ -273,6 +275,40 @@ impl TalkBuilder {
             None => panic!("You can't get the last node id of an empty builder"),
             Some(node) => node.id.clone(),
         }
+    }
+
+    /// Add an actor to the builder to be spawned (if not already present in the world, checked with the slug identifier).
+    pub fn add_actor(mut self, actor: Actor) -> TalkBuilder {
+        self.actors.push(actor);
+        self
+    }
+
+    /// Add multiple actors to the builder to be spawned (if not already present in the world, checked with the slug identifier).
+    pub fn add_actors(mut self, actors: Vec<Actor>) -> TalkBuilder {
+        self.actors.extend(actors);
+        self
+    }
+
+    /// Add a talk node with an actor. It will spawn an entity with `TalkText` connected with the actor entity identified by the slug.
+    pub fn actor_say(
+        mut self,
+        actor_slug: impl Into<String>,
+        text: impl Into<String>,
+    ) -> Result<TalkBuilder, ActorError> {
+        let actor_slug = actor_slug.into();
+        if !self.actors.iter().any(|a| a.slug == actor_slug) {
+            return Err(ActorError::Invalid(actor_slug));
+        }
+        let id = Uuid::new_v4().to_string();
+        let talk_node = BuildNode {
+            id: id.clone(),
+            text: text.into(),
+            kind: NodeKind::Talk,
+            actors: vec![actor_slug],
+            ..default()
+        };
+        self.queue.push_back(talk_node);
+        Ok(self)
     }
 }
 
@@ -372,5 +408,29 @@ mod tests {
         let builder = talk_builder.leave();
         assert_eq!(builder.queue.len(), 1);
         assert_eq!(builder.queue[0].kind, NodeKind::Leave);
+    }
+
+    #[rstest]
+    fn test_add_actor(talk_builder: TalkBuilder) {
+        let actor = Actor {
+            slug: "slug".to_string(),
+            name: "Actor".to_string(),
+        };
+        let builder = talk_builder.add_actor(actor.clone());
+        assert_eq!(builder.actors.len(), 1);
+        assert_eq!(builder.actors[0], actor);
+    }
+
+    #[rstest]
+    fn test_actor_say_success(talk_builder: TalkBuilder) {
+        let builder = talk_builder.add_actor(Actor {
+            slug: "slug".to_string(),
+            name: "Actor".to_string(),
+        });
+        let builder = builder.actor_say("slug", "hello").unwrap();
+        assert_eq!(builder.queue.len(), 1);
+        assert_eq!(builder.queue[0].kind, NodeKind::Talk);
+        assert_eq!(builder.queue[0].text, "hello");
+        assert_eq!(builder.queue[0].actors[0], "slug");
     }
 }

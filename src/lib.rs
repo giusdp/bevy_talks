@@ -14,6 +14,7 @@ use bevy::prelude::*;
 use prelude::*;
 use ron_loader::loader::TalksLoader;
 
+pub mod actors;
 pub mod builder;
 pub mod errors;
 pub mod events;
@@ -43,6 +44,7 @@ impl Plugin for TalksPlugin {
     }
 }
 
+/// Logs errors from the other systems.
 fn error_handler(In(result): In<Result<(), NextActionError>>) {
     match result {
         Ok(_) => (),
@@ -126,33 +128,37 @@ fn next_handler(
     node_kind_comps: Query<&NodeKind>,
     talk_comps: Query<&TalkText>,
 ) -> Result<(), NextActionError> {
-    for event in next_requests.read() {
-        for (node_entity, talk_parent, edges) in &current_nodes {
-            let talk_entity = talk_parent.get();
-            // if this is the talk we want to advance
-            if talk_entity == event.0 {
-                let targets = edges.targets(FollowedBy);
-                if targets.len() == 1 {
+    let maybe_event = next_requests.read().next();
+    if maybe_event.is_none() {
+        return Ok(());
+    }
+    let event = maybe_event.unwrap();
+
+    for (node_entity, talk_parent, edges) in &current_nodes {
+        let talk_entity = talk_parent.get();
+        // if this is the talk we want to advance
+        if talk_entity == event.0 {
+            let targets = edges.targets(FollowedBy);
+            match targets.len() {
+                0 => return Err(NextActionError::NoNextAction),
+                1 => {
                     // move the current node component to the next one
                     let next_node = move_current_node(&mut commands, node_entity, targets);
                     let talk = talks.get_mut(talk_entity).unwrap();
                     let next_kind = node_kind_comps.get(next_node).unwrap();
-                    set_next_action(next_kind, &talk_comps, next_node, talk);
+                    update_talk_with_next_node(next_kind, &talk_comps, next_node, talk);
 
                     return Ok(());
-                } else if targets.len() > 1 {
-                    return Err(NextActionError::ChoicesNotHandled);
-                } else {
-                    return Err(NextActionError::NoNextAction);
                 }
+                2.. => return Err(NextActionError::ChoicesNotHandled),
             }
         }
-        return Err(NextActionError::NoTalk);
     }
 
-    Ok(())
+    Err(NextActionError::NoTalk)
 }
 
+/// Moves the current node component from the current node to the next one.
 fn move_current_node(
     commands: &mut Commands<'_, '_>,
     node_entity: Entity,
@@ -164,7 +170,8 @@ fn move_current_node(
     next_node
 }
 
-fn set_next_action(
+/// Updates the current text, actors, node kind and choices of the active Talk based on the next node kind.
+fn update_talk_with_next_node(
     next_kind: &NodeKind,
     talk_comps: &Query<'_, '_, &TalkText>,
     next_node: Entity,
@@ -243,7 +250,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().from_asset(&talk_asset).unwrap();
+        let builder = TalkBuilder::default().into_builder(&talk_asset).unwrap();
 
         builder.build().apply(&mut app.world);
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
@@ -281,7 +288,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().from_asset(&talk_asset).unwrap();
+        let builder = TalkBuilder::default().into_builder(&talk_asset).unwrap();
 
         builder.build().apply(&mut app.world);
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);

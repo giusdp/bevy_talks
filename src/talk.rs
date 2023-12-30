@@ -1,11 +1,27 @@
-//! The raw data structures used to build a Talk.
-//!
+//! The Main types for a Talk.
+
 use std::collections::HashSet;
 
+use aery::prelude::*;
 use bevy::{prelude::*, reflect::TypePath, utils::HashMap};
 use indexmap::IndexMap;
 
-use crate::prelude::{BuildNodeId, BuildTalkError, TalkBuilder};
+use crate::{
+    actors::ActorSlug,
+    prelude::{Actor, BuildNodeId, BuildTalkError, TalkBuilder},
+};
+
+/// The relationship of the dialogue nodes.
+/// It needs to be Poly because the choice nodes can have multiple branches.
+#[derive(Relation)]
+#[aery(Recursive, Poly)]
+pub struct FollowedBy;
+
+/// The relationship between dialogue nodes and actors.
+/// It needs to be Poly because the nodes can have multiple actors (and vice-versa).
+#[derive(Relation)]
+#[aery(Recursive, Poly)]
+pub struct PerformedBy;
 
 /// The Talk component. It's used to identify the parent entity of dialogue entity graphs.
 /// Build entities with Talk components via the [`TalkBuilder`] to correctly setup the dialogue graph.
@@ -29,13 +45,6 @@ pub(crate) struct CurrentNode;
 /// Talk graph.
 pub(crate) type ActionId = usize;
 
-/// A unique identifier for an actor in a Talk.
-///
-/// An `ActorId` is a `String` that uniquely identifies an actor in a Talk. It is used to
-/// associate actions with the actors that perform them.
-///
-pub(crate) type ActorId = String;
-
 /// A struct that represents an action in a Talk.
 ///
 /// This struct is used to define an action in a Talk. It contains the ID of the action, the
@@ -47,7 +56,7 @@ pub(crate) struct Action {
     /// The kind of action.
     pub(crate) kind: NodeKind,
     /// The actors involved in the action.
-    pub(crate) actors: Vec<ActorId>,
+    pub(crate) actors: Vec<ActorSlug>,
     /// Any choices that the user can make during the action.
     pub(crate) choices: Vec<Choice>,
     /// The text of the action.
@@ -65,16 +74,6 @@ pub(crate) struct Choice {
     pub(crate) text: String,
     /// The ID of the next action to perform if the choice is selected.
     pub(crate) next: ActionId,
-}
-/// A struct that represents an actor in a Talk.
-///
-/// This struct is used to define an actor in a Talk. It contains the ID of the actor, the
-/// name of the character that the actor plays, and an optional asset that represents the actor's
-/// appearance or voice.
-#[derive(Debug, Clone, Default)]
-pub(crate) struct Actor {
-    /// The name of the character that the actor plays.
-    pub(crate) name: String,
 }
 
 /// A component that marks a node as the start of the dialogue graph.
@@ -168,45 +167,40 @@ pub struct TalkText(pub String);
 #[derive(Component, Default, Debug)]
 pub struct Choices(pub Vec<String>);
 
-/// The Actors participating in a dialogue node.
-#[derive(Component, Default)]
-pub struct Actors(pub Vec<String>);
-
 /// The asset representation of a Talk.
 #[derive(Asset, Debug, Default, Clone, TypePath)]
 pub struct TalkData {
     /// The list of actions that make up the Talk.
     pub(crate) script: IndexMap<ActionId, Action>,
     /// The list of actors that appear in the Talk.
-    pub(crate) actors: IndexMap<ActorId, Actor>,
+    pub(crate) actors: Vec<Actor>,
 }
 
 impl TalkData {
     /// Take a builder and fill it with the talk actions
-    pub(crate) fn fill_builder(&self, builder: TalkBuilder) -> Result<TalkBuilder, BuildTalkError> {
+    pub(crate) fn fill_builder(
+        &self,
+        mut builder: TalkBuilder,
+    ) -> Result<TalkBuilder, BuildTalkError> {
         if self.script.is_empty() {
             return Err(BuildTalkError::EmptyTalk);
         }
 
-        self.validation_pass()?;
+        // Check all the nexts and choice.next (they should point to existing actions)
+        validate_all_nexts(&self.script)?;
+
+        builder = builder.add_actors(self.actors.clone());
 
         let mut visited = HashMap::with_capacity(self.script.len());
 
         let start_id = self.script.keys().next().unwrap();
 
-        build_pass(*start_id, &self.script, builder, &mut visited)
-    }
-
-    /// Validate the asset.
-    pub(crate) fn validation_pass(&self) -> Result<(), BuildTalkError> {
-        // Check all the nexts and choice.next (they should point to existing actions)
-        validate_all_nexts(&self.script)?;
-        Ok(())
+        prepare_builder(*start_id, &self.script, builder, &mut visited)
     }
 }
 
 /// Build the builder
-fn build_pass(
+fn prepare_builder(
     starting_action_id: usize,
     actions: &IndexMap<ActionId, Action>,
     mut builder: TalkBuilder,
@@ -232,7 +226,7 @@ fn build_pass(
                     if visited.get(&next).is_some() {
                         inner_builder = inner_builder.connect_to(visited[&next].clone());
                     } else {
-                        inner_builder = build_pass(next, actions, inner_builder, visited)?;
+                        inner_builder = prepare_builder(next, actions, inner_builder, visited)?;
                     }
                     choice_vec.push((text, inner_builder));
                 }
@@ -287,7 +281,7 @@ fn validate_all_nexts(actions: &IndexMap<ActionId, Action>) -> Result<(), BuildT
 
 #[cfg(test)]
 mod tests {
-    use crate::{builder::FollowedBy, prelude::*};
+    use crate::{prelude::*, FollowedBy};
 
     use aery::{edges::Root, operations::utils::Relations, tuple_traits::RelationEntries};
     use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
