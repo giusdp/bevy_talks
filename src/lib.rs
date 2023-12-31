@@ -21,6 +21,7 @@ pub mod events;
 pub mod prelude;
 pub mod ron_loader;
 pub mod talk;
+pub mod talk_asset;
 // pub mod talker;
 
 /// The plugin that provides the basics to build and handle dialogues in games.
@@ -37,10 +38,10 @@ impl Plugin for TalksPlugin {
         }
         app.register_asset_loader(TalksLoader)
             .init_asset::<TalkData>()
-            .add_event::<InitTalkRequest>()
             .add_event::<NextActionRequest>()
-            .add_event::<JumpToActionRequest>()
-            .add_systems(Update, next_handler.pipe(error_handler));
+            .add_event::<ChooseActionRequest>()
+            .add_systems(Update, next_handler.pipe(error_handler))
+            .add_systems(Update, choice_handler.pipe(error_handler));
     }
 }
 
@@ -52,74 +53,51 @@ fn error_handler(In(result): In<Result<(), NextActionError>>) {
     }
 }
 
-// /// The handler system for `InitTalkRequest` events.
-// fn init_talk_handler(
-//     mut init_requests: EventReader<InitTalkRequest>,
-//     mut talk_comps: Query<(
-//         &mut Talk,
-//         &mut CurrentText,
-//         &mut CurrentActors,
-//         &mut CurrentNodeKind,
-//         &mut CurrentChoices,
-//     )>,
-// ) {
-//     for ev in init_requests.read() {
-//         let talker_entity = talk_comps.get_mut(ev.0);
-//         if let Err(err) = talker_entity {
-//             error!("Talk could not be initialized: {}", err);
-//             continue;
-//         }
+/// Handles `ChooseActionRequest` events by updating the active Talk.
+///
+/// This function is a Bevy system that listens for `ChooseActionRequest` events.
+/// It will move the current node of the given `Talk` to the one selected in the choose event.
+fn choice_handler(
+    mut commands: Commands,
+    mut choose_requests: EventReader<ChooseActionRequest>,
+    mut talks: Query<&mut Talk>,
+    current_nodes: Query<(Entity, &Parent), With<CurrentNode>>,
+    performers: Query<Relations<PerformedBy>>,
+    actors: Query<&Actor>,
+    node_kind_comps: Query<&NodeKind>,
+    talk_comps: Query<&TalkText>,
+    choices_comps: Query<&Choices>,
+) -> Result<(), NextActionError> {
+    let maybe_event = choose_requests.read().next();
+    if maybe_event.is_none() {
+        return Ok(());
+    }
+    let event_talk_ent = maybe_event.unwrap().talk;
+    let event_choose_ent = maybe_event.unwrap().next;
 
-//         let (mut talk, mut text, mut ca, mut kind, mut cc) = talker_entity.unwrap();
-//         talk.start();
-//         text.0 = talk.text().to_string();
-//         ca.0 = talk.action_actors();
-//         kind.0 = talk.node_kind();
-//         cc.0 = talk.choices();
-//         debug!("Talk initialized.");
-//     }
-// }
-
-// /// Handles `JumpToActionRequest` events by updating the active Talk.
-// ///
-// /// This function is a Bevy system that listens for `JumpToActionRequest` events.
-// /// It calls `jump_to` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
-// /// if the reached action is an enter or exit action, respectively.
-// fn jump_action_handler(
-//     mut jump_requests: EventReader<JumpToActionRequest>,
-//     mut talk_comps: Query<(
-//         &mut Talk,
-//         &mut CurrentText,
-//         &mut CurrentActors,
-//         &mut CurrentNodeKind,
-//         &mut CurrentChoices,
-//     )>,
-// ) {
-//     for ev in jump_requests.read() {
-//         let talker_entity = talk_comps.get_mut(ev.0);
-//         if let Err(err) = talker_entity {
-//             error!("Jump action could not be done: {}", err);
-//             continue;
-//         }
-//         let (mut talk, mut text, mut ca, mut kind, mut cc) = talker_entity.unwrap();
-//         match talk.jump_to(ev.1) {
-//             Ok(()) => {
-//                 text.0 = talk.text().to_string();
-//                 ca.0 = talk.action_actors();
-//                 kind.0 = talk.node_kind();
-//                 cc.0 = talk.choices();
-//                 debug!("Jumped to action {:?}.", ev.1)
-//             }
-//             Err(err) => error!("Jump action could not be set: {}", err),
-//         }
-//     }
-// }
+    for (current_node, talk_parent) in &current_nodes {
+        let talk_ent = talk_parent.get();
+        // if this is the talk we want to advance
+        if talk_ent == event_talk_ent {
+            // move the current node component to the chosen one
+            let next_node = move_current_node(&mut commands, current_node, event_choose_ent);
+            let mut this_talk = talks.get_mut(talk_ent).unwrap();
+            let next_kind = node_kind_comps.get(next_node).unwrap();
+            reset_talk(&mut this_talk);
+            set_node_kind(&mut this_talk, next_kind);
+            set_text(next_node, &mut this_talk, next_kind, &talk_comps);
+            set_actors(next_node, &mut this_talk, performers, actors);
+            set_choices(next_node, next_kind, &mut this_talk, choices_comps)?;
+            return Ok(());
+        }
+    }
+    Err(NextActionError::NoTalk)
+}
 
 /// Handles `NextActionRequest` events by advancing the active Talk to the next action.
 ///
 /// This function is a Bevy system that listens for `NextActionRequest` events.
-/// It calls `next_action` on the active Talk and sends `ActorsEnterEvent` or `ActorsExitEvent` events
-/// if the reached action is an enter or exit action, respectively.
+/// It will move the current node of the given `Talk` to the next one.
 fn next_handler(
     mut commands: Commands,
     mut next_requests: EventReader<NextActionRequest>,
@@ -129,6 +107,7 @@ fn next_handler(
     actors: Query<&Actor>,
     node_kind_comps: Query<&NodeKind>,
     talk_comps: Query<&TalkText>,
+    choices_comps: Query<&Choices>,
 ) -> Result<(), NextActionError> {
     let maybe_event = next_requests.read().next();
     if maybe_event.is_none() {
@@ -148,8 +127,11 @@ fn next_handler(
                     let next_node = move_current_node(&mut commands, current_node, targets[0]);
                     let mut this_talk = talks.get_mut(talk_ent).unwrap();
                     let next_kind = node_kind_comps.get(next_node).unwrap();
-                    update_talk_with_next_node(next_node, &mut this_talk, next_kind, &talk_comps);
-                    update_talk_current_actors(next_node, this_talk, performers, actors);
+                    reset_talk(&mut this_talk);
+                    set_node_kind(&mut this_talk, next_kind);
+                    set_text(next_node, &mut this_talk, next_kind, &talk_comps);
+                    set_actors(next_node, &mut this_talk, performers, actors);
+                    set_choices(next_node, next_kind, &mut this_talk, choices_comps)?;
                     return Ok(());
                 }
                 2.. => return Err(NextActionError::ChoicesNotHandled),
@@ -160,6 +142,19 @@ fn next_handler(
     Err(NextActionError::NoTalk)
 }
 
+/// Reset the current Talk values.
+fn reset_talk(talk: &mut Mut<'_, Talk>) {
+    talk.current_text = "".to_string();
+    talk.current_kind = NodeKind::Talk;
+    talk.current_actors = Vec::new();
+    talk.current_choices = Vec::new();
+}
+
+/// Update the current node kind
+fn set_node_kind(talk: &mut Mut<'_, Talk>, next_kind: &NodeKind) {
+    talk.current_kind = next_kind.clone();
+}
+
 /// Moves the current node component from the current node to the next one.
 fn move_current_node(commands: &mut Commands<'_, '_>, current: Entity, next: Entity) -> Entity {
     commands.entity(current).remove::<CurrentNode>();
@@ -167,38 +162,23 @@ fn move_current_node(commands: &mut Commands<'_, '_>, current: Entity, next: Ent
     next
 }
 
-/// Updates the current text, actors, node kind and choices of the active Talk based on the next node kind.
-fn update_talk_with_next_node(
+/// Updates the current text of the active Talk based on the next node kind.
+fn set_text(
     next_node: Entity,
     talk: &mut Mut<'_, Talk>,
     next_kind: &NodeKind,
     talk_comps: &Query<'_, '_, &TalkText>,
 ) {
-    match next_kind {
-        NodeKind::Talk => {
-            let next_text = talk_comps.get(next_node).unwrap().0.clone();
-            talk.current_text = next_text;
-            talk.current_kind = NodeKind::Talk;
-        }
-        NodeKind::Choice => {
-            talk.current_text = "".to_string();
-            talk.current_kind = NodeKind::Choice
-        }
-        NodeKind::Join => {
-            talk.current_text = "".to_string();
-            talk.current_kind = NodeKind::Join
-        }
-        NodeKind::Leave => {
-            talk.current_text = "".to_string();
-            talk.current_kind = NodeKind::Leave
-        }
+    if next_kind == &NodeKind::Talk {
+        let next_text = talk_comps.get(next_node).unwrap().0.clone();
+        talk.current_text = next_text;
     }
 }
 
 /// Updates the current actors of the given Talk.
-fn update_talk_current_actors(
+fn set_actors(
     next_node: Entity,
-    mut talk: Mut<'_, Talk>,
+    talk: &mut Mut<'_, Talk>,
     performers: Query<Relations<PerformedBy>>,
     actors: Query<&Actor>,
 ) {
@@ -210,6 +190,23 @@ fn update_talk_current_actors(
         }
     }
     talk.current_actors = actor_names;
+}
+
+/// Gets the choices from the next choice node and stores them in the given Talk.
+fn set_choices(
+    next_node: Entity,
+    next_kind: &NodeKind,
+    talk: &mut Mut<'_, Talk>,
+    choices_comps: Query<&Choices>,
+) -> Result<(), NextActionError> {
+    if next_kind == &NodeKind::Choice {
+        let choices = choices_comps
+            .get(next_node)
+            .map_err(|_| NextActionError::BadChoice)?;
+
+        talk.current_choices = choices.0.clone();
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -227,34 +224,6 @@ mod tests {
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TalksPlugin));
         app
     }
-
-    //     #[test]
-    //     fn init_talk_handler() {
-    //         let mut app = minimal_app();
-    //         let mut script = IndexMap::<usize, RawAction>::with_capacity(1);
-    //         script.insert(0, RawAction { ..default() });
-    //         let talk = RawTalk {
-    //             script,
-    //             ..default()
-    //         };
-
-    //         let sp = Talk::build(&talk);
-    //         assert!(sp.is_ok());
-
-    //         let e = app
-    //             .world
-    //             .spawn(TalkerBundle {
-    //                 talk: sp.unwrap(),
-    //                 ..default()
-    //             })
-    //             .id();
-
-    //         app.world.send_event(InitTalkRequest(e));
-    //         app.update();
-
-    //         let tt = app.world.get::<CurrentText>(e).unwrap();
-    //         assert_eq!(tt.0, "Hello");
-    //     }
 
     #[test]
     fn test_next_handler_with_talk_nodes() {
@@ -338,32 +307,54 @@ mod tests {
         assert_eq!(t.current_kind, NodeKind::Leave);
     }
 
-    //     #[test]
-    //     fn jump_action_handler() {
-    //         let mut app = minimal_app();
-    //         let mut script = IndexMap::<usize, RawAction>::with_capacity(3);
-    //         script.insert(0, RawAction { ..default() });
-    //         script.insert(2, RawAction { ..default() });
-    //         script.insert(3, RawAction { ..default() });
-    //         let mut talk = RawTalk::default();
-    //         talk.script = script;
+    #[test]
+    fn test_choice_handler() {
+        let mut app = minimal_app();
 
-    //         let sp = Talk::build(&talk);
-    //         assert!(sp.is_ok());
+        let script = indexmap! {
+            1 => Action {  choices: vec![
+                ChoiceData {text: "Choice 1".to_string(), next: 2},
+                ChoiceData {text: "Choice 2".to_string(), next: 3}
+                ], kind: NodeKind::Choice, ..default() },
+            2 => Action { kind: NodeKind::Leave, ..default() },
+            3 => Action { text: "test".to_string(), ..default() },
+        };
 
-    //         let e = app
-    //             .world
-    //             .spawn(TalkerBundle {
-    //                 talk: sp.unwrap(),
-    //                 ..default()
-    //             })
-    //             .id();
+        let mut talk_asset = TalkData::default();
+        talk_asset.script = script;
 
-    //         app.world.send_event(JumpToActionRequest(e, 2.into()));
-    //         app.update();
+        let builder = TalkBuilder::default().into_builder(&talk_asset);
 
-    //         let sp_spawned = app.world.get::<Talk>(e).unwrap();
+        builder.build().apply(&mut app.world);
+        let (e, _) = app.world.query::<(Entity, &Talk)>().single(&app.world);
 
-    //         assert_eq!(sp_spawned.current_node.index(), 2);
-    //     }
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
+
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_kind, NodeKind::Choice);
+        assert_eq!(t.current_choices.len(), 2);
+        assert_eq!(t.current_choices[0].text, "Choice 1");
+
+        // check that next action does not work when there are choices
+        app.world.send_event(NextActionRequest(e));
+        app.update();
+        app.update();
+
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_choices.len(), 2);
+        assert_eq!(t.current_kind, NodeKind::Choice);
+
+        app.world
+            .send_event(ChooseActionRequest::new(e, t.current_choices[0].next));
+        app.update();
+        app.update();
+
+        let t = app.world.query::<&Talk>().single(&app.world);
+        assert_eq!(t.current_text, "".to_string());
+        assert_eq!(t.current_kind, NodeKind::Leave);
+    }
 }
