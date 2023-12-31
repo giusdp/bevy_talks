@@ -11,14 +11,14 @@ pub enum NextActionError {
     #[error("No next action found.")]
     NoNextAction,
     /// NextRequest event emitted for a talk where the current action is a choice action.
-    #[error("Cannot advance a choice action.")]
+    #[error("Current node is a Choice. Cannot just advance.")]
     ChoicesNotHandled,
-    /// JumpToActionRequest event emitted for a talk
+    /// ChooseActionRequest event emitted for a talk
     /// where an action with given id does not exist.
-    #[error("jumped to action {0}, but it does not exist")]
-    WrongJump(usize),
+    #[error("A wrong entity was given to go to in the dialogue graph.")]
+    BadChoice,
     /// NextRequest event emitted for a talk that does not exist.
-    #[error("No talk was found")]
+    #[error("No talk was found with the given entity from the event.")]
     NoTalk,
 }
 

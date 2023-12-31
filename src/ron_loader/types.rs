@@ -2,7 +2,7 @@
 
 use serde::Deserialize;
 
-use crate::prelude::{Action, ActionId, ActorSlug, Choice, NodeKind};
+use crate::prelude::{Action, ActionId, ActorSlug, ChoiceData, NodeKind};
 
 /// The ron talk asset type.
 ///
@@ -27,7 +27,7 @@ pub(crate) struct RonAction {
     pub(crate) id: ActionId,
     /// The kind of action.
     #[serde(default)]
-    pub(crate) action: RonActionKind,
+    pub(crate) action: NodeKind,
     /// The actors involved in the action.
     #[serde(default)]
     pub(crate) actors: Vec<ActorSlug>,
@@ -41,8 +41,12 @@ pub(crate) struct RonAction {
 
 impl From<RonAction> for Action {
     fn from(val: RonAction) -> Self {
+        let mut action_kind = val.action;
+        if action_kind == NodeKind::Talk && val.choices.is_some() {
+            action_kind = NodeKind::Choice;
+        }
         Action {
-            kind: val.action.into(),
+            kind: action_kind,
             actors: val.actors,
             choices: val
                 .choices
@@ -79,40 +83,11 @@ pub(crate) struct RonChoice {
     pub(crate) next: ActionId,
 }
 
-impl From<RonChoice> for Choice {
+impl From<RonChoice> for ChoiceData {
     fn from(val: RonChoice) -> Self {
-        Choice {
+        ChoiceData {
             text: val.text,
             next: val.next,
-        }
-    }
-}
-
-/// An enumeration of the different kinds of actions that can be performed in a Talk.
-///
-/// This enumeration is used to define the different kinds of actions that can be performed in a
-/// Talk. Each variant of the enumeration represents a different kind of action, such as
-/// talking, entering, exiting, or making a choice.
-#[derive(Debug, Default, Deserialize, Clone, PartialEq)]
-pub(crate) enum RonActionKind {
-    /// A talk action, where a character speaks dialogue.
-    #[default]
-    Talk,
-    /// An enter action, where a character enters a scene.
-    Join,
-    /// An exit action, where a character exits a scene.
-    Leave,
-    /// A choice action, where the user is presented with a choice.
-    Choice,
-}
-
-impl From<RonActionKind> for NodeKind {
-    fn from(val: RonActionKind) -> Self {
-        match val {
-            RonActionKind::Talk => NodeKind::Talk,
-            RonActionKind::Join => NodeKind::Join,
-            RonActionKind::Leave => NodeKind::Leave,
-            RonActionKind::Choice => NodeKind::Choice,
         }
     }
 }

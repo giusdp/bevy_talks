@@ -193,7 +193,7 @@ mod tests {
             actors: default(),
             script: indexmap! {
                 0 => Action {
-                    choices: vec![Choice { next: 2, ..default()}],
+                    choices: vec![ChoiceData { next: 2, ..default()}],
                     ..default()
                 },
                 1 => Action {

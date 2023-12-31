@@ -3,7 +3,7 @@ use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
 use crate::prelude::{
-    ActorSlug, ChoiceNodeBundle, CurrentNode, FollowedBy, PerformedBy, StartTalk, Talk,
+    ActorSlug, Choice, ChoiceNodeBundle, CurrentNode, FollowedBy, PerformedBy, StartTalk, Talk,
     TalkNodeBundle,
 };
 
@@ -21,10 +21,8 @@ impl Command for BuildTalkCommand {
         // spawn the start node
         let start = &world.spawn((StartTalk, CurrentNode)).id();
 
-        let mut node_entities: HashMap<BuildNodeId, Entity> = HashMap::new();
-
         // First pass: spawn all the node entities and add them to the map with their build node id
-        let ents = spawn_dialogue_entities(&self.builder, &mut node_entities, world);
+        let (ents, mut node_entities) = spawn_dialogue_entities(&self.builder, world);
         let actor_ents: HashMap<ActorSlug, Entity> = spawn_actor_entities(&self.builder, world);
 
         let mut manager = world.spawn(Talk::default());
@@ -89,43 +87,54 @@ fn spawn_actor_entities(
 /// It is used as the first pass of the building, so we have all the entities spawned and the `build_node_entities` map filled.
 fn spawn_dialogue_entities(
     talk_builder: &TalkBuilder,
-    build_node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
-) -> Vec<Entity> {
+) -> (Vec<Entity>, HashMap<BuildNodeId, Entity>) {
     let mut entities: Vec<Entity> = Vec::with_capacity(talk_builder.queue.len());
+    let mut build_node_entities = HashMap::new();
     for n in talk_builder.queue.iter() {
         let e = world.spawn_empty().id();
         entities.push(e);
         build_node_entities.insert(n.id.clone(), e);
 
         for (_, inner_builder) in n.choices.iter() {
-            spawn_dialogue_entities(inner_builder, build_node_entities, world);
+            let (inner_ents, inner_bne) = spawn_dialogue_entities(inner_builder, world);
+            entities.extend(inner_ents);
+            build_node_entities.extend(inner_bne);
         }
     }
-    entities
+    (entities, build_node_entities)
 }
 
 /// A recursive function that spawns all the nodes in the queue and connects them to each other.
 ///
 /// # Returns
 ///
-/// A vector of leaf nodes spawned from the given builder. It is used internally during the recursion to connect
-/// a the leaves from the branches created from a choice node to the successive node in the queue.
+/// A tuple with the first child node and the the vector of leaf nodes spawned from the given builder.
+/// It is used internally during the recursion to connect the last nodes from the branches
+/// of a choice node to the successive node in the queue.
+///
+/// NB: The returned fist node is only needed because we have to store the `Entity` in the [`Choice`] struct
+/// as a workaround of the zero size edges. If we could add data to the edges we could simply
+/// add the choice text to the edge and use the edge directly to perform the choice.
 fn form_graph(
     root: Entity,
     talk_builder: &TalkBuilder,
     node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
-) -> Vec<Entity> {
+) -> (Entity, Vec<Entity>) {
     let mut parent = root;
+
+    let mut first_child_set = false;
+    let mut first_child_ent = root;
 
     // Connect parent entity (choice node) to the given node.
     if let Some(connect_node_id) = &talk_builder.connect_parent {
         let entity_to_connect_to = node_entities.get(connect_node_id);
-
+        first_child_ent = *entity_to_connect_to.unwrap();
+        first_child_set = true;
         if let Some(e) = entity_to_connect_to {
-            use aery::prelude::*;
             world.entity_mut(parent).set::<FollowedBy>(*e);
+            first_child_ent = *e;
         } else {
             error!("Attempted to connect a choice node to some specific node that is not (yet) present in the builder.");
         }
@@ -134,67 +143,103 @@ fn form_graph(
     let mut leaves: Vec<Entity> = vec![];
     let mut previous_node_was_choice = false;
 
+    if !talk_builder.queue.is_empty() && !first_child_set {
+        first_child_ent = *node_entities
+            .get(&talk_builder.queue[0].id)
+            .expect("First entity fro the builder");
+    }
+
     let mut peekable_queue = talk_builder.queue.iter().peekable();
 
     // for each node in the queue, spawn it and connect it to the previous one
     while let Some(build_node) = peekable_queue.next() {
         // retrieve the child node
-        let child = *node_entities
+        let this_ent = *node_entities
             .get(&build_node.id)
             .expect("Error! Dialogue node entity not found. Cannot build dialogue graph! :(");
 
-        // if the choices are empty, it's a talk node
         match build_node.kind {
             NodeKind::Talk => {
                 world
-                    .entity_mut(child)
+                    .entity_mut(this_ent)
                     .insert(TalkNodeBundle::new(build_node.text.clone()));
-                connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
+                connect_to_previous(
+                    world,
+                    parent,
+                    &mut leaves,
+                    previous_node_was_choice,
+                    this_ent,
+                );
                 previous_node_was_choice = false;
             }
             NodeKind::Choice => {
-                connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
+                connect_to_previous(
+                    world,
+                    parent,
+                    &mut leaves,
+                    previous_node_was_choice,
+                    this_ent,
+                );
 
                 // We have to spawn the branches from the inner builders
                 // and connect them to the choice node
-                let mut choices_texts = Vec::with_capacity(build_node.choices.len());
-                for (choice_text, inner_builder) in build_node.choices.clone() {
-                    choices_texts.push(choice_text);
+                let mut choices: Vec<Choice> = Vec::with_capacity(build_node.choices.len());
+                for (choice_text, inner_builder) in build_node.choices.iter() {
                     // recursively spawn the branches
-                    let branch_leaves = form_graph(child, &inner_builder, node_entities, world);
+                    let (branch_root, branch_leaves) =
+                        form_graph(this_ent, inner_builder, node_entities, world);
+                    choices.push(Choice::new(choice_text, branch_root));
                     leaves.extend(branch_leaves);
                 }
+
                 // insert the ChoicesTexts component
                 world
-                    .entity_mut(child)
-                    .insert(ChoiceNodeBundle::new(choices_texts));
+                    .entity_mut(this_ent)
+                    .insert(ChoiceNodeBundle::new(choices));
 
                 previous_node_was_choice = true;
             }
             NodeKind::Join => {
-                world.entity_mut(child).insert(NodeKind::Join);
-                connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
+                world.entity_mut(this_ent).insert(NodeKind::Join);
+                connect_to_previous(
+                    world,
+                    parent,
+                    &mut leaves,
+                    previous_node_was_choice,
+                    this_ent,
+                );
                 previous_node_was_choice = false;
             }
             NodeKind::Leave => {
-                world.entity_mut(child).insert(NodeKind::Leave);
-                connect_to_previous(world, parent, &mut leaves, previous_node_was_choice, child);
+                world.entity_mut(this_ent).insert(NodeKind::Leave);
+                connect_to_previous(
+                    world,
+                    parent,
+                    &mut leaves,
+                    previous_node_was_choice,
+                    this_ent,
+                );
                 previous_node_was_choice = false;
             }
         }
 
         // Let's add the extra connections here
-        process_manual_connections(node_entities, &build_node.manual_connections, child, world);
+        process_manual_connections(
+            node_entities,
+            &build_node.manual_connections,
+            this_ent,
+            world,
+        );
 
         // if this is the last node, it's a leaf
         if peekable_queue.peek().is_none() {
-            leaves.push(child);
+            leaves.push(this_ent);
         }
         // set the new parent for the next iteration
-        parent = child;
+        parent = this_ent;
     }
 
-    leaves
+    (first_child_ent, leaves)
 }
 
 /// Connect the node to the given nodes.
@@ -270,10 +315,10 @@ mod tests {
             ])
             .say("something");
 
-        let mut map = HashMap::new();
-        spawn_dialogue_entities(&builder, &mut map, &mut app.world);
+        let (ents, map) = spawn_dialogue_entities(&builder, &mut app.world);
 
         assert_eq!(map.len(), 5);
+        assert_eq!(ents.len(), 5);
         assert_eq!(app.world.iter_entities().count(), 5);
     }
 
@@ -382,14 +427,14 @@ mod tests {
     #[test]
     fn test_add_relationships_simple() {
         let mut world = World::default();
-        let mut build_node_entities = HashMap::default();
         let root = world.spawn_empty().id();
         let talk_builder = TalkBuilder::default().say("Hello There");
-        spawn_dialogue_entities(&talk_builder, &mut build_node_entities, &mut world);
+        let (_, mut build_node_entities) = spawn_dialogue_entities(&talk_builder, &mut world);
 
-        let leaves = form_graph(root, &talk_builder, &mut build_node_entities, &mut world);
+        let (ent, leaves) = form_graph(root, &talk_builder, &mut build_node_entities, &mut world);
 
         // Assert that the relationships are built correctly
+        assert_ne!(ent, root);
         assert_eq!(leaves.len(), 1);
         assert_eq!(
             world.query::<Relations<FollowedBy>>().iter(&world).count(),
@@ -400,7 +445,6 @@ mod tests {
     #[test]
     fn test_add_relationships() {
         let mut world = World::default();
-        let mut build_node_entities = HashMap::default();
         let root = world.spawn_empty().id();
 
         let talk_builder = TalkBuilder::default()
@@ -410,7 +454,7 @@ mod tests {
             ])
             .say("something");
 
-        spawn_dialogue_entities(&talk_builder, &mut build_node_entities, &mut world);
+        let (_, mut build_node_entities) = spawn_dialogue_entities(&talk_builder, &mut world);
 
         form_graph(root, &talk_builder, &mut build_node_entities, &mut world);
 
@@ -518,8 +562,8 @@ mod integration_tests {
 
         // check texts
         for t in query.iter(&app.world) {
-            assert_eq!(t.0[0], "Choice1");
-            assert_eq!(t.0[1], "Choice2");
+            assert_eq!(t.0[0].text, "Choice1");
+            assert_eq!(t.0[1].text, "Choice2");
         }
 
         assert_relationship_nodes(choice_node_number, expected_nodes_in_relation, 2, &mut app);
