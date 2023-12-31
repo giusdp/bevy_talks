@@ -3,7 +3,8 @@
   script: [
     (
       id: 1,
-      text: Some("What's 2+2?")
+      text: Some("What's 2+2?"),
+      next: Some(92)
     ),
     (
       id: 92,
@@ -19,7 +20,8 @@
     ),
     (
       id: 420,
-      text: Some("You high or something?")
+      text: Some("You high or something?"),
+      next: Some(999)
     ),
     (
       id: 999,

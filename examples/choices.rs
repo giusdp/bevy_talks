@@ -9,8 +9,8 @@ enum AppState {
 }
 
 #[derive(Resource)]
-struct SimpleTalkAsset {
-    handle: Handle<RawTalk>,
+struct ChoiceTalkAsset {
+    handle: Handle<TalkData>,
 }
 
 fn main() {
@@ -28,13 +28,13 @@ fn main() {
 }
 
 fn load_talks(mut commands: Commands, server: Res<AssetServer>) {
-    let h: Handle<RawTalk> = server.load("talks/choices.talk.ron");
-    commands.insert_resource(SimpleTalkAsset { handle: h });
+    let h: Handle<TalkData> = server.load("talks/choices.talk.ron");
+    commands.insert_resource(ChoiceTalkAsset { handle: h });
 }
 
 fn check_loading(
     server: Res<AssetServer>,
-    simple_sp_asset: Res<SimpleTalkAsset>,
+    simple_sp_asset: Res<ChoiceTalkAsset>,
     mut next_state: ResMut<NextState<AppState>>,
 ) {
     let load_state = server.get_load_state(&simple_sp_asset.handle).unwrap();
@@ -45,58 +45,54 @@ fn check_loading(
 
 fn setup_talk(
     mut commands: Commands,
-    raws: Res<Assets<RawTalk>>,
-    simple_sp_asset: Res<SimpleTalkAsset>,
-    mut init_talk_events: EventWriter<InitTalkRequest>,
+    talks: Res<Assets<TalkData>>,
+    choice_talk_asset: Res<ChoiceTalkAsset>,
 ) {
-    let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
-    let talk = Talk::build(&raw_sp).unwrap();
+    let choice_talk = talks.get(&choice_talk_asset.handle).unwrap();
+    let talk_builder = TalkBuilder::default().into_builder(choice_talk);
+    commands.add(talk_builder.build());
 
-    let e = commands.spawn(TalkerBundle { talk, ..default() }).id();
-    init_talk_events.send(InitTalkRequest(e));
-
-    println!();
+    println!("-----------------------------------------");
     println!("Press space to advance the conversation. And 1, 2 to pick a choice.");
+    println!("-----------------------------------------");
 }
 
-fn print(talk_comps: Query<(Ref<CurrentText>, &CurrentNodeKind, &CurrentChoices)>) {
-    for (tt, kind, cc) in talk_comps.iter() {
-        if !tt.is_changed() || tt.is_added() {
+fn print(talk_comps: Query<Ref<Talk>>) {
+    for talk in &talk_comps {
+        if !talk.is_changed() || talk.is_added() {
             continue;
         }
 
-        if kind.0 == TalkNodeKind::Choice {
-            if !cc.0.is_empty() {
-                println!("Choices:");
-                for (i, choice) in cc.0.iter().enumerate() {
-                    println!("{}: {}", i + 1, choice.text);
-                }
+        if talk.current_kind == NodeKind::Choice {
+            println!("Choices:");
+            for (i, choice) in talk.current_choices.iter().enumerate() {
+                println!("{}: {}", i + 1, choice.text);
             }
         } else {
-            println!("{}", tt.0);
+            println!("{}", talk.current_text);
         }
     }
 }
 
 fn interact(
     input: Res<Input<KeyCode>>,
-    talk_comps: Query<(Entity, &CurrentNodeKind, &CurrentChoices)>,
-    mut next_action_ev_writer: EventWriter<NextActionRequest>,
-    mut jump_ev_writer: EventWriter<JumpToActionRequest>,
+    mut next_action_events: EventWriter<NextActionRequest>,
+    mut choose_action_events: EventWriter<ChooseActionRequest>,
+    talks: Query<(Entity, &Talk)>,
 ) {
-    let (talker, kind, cc) = talk_comps.single();
+    let (talk_ent, talk) = talks.single();
 
-    if kind.0 == TalkNodeKind::Choice {
+    if talk.current_kind == NodeKind::Choice {
         if input.just_pressed(KeyCode::Key1) {
-            let c = cc.0[0].next;
-            jump_ev_writer.send(JumpToActionRequest(talker, c));
+            let next_ent = talk.current_choices[0].next;
+            choose_action_events.send(ChooseActionRequest::new(talk_ent, next_ent));
         } else if input.just_pressed(KeyCode::Key2) {
-            let c = cc.0[1].next;
-            jump_ev_writer.send(JumpToActionRequest(talker, c));
+            let next_ent = talk.current_choices[1].next;
+            choose_action_events.send(ChooseActionRequest::new(talk_ent, next_ent));
         }
     }
 
     if input.just_pressed(KeyCode::Space) {
-        next_action_ev_writer.send(NextActionRequest(talker));
+        next_action_events.send(NextActionRequest(talk_ent));
     }
 }
