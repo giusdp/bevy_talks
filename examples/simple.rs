@@ -16,9 +16,11 @@ struct SimpleTalkAsset {
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, TalksPlugin))
+        // region: boilerplate to load the talk
         .add_state::<AppState>()
         .add_systems(OnEnter(AppState::LoadAssets), load_talks)
         .add_systems(Update, check_loading.run_if(in_state(AppState::LoadAssets)))
+        // endregion
         .add_systems(OnEnter(AppState::Loaded), setup_talk)
         .add_systems(
             Update,
@@ -44,6 +46,7 @@ fn check_loading(
     }
 }
 
+/// Spawn the dialogue graph with the given talk asset, using the builder.
 fn setup_talk(
     mut commands: Commands,
     talks: Res<Assets<TalkData>>,
@@ -58,6 +61,7 @@ fn setup_talk(
     println!("-----------------------------------------");
 }
 
+/// Advance the talk when the space key is pressed.
 fn interact(
     input: Res<Input<KeyCode>>,
     mut next_action_events: EventWriter<NextActionRequest>,
@@ -68,6 +72,7 @@ fn interact(
     }
 }
 
+/// Print the current talk node (if changed) to the console.
 fn print(talk_comps: Query<Ref<Talk>>) {
     for talk in &talk_comps {
         if !talk.is_changed() || talk.is_added() {

@@ -6,7 +6,7 @@
   script: [
     (
       id: 1,
-      text: Some("Here comes the two stars: Ferris and Bevy."),
+      text: Some("Here come the two stars: Ferris and Bevy."),
       next: Some(90)
     ),
     (
