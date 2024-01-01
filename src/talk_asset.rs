@@ -88,12 +88,8 @@ fn prepare_builder(
             NodeKind::Talk => {
                 builder = match the_action.actors.len() {
                     0 => builder.say(&the_action.text),
-                    1 => builder
-                        .actor_say(&the_action.actors[0], &the_action.text)
-                        .unwrap(), // safe because the asset was already validated during loading
-                    2.. => builder
-                        .actors_say(&the_action.actors, &the_action.text)
-                        .unwrap(),
+                    1 => builder.actor_say(&the_action.actors[0], &the_action.text),
+                    2.. => builder.actors_say(&the_action.actors, &the_action.text),
                 }
             }
             NodeKind::Choice => {

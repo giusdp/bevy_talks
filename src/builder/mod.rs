@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
-use crate::prelude::{Actor, ActorError, ActorSlug, NodeKind, TalkData};
+use crate::prelude::{Actor, ActorSlug, NodeKind, TalkData};
 
 use self::command::BuildTalkCommand;
 
@@ -111,6 +111,7 @@ impl TalkBuilder {
     /// }
     /// ```
     pub fn build(self) -> BuildTalkCommand {
+        // TODO: Add validation over actors here
         BuildTalkCommand { builder: self }
     }
 
@@ -296,35 +297,31 @@ impl TalkBuilder {
         mut self,
         actor_slug: impl Into<String>,
         text: impl Into<String>,
-    ) -> Result<TalkBuilder, ActorError> {
-        let actor_slug = actor_slug.into();
-        if !self.actors.iter().any(|a| a.slug == actor_slug) {
-            return Err(ActorError::Invalid(actor_slug));
-        }
+    ) -> TalkBuilder {
+        // let actor_slug = actor_slug.into();
+        // if !self.actors.iter().any(|a| a.slug == actor_slug) {
+        //     return Err(ActorError::Invalid(actor_slug));
+        // }
         let id = Uuid::new_v4().to_string();
         let talk_node = BuildNode {
             id: id.clone(),
             text: text.into(),
             kind: NodeKind::Talk,
-            actors: vec![actor_slug],
+            actors: vec![actor_slug.into()],
             ..default()
         };
         self.queue.push_back(talk_node);
-        Ok(self)
+        self
     }
 
     /// Add a talk node with multiple actors.
     /// It will spawn an entity with `TalkText` connected with the actor entities identified by the slugs.
-    pub fn actors_say(
-        mut self,
-        actor_slugs: &[ActorSlug],
-        text: impl Into<String>,
-    ) -> Result<TalkBuilder, ActorError> {
-        for slug in actor_slugs.iter() {
-            if !self.actors.iter().any(|a| a.slug == *slug) {
-                return Err(ActorError::Invalid(slug.clone()));
-            }
-        }
+    pub fn actors_say(mut self, actor_slugs: &[ActorSlug], text: impl Into<String>) -> TalkBuilder {
+        // for slug in actor_slugs.iter() {
+        //     if !self.actors.iter().any(|a| a.slug == *slug) {
+        //         return Err(ActorError::Invalid(slug.clone()));
+        //     }
+        // }
         let id = Uuid::new_v4().to_string();
         let talk_node = BuildNode {
             id: id.clone(),
@@ -334,7 +331,7 @@ impl TalkBuilder {
             ..default()
         };
         self.queue.push_back(talk_node);
-        Ok(self)
+        self
     }
 }
 
@@ -455,7 +452,7 @@ mod tests {
             slug: "slug".to_string(),
             name: "Actor".to_string(),
         });
-        let builder = builder.actor_say("slug", "hello").unwrap();
+        let builder = builder.actor_say("slug", "hello");
         assert_eq!(builder.queue.len(), 1);
         assert_eq!(builder.queue[0].kind, NodeKind::Talk);
         assert_eq!(builder.queue[0].text, "hello");

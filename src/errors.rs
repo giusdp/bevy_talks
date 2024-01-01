@@ -22,10 +22,10 @@ pub enum NextActionError {
     NoTalk,
 }
 
-/// Errors when using an actor
+/// Errors from the builder
 #[derive(Error, Debug, PartialEq, Eq)]
-pub enum ActorError {
+pub enum BuildError {
     /// An action has a non-existent actor
     #[error("Tried to use non-existent actor {0} in the builder. Did you forget to add it?")]
-    Invalid(ActorSlug),
+    InvalidActor(ActorSlug),
 }
