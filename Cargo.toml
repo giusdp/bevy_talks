@@ -38,6 +38,6 @@ path = "examples/choices.rs"
 name = "full"
 path = "examples/full.rs"
 
-# [[example]]
-# name = "ingame"
-# path = "examples/ingame.rs"
+[[example]]
+name = "ingame"
+path = "examples/ingame.rs"
