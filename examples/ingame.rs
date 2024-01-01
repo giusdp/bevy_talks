@@ -1,5 +1,5 @@
 use bevy::{asset::LoadState, prelude::*};
-use bevy_talks::prelude::*;
+use bevy_talks::{builder::commands::TalkCommandsExt, prelude::*};
 
 #[derive(Component, Default)]
 struct ActiveTalk(bool);
@@ -13,8 +13,8 @@ enum AppState {
 
 #[derive(Resource)]
 struct TalkAsset {
-    bev_talk_handle: Handle<RawTalk>,
-    feri_talk_handle: Handle<RawTalk>,
+    bev_talk_handle: Handle<TalkData>,
+    feri_talk_handle: Handle<TalkData>,
 }
 
 #[derive(Component)]
@@ -28,6 +28,7 @@ struct Dialogue;
 
 fn main() {
     App::new()
+        .insert_resource(ClearColor(Color::rgb(0.5, 0.5, 0.9)))
         .add_plugins((
             DefaultPlugins.set(ImagePlugin::default_nearest()),
             TalksPlugin,
@@ -40,9 +41,9 @@ fn main() {
             Update,
             (
                 move_player,
-                interact,
-                print,
                 deactive_talk_when_far,
+                print,
+                interact,
                 advance_convo,
             )
                 .run_if(in_state(AppState::Loaded)),
@@ -52,8 +53,8 @@ fn main() {
 }
 
 fn load_talks(mut commands: Commands, server: Res<AssetServer>) {
-    let sp_a: Handle<RawTalk> = server.load("talks/interact_a.talk.ron");
-    let sp_b: Handle<RawTalk> = server.load("talks/interact_b.talk.ron");
+    let sp_a: Handle<TalkData> = server.load("talks/interact_a.talk.ron");
+    let sp_b: Handle<TalkData> = server.load("talks/interact_b.talk.ron");
     commands.insert_resource(TalkAsset {
         bev_talk_handle: sp_a,
         feri_talk_handle: sp_b,
@@ -75,7 +76,7 @@ fn check_loading(
 fn setup(
     mut commands: Commands,
     assets: Res<AssetServer>,
-    raws: Res<Assets<RawTalk>>,
+    raws: Res<Assets<TalkData>>,
     talk_asset: Res<TalkAsset>,
 ) {
     commands.spawn(Camera2dBundle::default());
@@ -85,44 +86,51 @@ fn setup(
         SpriteBundle {
             texture: player_handle,
             transform: Transform::from_scale(Vec3::splat(4.))
-                .with_translation(Vec3::new(0., 0., 10.)),
+                .with_translation(Vec3::new(0., 60., -1.)),
             ..default()
         },
     ));
 
     let bev: Handle<Image> = assets.load("images/bev.png");
-    let raw_talk_bev = raws.get(&talk_asset.bev_talk_handle).unwrap();
-    commands.spawn((
-        ActiveTalk(false),
-        Interactable,
-        SpriteBundle {
-            texture: bev,
-            transform: Transform::from_scale(Vec3::splat(3.))
-                .with_translation(Vec3::new(-300., 0., 1.)),
-            ..default()
-        },
-        TalkerBundle {
-            talk: Talk::build(&raw_talk_bev).unwrap(),
-            ..default()
-        },
-    ));
+    let bev_talk_data = raws.get(&talk_asset.bev_talk_handle).unwrap();
+    let bev_talk_builder = Talk::builder().fill_from_talk_data(bev_talk_data);
+
+    let mut talk_commands = commands.talks();
+    let talk_graph_ent = talk_commands
+        .spawn_talk(bev_talk_builder, ActiveTalk(false))
+        .id();
+
+    commands
+        .spawn((
+            Interactable,
+            SpriteBundle {
+                texture: bev,
+                transform: Transform::from_scale(Vec3::splat(3.))
+                    .with_translation(Vec3::new(-300., 0., 1.)),
+                ..default()
+            },
+        ))
+        .add_child(talk_graph_ent);
 
     let feri: Handle<Image> = assets.load("images/feri.png");
-    let raw_talk_feri = raws.get(&talk_asset.feri_talk_handle).unwrap();
-    commands.spawn((
-        ActiveTalk(false),
-        Interactable,
-        SpriteBundle {
-            texture: feri,
-            transform: Transform::from_scale(Vec3::splat(3.))
-                .with_translation(Vec3::new(300., 0., 1.)),
-            ..default()
-        },
-        TalkerBundle {
-            talk: Talk::build(&raw_talk_feri).unwrap(),
-            ..default()
-        },
-    ));
+    let feri_talk_data = raws.get(&talk_asset.feri_talk_handle).unwrap();
+    let feri_talk_builder = Talk::builder().fill_from_talk_data(feri_talk_data);
+
+    let mut talk_commands = commands.talks();
+    let talk_graph_ent = talk_commands
+        .spawn_talk(feri_talk_builder, ActiveTalk(false))
+        .id();
+    commands
+        .spawn((
+            Interactable,
+            SpriteBundle {
+                texture: feri,
+                transform: Transform::from_scale(Vec3::splat(3.))
+                    .with_translation(Vec3::new(300., 0., 1.)),
+                ..default()
+            },
+        ))
+        .add_child(talk_graph_ent);
 
     // the ui for the talks
     commands.spawn((
@@ -157,11 +165,11 @@ fn move_player(
 ) {
     let mut player_transform = query.single_mut();
     if input.pressed(KeyCode::A) {
-        player_transform.translation.x -= 300. * t.delta_seconds();
+        player_transform.translation.x -= 450. * t.delta_seconds();
     }
 
     if input.pressed(KeyCode::D) {
-        player_transform.translation.x += 300. * t.delta_seconds();
+        player_transform.translation.x += 450. * t.delta_seconds();
     }
 }
 
@@ -182,18 +190,18 @@ fn advance_convo(
 fn interact(
     input: Res<Input<KeyCode>>,
     player_query: Query<&Transform, With<Player>>,
-    mut talks: Query<(Entity, &Transform, &mut ActiveTalk), With<Interactable>>,
-    mut init_talk_events: EventWriter<InitTalkRequest>,
+    characters: Query<(&Transform, &Children), With<Interactable>>,
+    mut q_child: Query<(Entity, &Talk, &mut ActiveTalk)>,
+    mut next_action_events: EventWriter<NextActionRequest>,
 ) {
     if input.just_pressed(KeyCode::E) {
         let player_transform = player_query.single();
-        for (entity, transform, mut active) in talks.iter_mut() {
+        for (transform, children) in &characters {
             if transform.translation.distance(player_transform.translation) < 100. {
-                if active.0 {
-                    active.0 = false;
-                } else {
-                    active.0 = true;
-                    init_talk_events.send(InitTalkRequest(entity));
+                let (e, t, mut active) = q_child.get_mut(children[0]).unwrap();
+                active.0 = !active.0;
+                if active.0 && t.current_kind == NodeKind::Start {
+                    next_action_events.send(NextActionRequest(e));
                 }
             }
         }
@@ -202,11 +210,13 @@ fn interact(
 
 fn deactive_talk_when_far(
     player_query: Query<&Transform, With<Player>>,
-    mut talks: Query<(&Transform, &mut ActiveTalk)>,
+    characters: Query<(&Transform, &Children), With<Interactable>>,
+    mut q_child: Query<&mut ActiveTalk>,
 ) {
     let player_transform = player_query.single();
-    for (transform, mut active) in talks.iter_mut() {
+    for (transform, children) in &characters {
         if transform.translation.distance(player_transform.translation) > 100. {
+            let mut active = q_child.get_mut(children[0]).unwrap();
             if active.0 {
                 active.0 = false;
             }
@@ -214,16 +224,9 @@ fn deactive_talk_when_far(
     }
 }
 
-fn print(
-    talk_comps: Query<(Ref<CurrentText>, &CurrentActors, Ref<ActiveTalk>)>,
-    mut texts: Query<&mut Text, With<Dialogue>>,
-) {
-    for (tt, ca, active) in talk_comps.iter() {
-        // skip if comps were just added
-        if active.is_added() || tt.is_added() {
-            continue;
-        }
-
+/// Print the current talk node (if changed) to the console.
+fn print(talk_comps: Query<(&Talk, Ref<ActiveTalk>)>, mut texts: Query<&mut Text, With<Dialogue>>) {
+    for (talk, active) in &talk_comps {
         // If talk was deactivated, clear the text
         if active.is_changed() && !active.0 {
             texts.single_mut().sections[0].value =
@@ -231,17 +234,20 @@ fn print(
             continue;
         }
 
-        // skip if text was not changed
-        if !tt.is_changed() {
+        // If just not active, skip
+        if !active.0 {
             continue;
         }
 
-        let speaker = if ca.0.len() > 0 {
-            ca.0[0].name.as_str()
-        } else {
-            "Narrator"
-        };
+        if talk.current_kind == NodeKind::Start {
+            continue;
+        }
 
-        texts.single_mut().sections[0].value = format!("{}: {}", speaker, tt.0)
+        let speaker = &talk.current_actors[0];
+        let display = match talk.current_kind {
+            NodeKind::Talk => format!("{speaker}: {}", talk.current_text),
+            _ => "Not implemented for this example".to_string(),
+        };
+        texts.single_mut().sections[0].value = display;
     }
 }

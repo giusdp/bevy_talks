@@ -1,9 +1,8 @@
 (
     actors: [
       (
-        id: "ferris",
-        name: "Ferris",
-        asset: Some("images/feri.png"),
+        slug: "ferris",
+        name: "Feri",
       ),
     ],
     script: [
