@@ -85,6 +85,7 @@ fn prepare_builder(
     let mut done = false;
     while !done {
         match the_action.kind {
+            NodeKind::Start => (), // nothing to do for this as of now
             NodeKind::Talk => {
                 builder = match the_action.actors.len() {
                     0 => builder.say(&the_action.text),
@@ -188,7 +189,6 @@ mod tests {
         BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
             .apply(&mut world);
 
-        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
         assert_eq!(world.query::<&TalkText>().iter(&world).count(), nodes);
 
         assert_on_talk_nodes(world, map);
@@ -211,7 +211,6 @@ mod tests {
         BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
             .apply(&mut world);
 
-        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
         assert_eq!(world.query::<&TalkText>().iter(&world).count(), 3);
 
         let mut map = HashMap::new();
@@ -246,7 +245,6 @@ mod tests {
         BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
             .apply(&mut world);
 
-        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
         assert_eq!(world.query::<&TalkText>().iter(&world).count(), 2);
         assert_eq!(world.query::<&Choices>().iter(&world).count(), 1);
         assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
@@ -283,7 +281,6 @@ mod tests {
         BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
             .apply(&mut world);
 
-        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
         assert_eq!(world.query::<&TalkText>().iter(&world).count(), 4);
         assert_eq!(world.query::<&Choices>().iter(&world).count(), 1);
         assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
@@ -336,7 +333,6 @@ mod tests {
         BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
             .apply(&mut world);
 
-        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
         assert_eq!(world.query::<&TalkText>().iter(&world).count(), 3);
         assert_eq!(world.query::<&Choices>().iter(&world).count(), 2);
         assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
@@ -396,7 +392,6 @@ mod tests {
         BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
             .apply(&mut world);
 
-        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
         assert_eq!(world.query::<&TalkText>().iter(&world).count(), nodes);
         assert_eq!(world.query::<&Actor>().iter(&world).count(), 3);
 

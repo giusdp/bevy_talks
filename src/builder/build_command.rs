@@ -3,8 +3,7 @@ use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
 use crate::prelude::{
-    ActorSlug, Choice, ChoiceNodeBundle, CurrentNode, FollowedBy, PerformedBy, StartTalk, Talk,
-    TalkNodeBundle,
+    ActorSlug, Choice, ChoiceNodeBundle, CurrentNode, FollowedBy, PerformedBy, Talk, TalkNodeBundle,
 };
 
 use super::*;
@@ -31,7 +30,7 @@ impl BuildTalkCommand {
 impl Command for BuildTalkCommand {
     fn apply(self, world: &mut World) {
         // spawn the start node
-        let start = &world.spawn((StartTalk, CurrentNode)).id();
+        let start = &world.spawn((NodeKind::Start, CurrentNode)).id();
 
         // First pass: spawn all the node entities and add them to the map with their build node id
         let (ents, mut node_entities) = spawn_dialogue_entities(&self.builder, world);
@@ -208,6 +207,7 @@ fn form_graph(
         );
 
         match build_node.kind {
+            NodeKind::Start => (), // nothing to do for this as of now
             NodeKind::Talk => {
                 world
                     .entity_mut(this_ent)

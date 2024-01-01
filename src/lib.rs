@@ -242,7 +242,7 @@ mod tests {
 
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
         assert_eq!(t.current_text, "".to_string());
-        assert_eq!(t.current_kind, NodeKind::Talk);
+        assert_eq!(t.current_kind, NodeKind::Start);
 
         app.world.send_event(NextActionRequest(e));
         app.update();
@@ -281,7 +281,7 @@ mod tests {
 
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
         assert_eq!(t.current_text, "".to_string());
-        assert_eq!(t.current_kind, NodeKind::Talk);
+        assert_eq!(t.current_kind, NodeKind::Start);
 
         app.world.send_event(NextActionRequest(e));
         app.update();
