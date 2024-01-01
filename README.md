@@ -10,55 +10,86 @@
 > [!WARNING]  
 > Be aware that `bevy_talks`'s API is still undergoing revisions (with possibly big architectural changes). Feedback on its ergonomics and developer experience (DX) is highly appreciated.
 
+This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game as graphs. 
 
-This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game, via *Talk*s components. 
-A *Talk* is a directed graph where each node is an *action* that an actor can perform, 
-such as saying a line, joining/leaving the scene, or even a choice the player can make.
+You can imagine a *Talk* between the player and NPCs as a directed graph where each node is an *action* that can be performed 
+such as saying a line, joining/leaving the conversation, or a choice the player can make.
 
 The most common action is text being displayed on the screen, and a simple *Talk* is
 just a sequence of texts forming a conversation between actors.
 
-You can have multiple entities each with their own *Talk*. Or you can make a VN-like game with one single Talk in the game.
+You can have multiple entities each with their own *Talk* graph. Or you can make a VN-like game with one single big dialogue graph in the game.
 
-The heart of the Talk is a directed graph where each node is a `TalkNode` struct:
+> [!NOTE]
+> A more in-depth documentation is being slowly written as an [mdbook here!](giusdp.github.io/bevy_talks/) Help is appreciated :)
+
+## Actions and Actors
+
+Talks are made up of actions that are translated into graph nodes. 
+Actions can be defined either via the `TalkBuilder` of with asset files and they have this form:
 
 ```rust
-struct TalkNode {
-     /// Talk, Join, Leave, Choice
-    kind: TalkNodeKind,
-    /// Text to display on the screen.
-    text: String,
+struct Action {
+    /// The ID of the action.
+    id: ActionId,
+    /// The kind of action.
+    action: NodeKind,
     /// The actors involved in the action.
-    actors: Vec<Actor>,
-    /// The choices available for the player
-    choices: Vec<Choice>,
+    actors: Vec<ActorSlug>,
+    /// Any choices that the user can make during the action.
+    choices: Option<Vec<Choice>>,
+    /// The text of the action.
+    text: Option<String>,
+    /// The ID of the next action to perform.
+    next: Option<ActionId>,
 }
 ```
+
+You won't be writing this struct directly, but you can see that it contains several fields that define the kind of action it can be, the relevant actors, text or choices and the next action to perform (where to go in the graph after).
+
+The actors are quite simple right now. It is just the name and an identifier (the slug).
+
 The `Actor` struct is a simple struct that contains the name of the actor and the asset to display on the screen.
 
 ```rust
 struct Actor {
-    /// The name of the character that the actor plays.
+    /// The name of the actor.
     name: String,
-    /// An optional asset for the actor.
-    asset: Option<Handle<Image>>,
+    /// The unique slug of the actor.
+    slug: ActorSlug,
 }
 ```
 
-The Choice struct is a simple struct that contains the text of the choice and the index of the node to jump to.
+Having a well defined *Talk* with actions and actors will result in spawning a graph where all the nodes are entities.
+Each action will be an entity "node", and each actor is also an entity. 
+
+All the action nodes will be connected with each other with a aery relationship (called *FollowedBy*), following the graph structure given by the actions next and id fields, and each action with actors will result in the corresponding entity being connected with the actors entity with another aery relationship (called *PerformedBy*).
+
+Finally all the action entities in the graph will be a child of a main entity that represents the *Talk* itself, with the *Talk* component attached to it.
+
+## The Talk Component
+
+This parent Talk component that "encapsulates" the graph is the main component that you will use to interact with the dialogue system.
+With it you can keep track of the current node data, and use it to send events to advance the dialogue (through the related entity).
 
 ```rust
-struct Choice {
-    /// The text of the choice.
-    pub text: String,
-    /// The ID of the next action to jump to if the choice is selected.
-    pub next: NodeIndex,
+/// The Talk component. It's used to identify the parent entity of dialogue entity graphs.
+#[derive(Component, Debug)]
+pub struct Talk {
+    /// The text of the current node (if not a Talk node it's empty)
+    pub current_text: String,
+    /// The kind of the current node
+    pub current_kind: NodeKind,
+    /// The actor(s) name of the current node
+    pub current_actors: Vec<String>,
+    /// The choices of the current node (if not a Choice node it's empty)
+    pub current_choices: Vec<Choice>,
 }
 ```
 
-### Build Talks from talk.ron files
+## Build Talks from talk.ron files
 
-The plugin can parse ron files to create `RawTalk` assets, which can then be used to build a `Talk` component. 
+The plugin can parse ron files to create `TalkData` assets, which can then be used to build the graph. 
 The files must have the extension: `talk.ron`.
 
 Here's an example:
@@ -66,13 +97,13 @@ Here's an example:
 ```rust,ignore
 (
     actors: [
-        ( id: "bob", name: "Bob" ),
-        ( id: "alice", name: "Alice" )
+        ( slug: "bob", name: "Bob" ),
+        ( slug: "alice", name: "Alice" )
     ],
     script: [
-        ( id: 1, action: Talk, text: Some("Bob and Alice enter the room.") ),
-        ( id: 2, action: Join, actors: [ "bob", "alice" ] ),
-        ( id: 3, actors: ["bob"], text: Some("Hello, Alice!") ), // with missing action field, it defaults to Talk
+        ( id: 1, action: Talk, text: Some("Bob and Alice enter the room."), next: Some(2) ),
+        ( id: 2, action: Join, actors: [ "bob", "alice" ], next: Some(3)),
+        ( id: 3, actors: ["bob"], text: Some("Hello, Alice!"), next: Some(4) ), // without the action field, it defaults to Talk
         (
             id: 4,
             choices: Some([
@@ -80,9 +111,9 @@ Here's an example:
                 ( text: "Alice ignores Bob.", next: 6 ),
             ])
         ),
-        ( id: 5, text: Some("Bob smiles.") ), // with missing actors field, it defaults to an empty vector
-        ( id: 6, text: Some("Bob starts crying.") ),
-        ( id: 7, text: Some("The end.") )
+        ( id: 5, text: Some("Bob smiles."), next: Some(7)), // without the actors field, it defaults to an empty vector
+        ( id: 6, text: Some("Bob starts crying."), next: Some(7) ),
+        ( id: 7, text: Some("The end.") ) // without the next, it is an end node
     ]
 )
 ```
@@ -90,89 +121,107 @@ Here's an example:
 The plugin adds an `AssetLoader` for these ron files, so it's as easy as: 
 
 ```rust
-let handle: Handle<RawTalk> = asset_server.load("simple.talk.ron");
+let handle: Handle<TalkData> = asset_server.load("simple.talk.ron");
 ```
 
-Then you can use `Talk::build` function with the `RawTalk` asset. 
-You can retrieve the `RawTalk` from the assets collection `raws: Res<Assets<RawTalk>>`.
+Then you can use `Talk::builder()` to create a `TalkBuilder`, which has the `fill_from_talk_data` method. 
+You can retrieve the `TalkData` from the assets collection `talks: Res<Assets<TalkData>>`.
+
+
+With the builder ready, you can use the Commands extension to spawn the dialogue graph in the world:
 
 ```rust
-let raw_sp = raws.get(&simple_sp_asset.handle).unwrap();
-Talk::build(&raw_sp)
-```
+use bevy::prelude::*;
+use bevy_talks::prelude::*;
 
-### Usage
+// We stored the previously loaded handle of a TalkData asset in this resource
+#[derive(Resource)]
+struct TalkAsset {
+    handle: Handle<TalkData>,
+}
 
+fn spawn(mut commands: Commands, talks: Res<Assets<TalkData>>, talk_asset: Res<TalkAsset>) {
+    let talk = talks.get(&talk_asset.handle).unwrap();
+    let talk_builder = TalkBuilder::default().fill_from_talk_data(simple_talk);
 
-The plugin provides a `TalkerBundle` to give an entity the required components to handle its own dialogues.
-```rust
-struct TalkerBundle {
-    /// The Talk to display.
-    talk: Talk,
-    /// The dialogue line component for a Talk.
-    talk_text: CurrentText,
-    /// The actor component that represents a character in a Talk.
-    current_actors: CurrentActors,
-    /// The Talk Node Kind component that represents the kind of action in a Talk.
-    kind: CurrentNodeKind,
-    /// The component that represents the current choices in a Talk.
-    current_choices: CurrentChoices,
+    // grab the talk commands
+    let mut talk_commands = commands.talks();
+    // spawn the talk graph
+    talk_commands.spawn_talk(talk_builder, ());
 }
 ```
 
-With these components you can query the current text/actor/choices for the current action in a talk. 
+Spawning that talk graph will result in this:
+
+
+```mermaid
+graph LR;
+    A[Narrator Talks] --> B[Alice,Bob Join];
+    B --> C[Bob Talks];
+    C --> D[Choice];
+    D --> E[Narrator Talks];
+    D --> F[Narrator Talks];
+    F --> G[Narrator Talks];
+    E --> G;
+```
+
+## Usage
+
+With the `Talk` component you can get the current text/actor/choices for the current action in a talk. 
 Together with the Change Detection System, you can react to changes in the `Talk` component to update your UI.
 
 ```rust
-fn print_text(talks: Query<(Ref<CurrentText> &CurrentNodeKind)>) {
-    for (text, kind) in talks.iter() {
-        if kind == TalkNodeKind::Talk && text.is_changed() {
+fn print_text(talks: Query<Ref<Talk>>) {
+    for talk in talks.iter() {
+        if text.is_changed() && talk.current_kind == NodeKind::Talk {
             println!("{}", text.text());
         }
     }
 }
 ```
 
-To interact with Talks you can send 3 different events. One to initialize the Talk (it populates the components with the first node), and two to advance the Talk to the next node or to jump to a specific node):
-
-```rust
-struct InitTalkRequest(pub Entity);
-```
+To interact with the dialogue graphs you can send 2 different events to advance the Talk to the next node or to jump to a specific node:
 
 To move forward to the next action:
 
 ```rust
-NextActionRequest(pub Entity);
+pub struct NextActionRequest(pub Entity);
 ```
 
 To jump to a specific action (used with choices):
 
 ```rust
-JumpToActionRequest(pub Entity, pub NodeIndex);
+pub struct ChooseActionRequest {
+    /// The entity with the [`Talk`] component you want to update.
+    pub talk: Entity,
+    /// The next entity to go to.
+    pub next: Entity,
+}
 ```
 
-You pass the entity with the `Talk` component for the first 2 events.
-The third required the entity and the index that identifies the node to jump to.
+You pass the entity with the `Talk` component in these events, plus the next node entity in case of the choose event.
 
-Check out the example in the `examples` folder to see how to use the plugin.
+Check out the `examples` folder to see how to use the plugin.
 
 - [simple.rs](examples/simple.rs) shows how to use the plugin to create a simple, linear conversation. 
 - [choices.rs](examples/choices.rs) shows how to use the plugin to create a conversation with choices (jumps in the graph).
 - [full.rs](examples/full.rs) shows a Talk where all the action kinds are used.
-- [ingame.rs](examples/ingame.rs) shows how to use the plugin with more than one `Talker` entity you can interact with.
+- [ingame.rs](examples/ingame.rs) shows how to use the plugin with more than one talk you can interact with.
 
 ### Roadmap
 
-- [x] A `TalkerBundle` to give an entity the required components to access and track the dialogues
+Some nice-to-haves from the top of my head:
+
+- [ ] Use the built-in bevy_ecs relations (when one day we will have them)
 - [ ] Dialogue UIs 
-- [ ] Interaction/Trigger system (to activate/advance dialogues)
+- [ ] Extensible Interaction/Trigger system (to activate/advance dialogues)
 - [ ] Graphical editor to create the asset files
 - [ ] Voice lines/sound support
+- [ ] More node kinds (and a custom node kind system)
 - [ ] Support other asset formats (?)
 - [ ] More examples
-- [ ] Extensive documentation/manual wiki
+- [ ] Extensive documentation/manual wiki (always in progress...)
 - [ ] Localization with [Fluent](https://projectfluent.org/)
-
 
 ### Bevy Version Support
 
@@ -181,6 +230,7 @@ Compatibility of `bevy_talks` versions:
 | `bevy_talks` | `bevy` |
 | :--                 |  :--   |
 | `main`              | `0.12`  |
+| `0.4.0`              | `0.12`  |
 | `0.3.1`              | `0.12`  |
 | `0.3.0`              | `0.11`  |
 | `0.2.0`              | `0.11`  |

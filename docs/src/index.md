@@ -23,7 +23,7 @@ You can have multiple entities each with their own *Talk* graph. Or you can make
 > [!NOTE]
 > A more in-depth documentation is being slowly written as an [mdbook here!](giusdp.github.io/bevy_talks/) Help is appreciated :)
 
-## Actions and Actors
+## Actions and Actors
 
 Talks are made up of actions that are translated into graph nodes. 
 Actions can be defined either via the `TalkBuilder` of with asset files and they have this form:
@@ -53,7 +53,6 @@ The `Actor` struct is a simple struct that contains the name of the actor and th
 
 ```rust
 struct Actor {
-
     /// The name of the actor.
     name: String,
     /// The unique slug of the actor.
@@ -68,7 +67,7 @@ All the action nodes will be connected with each other with a aery relationship 
 
 Finally all the action entities in the graph will be a child of a main entity that represents the *Talk* itself, with the *Talk* component attached to it.
 
-### The Talk Component
+## The Talk Component
 
 This parent Talk component that "encapsulates" the graph is the main component that you will use to interact with the dialogue system.
 With it you can keep track of the current node data, and use it to send events to advance the dialogue (through the related entity).
@@ -88,7 +87,7 @@ pub struct Talk {
 }
 ```
 
-### Build Talks from talk.ron files
+## Build Talks from talk.ron files
 
 The plugin can parse ron files to create `TalkData` assets, which can then be used to build the graph. 
 The files must have the extension: `talk.ron`.
@@ -112,7 +111,7 @@ Here's an example:
                 ( text: "Alice ignores Bob.", next: 6 ),
             ])
         ),
-        ( id: 5, text: Some("Bob smiles."), next: Some(6)), // without the actors field, it defaults to an empty vector
+        ( id: 5, text: Some("Bob smiles."), next: Some(7)), // without the actors field, it defaults to an empty vector
         ( id: 6, text: Some("Bob starts crying."), next: Some(7) ),
         ( id: 7, text: Some("The end.") ) // without the next, it is an end node
     ]
@@ -156,16 +155,17 @@ Spawning that talk graph will result in this:
 
 
 ```mermaid
-graph TD;
+graph LR;
     A[Narrator Talks] --> B[Alice,Bob Join];
     B --> C[Bob Talks];
     C --> D[Choice];
     D --> E[Narrator Talks];
     D --> F[Narrator Talks];
     F --> G[Narrator Talks];
+    E --> G;
 ```
 
-### Usage
+## Usage
 
 With the `Talk` component you can get the current text/actor/choices for the current action in a talk. 
 Together with the Change Detection System, you can react to changes in the `Talk` component to update your UI.
