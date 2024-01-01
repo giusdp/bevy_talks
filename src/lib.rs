@@ -120,8 +120,8 @@ fn next_handler(
         // if this is the talk we want to advance
         if talk_ent == event_talk_ent {
             let targets = edges.targets(FollowedBy);
-            match targets.len() {
-                0 => return Err(NextActionError::NoNextAction),
+            return match targets.len() {
+                0 => Err(NextActionError::NoNextAction),
                 1 => {
                     // move the current node component to the next one
                     let next_node = move_current_node(&mut commands, current_node, targets[0]);
@@ -132,10 +132,10 @@ fn next_handler(
                     set_text(next_node, &mut this_talk, next_kind, &talk_comps);
                     set_actors(next_node, &mut this_talk, performers, actors);
                     set_choices(next_node, next_kind, &mut this_talk, choices_comps)?;
-                    return Ok(());
+                    Ok(())
                 }
-                2.. => return Err(NextActionError::ChoicesNotHandled),
-            }
+                2.. => Err(NextActionError::ChoicesNotHandled),
+            };
         }
     }
 

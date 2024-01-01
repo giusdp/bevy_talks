@@ -35,14 +35,40 @@ impl Command for BuildTalkCommand {
         form_graph(*start, &self.builder, &mut node_entities, world);
 
         // Third pass: connect the actors to the nodes
-        for node in self.builder.queue.iter() {
-            if !node.actors.is_empty() {
-                let node_ent = node_entities.get(&node.id).unwrap();
+        connect_nodes_with_actors(&self.builder, node_entities, actor_ents, world);
+    }
+}
+/// Connect the nodes to the actors.
+fn connect_nodes_with_actors(
+    talk_builder: &TalkBuilder,
+    node_entities: HashMap<String, Entity>,
+    all_actors: HashMap<String, Entity>,
+    world: &mut World,
+) {
+    for node in talk_builder.queue.iter() {
+        if !node.actors.is_empty() {
+            let node_ent = node_entities.get(&node.id).unwrap();
 
-                for actor in node.actors.iter() {
-                    let actor_ent = actor_ents.get(actor).unwrap();
-                    world.entity_mut(*node_ent).set::<PerformedBy>(*actor_ent);
-                }
+            for actor in node.actors.iter() {
+                let actor_ent = all_actors.get(actor).unwrap_or_else(|| {
+                    panic!(
+                        "Error! Actor {} not found while building talk from builder.",
+                        actor
+                    )
+                });
+                world.entity_mut(*node_ent).set::<PerformedBy>(*actor_ent);
+            }
+        }
+
+        // recursively connect the inner nodes
+        if !node.choices.is_empty() {
+            for (_, inner_builder) in node.choices.iter() {
+                connect_nodes_with_actors(
+                    inner_builder,
+                    node_entities.clone(),
+                    all_actors.clone(),
+                    world,
+                );
             }
         }
     }
@@ -158,29 +184,22 @@ fn form_graph(
             .get(&build_node.id)
             .expect("Error! Dialogue node entity not found. Cannot build dialogue graph! :(");
 
+        connect_to_previous(
+            world,
+            parent,
+            &mut leaves,
+            previous_node_was_choice,
+            this_ent,
+        );
+
         match build_node.kind {
             NodeKind::Talk => {
                 world
                     .entity_mut(this_ent)
                     .insert(TalkNodeBundle::new(build_node.text.clone()));
-                connect_to_previous(
-                    world,
-                    parent,
-                    &mut leaves,
-                    previous_node_was_choice,
-                    this_ent,
-                );
                 previous_node_was_choice = false;
             }
             NodeKind::Choice => {
-                connect_to_previous(
-                    world,
-                    parent,
-                    &mut leaves,
-                    previous_node_was_choice,
-                    this_ent,
-                );
-
                 // We have to spawn the branches from the inner builders
                 // and connect them to the choice node
                 let mut choices: Vec<Choice> = Vec::with_capacity(build_node.choices.len());
@@ -201,24 +220,10 @@ fn form_graph(
             }
             NodeKind::Join => {
                 world.entity_mut(this_ent).insert(NodeKind::Join);
-                connect_to_previous(
-                    world,
-                    parent,
-                    &mut leaves,
-                    previous_node_was_choice,
-                    this_ent,
-                );
                 previous_node_was_choice = false;
             }
             NodeKind::Leave => {
                 world.entity_mut(this_ent).insert(NodeKind::Leave);
-                connect_to_previous(
-                    world,
-                    parent,
-                    &mut leaves,
-                    previous_node_was_choice,
-                    this_ent,
-                );
                 previous_node_was_choice = false;
             }
         }
@@ -354,6 +359,35 @@ mod tests {
     }
 
     #[test]
+    fn test_connect_nodes_with_actors() {
+        let mut app = App::new();
+
+        let builder = TalkBuilder::default()
+            .add_actor(Actor::new("my_actor", "Actor"))
+            .add_actor(Actor::new("actor_0", "Actor2"))
+            .actor_say("my_actor", "Hello")
+            .choose(vec![
+                (
+                    "Choice 1",
+                    TalkBuilder::default().actor_say("actor_0", "Hi"),
+                ),
+                ("Choice 2", TalkBuilder::default().say("World!")),
+            ]);
+
+        let (_, node_entities) = spawn_dialogue_entities(&builder, &mut app.world);
+        let actor_ents = spawn_actor_entities(&builder, &mut app.world);
+        connect_nodes_with_actors(&builder, node_entities, actor_ents, &mut app.world);
+
+        let nodes_with_actors = app
+            .world
+            .query::<(Relations<PerformedBy>, Without<Actor>)>()
+            .iter(&app.world)
+            .count();
+
+        assert_eq!(nodes_with_actors, 2);
+    }
+
+    #[test]
     fn test_process_manual_connections() {
         let mut world = World::default();
         let mut build_node_entities = HashMap::default();
@@ -441,7 +475,6 @@ mod tests {
             2
         );
     }
-
     #[test]
     fn test_add_relationships() {
         let mut world = World::default();
@@ -500,6 +533,16 @@ mod integration_tests {
     #[fixture]
     fn talk_builder() -> TalkBuilder {
         TalkBuilder::default()
+    }
+
+    #[rstest]
+    #[should_panic]
+    fn test_panic_on_wrong_actor(talk_builder: TalkBuilder) {
+        let mut world = World::default();
+        talk_builder
+            .actor_say("actor", "Hello")
+            .build()
+            .apply(&mut world);
     }
 
     #[rstest]
@@ -658,8 +701,7 @@ mod integration_tests {
         let build_cmd = TalkBuilder::default()
             .choose(vec![
                 ("Good Choice".to_string(), good_branch),
-                // NB the builder is passed here. If we never add it and keep using connect_to
-                // the end node would never be created
+                // If we never pass the actual biulder the end node would never be created
                 ("Bad Choice".to_string(), end_branch_builder),
             ])
             .build();
@@ -671,18 +713,12 @@ mod integration_tests {
     }
 
     #[rstest]
-    fn error_actor_say_with_no_existent_actor(talk_builder: TalkBuilder) {
-        assert!(talk_builder.actor_say("actor", "Hello").is_err());
-    }
-
-    #[rstest]
     fn actor_say_creates_node_with_actor_relationship(mut talk_builder: TalkBuilder) {
         let mut app = App::new();
 
         talk_builder = talk_builder
             .add_actor(Actor::new("actor", "Actor"))
-            .actor_say("actor", "Hello")
-            .unwrap();
+            .actor_say("actor", "Hello");
 
         talk_builder.build().apply(&mut app.world);
 
