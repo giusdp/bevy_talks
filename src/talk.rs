@@ -19,16 +19,27 @@ pub struct PerformedBy;
 
 /// The Talk component. It's used to identify the parent entity of dialogue entity graphs.
 /// Build entities with Talk components via the [`TalkBuilder`] to correctly setup the dialogue graph.
-#[derive(Component, Default, Debug)]
+#[derive(Component, Debug)]
 pub struct Talk {
     /// The text of the current node (if not a Talk node it's empty)
     pub current_text: String,
     /// The kind of the current node
-    pub current_kind: NodeKind, // TODO: add a Start node kind?
+    pub current_kind: NodeKind,
     /// The actor(s) name of the current node
     pub current_actors: Vec<String>,
     /// The choices of the current node (if not a Choice node it's empty)
     pub current_choices: Vec<Choice>,
+}
+
+impl Default for Talk {
+    fn default() -> Self {
+        Self {
+            current_text: Default::default(),
+            current_kind: NodeKind::Start,
+            current_actors: Default::default(),
+            current_choices: Default::default(),
+        }
+    }
 }
 
 impl Talk {
@@ -42,15 +53,13 @@ impl Talk {
 #[component(storage = "SparseSet")]
 pub(crate) struct CurrentNode;
 
-/// A component that marks a node as the start of the dialogue graph.
-#[derive(Component)]
-pub struct StartTalk;
-
 /// An enumeration of the different kinds of actions that can be performed in a Talk.
 #[derive(Component, Debug, Default, Clone, Hash, Eq, PartialEq, serde::Deserialize)]
 pub enum NodeKind {
-    #[default]
+    /// An entry point of the dialogue graph
+    Start,
     /// A talk action, where a character speaks dialogue.
+    #[default]
     Talk,
     /// A choice action, where the user is presented with a choice.
     Choice,
