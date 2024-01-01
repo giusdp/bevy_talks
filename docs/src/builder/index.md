@@ -1,6 +1,6 @@
 # Talk Builder
 
-You can build dialogue graphs programmatically using an implementation of the builder pattern: `TalkBuilder`. 
+You can build dialogue graphs programmatically using the `TalkBuilder`. 
 
 > [&#9432;] 
 > The `TalkBuilder` is also used under the hood to build the graphs from the asset files.
@@ -22,13 +22,16 @@ can be built with just a few lines of code:
 
 ```rust,no_run
 let talk_builder = Talk::builder().say("Hello").say(bob, "World");
-let build_cmd = talk_builder.build();
-commands.add(build_cmd);
+let talk_commands = commands.talks();
+talk_commands.spawn_talk(talk_builder, ());
 ```
 
-The `build` method generates a Bevy `Command` callled `BuildTalkCommand` that you can `add` to the command queue in your systems.
+To actually spawn the entities with the relationships, you pass the `TalkBuilder` to the `TalkCommands::spawn_talk` method, which
+will prepare a `Command` to be added to the command queue.
 
-The command, when applied, will first spawn the `TalkStart` entity, then for each `say` an entity with a `TalkNodeBundle`. It also connects the entities linearly with a relationship forming a dialogue graph. In the example above you would have 3 entities each in a relationship with the next one.
+The command, when applied, will first spawn the main parent entity of the graph with the `Talk` component. Then add a start node with `NodeKind::Start` which will act as the entry point of the graph and finally spawn entities for each `say`, `choose` etc.
+
+With `say` the builder will connect the entities linearly. In the example above you would have 3 entities each in a relationship with the next one (start -> say -> say), all children of the main `Talk` entity.
 
 You can check out all the methods that the builder provides in the [API docs](https://docs.rs/bevy_talks/latest/bevy_talks/builder/struct.TalkBuilder.html).
 
@@ -54,8 +57,6 @@ talk_builder.say("How are you?")
         ("I'm fine".to_string(), Talk::builder().say("I'm glad to hear that")), 
         ("I'm notfine".to_string(), Talk::builder().say("I'm sorry to hear that")), 
     ]);
-
-let talk_build_cmd = talk_builder.build();
 ``` 
 
 The `choose` method expects a vector of tuples. The first element is the text field of the choice (to be displayed) and the second is the branch of the conversation, which effectively is another `TalkBuilder` instance.
@@ -90,8 +91,6 @@ talk_builder.say("How are you?")
         ("I'm fine".to_string(), happy_branch), 
         ("I'm not fine".to_string, sad_branch),
     ]);
-
-let talk_build_cmd = talk_builder.build();
 ```
 
 As you can see, it's easy to keep branching the conversation and you can also reuse branches. The problem with this approach is that it can get quite verbose and hard to read. 
@@ -113,12 +112,12 @@ graph LR
 ```
 
 ```rust,no_run
-let talk_builder = Talk::builder().say("Hello");
+let mut talk_builder = Talk::builder().say("Hello");
 
 // grab latest node
 let node_a = talk_builder.last_node_id();
 
-let talk_build_cmd = talk_builder.say("World").connect_to(node_a).build();
+talk_builder ? talk_builder.say("World").connect_to(node_a);
 ```
 
 The `node` method returns an identifier of the node, and we can use it to do manual connections. 
@@ -144,18 +143,17 @@ Situations like this are somewhat common in games. You are talking to an NPC whe
 and the others are just some flavour text or some extra lore. 
 
 ```rust,no_run
-let talk_builder = Talk::builder().say("Hello");
+let mut talk_builder = Talk::builder().say("Hello");
 
 // grab latest node
 let convo_start = talk_builder.last_node_id();
 
-let build_cmd = talk_builder
+talk_builder = talk_builder
     .say("Hey")
     .choose(vec![
         ("Good Choice".to_string(), Talk::builder().say("End of the conversation")),
         ("Wrong Choice".to_string(), Talk::builder().say("Go Back").connect_to(convo_start))
-    ])
-    .build();
+    ]);
  ```
 
 ### Connecting To The Same Node
@@ -190,10 +188,14 @@ let good_branch = Talk::builder().say("something").choose(vec![
     ),
 ]);
 
-let build_cmd = Talk::builder().choose(vec![
+let builder = Talk::builder().choose(vec![
     ("Good Choice".to_string(), good_branch),
     // NB the builder is passed here. If we never add it and keep using connect_to
     // the end node would never be created
     ("Bad Choice".to_string(), end_branch_builder) 
-]).build();
+]);
 ```
+
+### Adding Actors to the mix
+
+Coming soon...
