@@ -1,13 +1,6 @@
 # Introduction to Bevy Talks
 
-[![][img_bevy]][bevycrate] 
-[![][img_license]][license] 
-[![][img_tracking]][tracking] 
-[![][img_version]][crates]
-[![][img_doc]][doc] 
-[![][img_downloads]][crates]
-
-> [!WARNING]  
+> [&#9432;] 
 > Be aware that `bevy_talks`'s API is still undergoing revisions (with possibly big architectural changes). Feedback on its ergonomics and developer experience (DX) is highly appreciated.
 
 This [Bevy][bevy] plugin provides a way to create dialogues and conversations in your game as graphs. 
@@ -19,9 +12,6 @@ The most common action is text being displayed on the screen, and a simple *Talk
 just a sequence of texts forming a conversation between actors.
 
 You can have multiple entities each with their own *Talk* graph. Or you can make a VN-like game with one single big dialogue graph in the game.
-
-> [!NOTE]
-> A more in-depth documentation is being slowly written as an [mdbook here!](giusdp.github.io/bevy_talks/) Help is appreciated :)
 
 ## Actions and Actors
 
@@ -222,48 +212,3 @@ Some nice-to-haves from the top of my head:
 - [ ] More examples
 - [ ] Extensive documentation/manual wiki (always in progress...)
 - [ ] Localization with [Fluent](https://projectfluent.org/)
-
-### Bevy Version Support
-
-
-Compatibility of `bevy_talks` versions:
-| `bevy_talks` | `bevy` |
-| :--                 |  :--   |
-| `main`              | `0.12`  |
-| `0.4.0`              | `0.12`  |
-| `0.3.1`              | `0.12`  |
-| `0.3.0`              | `0.11`  |
-| `0.2.0`              | `0.11`  |
-| `0.1.1`              | `0.11`  |
-| `bevy_main`              | `main`  |
-
-## License
-
-Dual-licensed under either of
-
-- Apache License, Version 2.0, ([LICENSE-APACHE](/LICENSE-APACHE) or https://www.apache.org/licenses/LICENSE-2.0)
-- MIT license ([LICENSE-MIT](/LICENSE-MIT) or https://opensource.org/licenses/MIT)
-
-at your option.
-
-## Contribution
-
-Unless you explicitly state otherwise, any contribution intentionally submitted
-for inclusion in the work by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any
-additional terms or conditions.
-
-[bevy]: https://bevyengine.org/
-[renpy]: https://www.renpy.org/
-
-[img_bevy]: https://img.shields.io/badge/Bevy-0.12.1-blue
-[img_version]: https://img.shields.io/crates/v/bevy_talks.svg
-[img_doc]: https://docs.rs/bevy_talks/badge.svg
-[img_license]: https://img.shields.io/badge/license-MIT%2FApache-blue.svg
-[img_downloads]:https://img.shields.io/crates/d/bevy_talks.svg
-[img_tracking]: https://img.shields.io/badge/Bevy%20tracking-released%20version-lightblue
-
-[bevycrate]: https://crates.io/crates/bevy/0.12.1
-[crates]: https://crates.io/crates/bevy_talks
-[doc]: https://docs.rs/bevy_talks/
-[license]: https://github.com/giusdp/bevy_talks#license
-[tracking]: https://github.com/bevyengine/bevy/blob/main/docs/plugins_guidelines.md#main-branch-tracking
