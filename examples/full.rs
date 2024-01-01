@@ -82,6 +82,7 @@ fn print(talk_comps: Query<Ref<Talk>>) {
                     println!("{}: {}", i + 1, choice.text);
                 }
             }
+            _ => (),
         };
     }
 }

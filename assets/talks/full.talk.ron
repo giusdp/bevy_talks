@@ -69,7 +69,7 @@
     (
         id: 100,
         action: Leave,
-        actors: ["ferriss", "bevy"],
+        actors: ["ferris", "bevy"],
         next: Some(12),
     ),
     (

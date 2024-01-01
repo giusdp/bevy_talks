@@ -93,6 +93,7 @@ fn print(talk_comps: Query<Ref<Talk>>) {
             NodeKind::Join => println!("--- {actors:?} enters the scene."),
             NodeKind::Leave => println!("--- {actors:?} exit the scene."),
             NodeKind::Choice => println!("Not implemented"),
+            _ => (),
         };
     }
 }
