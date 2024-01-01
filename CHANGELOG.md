@@ -1,9 +1,26 @@
 # Changelog
 
-## Unreleased - (0.4.0)
+## 0.4.0 - 2024-01-01
 
 ### Added
+- `TalkCommands` to spawn the dialogue graphs
 - Docs folder with an mdbook
+- `Talk` component to store the current talk state 
+- The `aery` dependency for the entity relationships
+- `TalkBuilder` to build a talk programmatically 
+
+### Changed
+
+- TalkNodeKind renamed to NodeKind
+- Remodeled the graph as many entities with the `FollowedBy` relationship between nodes and `PerfomedBy` between actors and nodes
+- `RawTalk` is now `TalkData`
+- Moved several validation checks to the ron loader
+
+### Removed
+
+- The `petgraph` dependency
+- `TalkerBundle`
+- `CurrentText`, `CurrentNodeKind`, `CurrentActors`, `CurrentChoices` components
 
 ## 0.3.1 - 2023-11-04
 
