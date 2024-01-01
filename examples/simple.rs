@@ -1,5 +1,5 @@
 use bevy::{asset::LoadState, prelude::*};
-use bevy_talks::prelude::*;
+use bevy_talks::{builder::commands::TalkCommandsExt, prelude::*};
 
 #[derive(States, Default, Debug, Clone, Eq, PartialEq, Hash)]
 enum AppState {
@@ -53,8 +53,10 @@ fn setup_talk(
     simple_talk_asset: Res<SimpleTalkAsset>,
 ) {
     let simple_talk = talks.get(&simple_talk_asset.handle).unwrap();
-    let talk_builder = TalkBuilder::default().into_builder(simple_talk);
-    commands.add(talk_builder.build());
+    let talk_builder = TalkBuilder::default().fill_from_talk_data(simple_talk);
+
+    let mut talk_commands = commands.talks();
+    talk_commands.spawn_talk(talk_builder, ());
 
     println!("-----------------------------------------");
     println!("Press space to advance the conversation.");

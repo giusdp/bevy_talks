@@ -3,6 +3,8 @@
 use aery::prelude::*;
 use bevy::prelude::*;
 
+use crate::builder::TalkBuilder;
+
 /// The relationship of the dialogue nodes.
 /// It needs to be Poly because the choice nodes can have multiple branches.
 #[derive(Relation)]
@@ -29,6 +31,12 @@ pub struct Talk {
     pub current_choices: Vec<Choice>,
 }
 
+impl Talk {
+    /// Create a default [`TalkBuilder`].
+    pub fn builder() -> TalkBuilder {
+        TalkBuilder::default()
+    }
+}
 /// Marker component for the current node in a Talk.
 #[derive(Component)]
 #[component(storage = "SparseSet")]

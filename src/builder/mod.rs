@@ -5,9 +5,8 @@ use std::collections::VecDeque;
 
 use crate::prelude::{Actor, ActorSlug, NodeKind, TalkData};
 
-use self::command::BuildTalkCommand;
-
-pub mod command;
+pub mod build_command;
+pub mod commands;
 
 /// The ID of the nodes in the builder. It is used to identify the dialogue graph nodes before
 /// they are actually spawned in the world.
@@ -48,11 +47,12 @@ pub(crate) struct BuildNode {
 /// use bevy::app::App;
 /// use bevy::ecs::system::CommandQueue;
 /// use bevy::prelude::Commands;
-/// use bevy_talks::prelude::TalkBuilder;
+/// use bevy_talks::prelude::{TalkBuilder, TalkCommandsExt};
 ///
 /// fn some_startup_system(mut commands: Commands) {
-///     let build_talk_cmd = TalkBuilder::default().say("Hello").build();
-///     commands.add(build_talk_cmd);
+///     let builder = TalkBuilder::default().say("Hello");
+///     let mut talk_cmds = commands.talks();
+///     talk_cmds.spawn_talk(builder, ());
 /// }
 /// ```
 #[derive(Default, Debug, Clone)]
@@ -85,35 +85,40 @@ impl TalkBuilder {
     /// #[derive(Resource)]
     /// struct ATalkHandle(Handle<TalkData>);
     ///
-    /// fn spawn_system(mut commands: Commands, talk_handle: Res<ATalkHandle>, assets: Res<Assets<TalkData>>) {
+    /// fn spawn_system(talk_handle: Res<ATalkHandle>, assets: Res<Assets<TalkData>>) {
     ///     let talk = assets.get(&talk_handle.0).unwrap();
-    ///     let talk_builder = TalkBuilder::default().into_builder(talk);
-    ///     commands.add(talk_builder.build());
+    ///     let talk_builder = TalkBuilder::default().fill_from_talk_data(talk);
     /// }
     /// ```
     ///
-    pub fn into_builder(self, talk: &TalkData) -> TalkBuilder {
+    pub fn fill_from_talk_data(self, talk: &TalkData) -> TalkBuilder {
         talk.fill_builder(self)
     }
 
-    /// Generate a `BuildTalkCommand` that will spawn all the dialogue nodes
-    /// and connect them to each other to form a dialogue graph.
-    ///
-    /// # Example
-    ///
-    /// ```rust,no_run
-    /// use bevy::prelude::Commands;
-    /// use bevy_talks::prelude::TalkBuilder;
-    ///
-    /// fn some_system(mut commands: Commands) {
-    ///     let build_talk_cmd = TalkBuilder::default().say("Hello").build();
-    ///     commands.add(build_talk_cmd);
-    /// }
-    /// ```
-    pub fn build(self) -> BuildTalkCommand {
-        // TODO: Add validation over actors here
-        BuildTalkCommand { builder: self }
-    }
+    // /// Generate a `BuildTalkCommand` that will spawn all the dialogue nodes
+    // /// and connect them to each other to form a dialogue graph.
+    // ///
+    // /// Takes in input the parent [`Entity`] of the dialogue graph.
+    // /// After building, this parent entity will have the [`Talk`] component and
+    // /// all the dialogue node entities as children.
+    // ///
+    // /// # Example
+    // ///
+    // /// ```rust,no_run
+    // /// use bevy::prelude::Commands;
+    // /// use bevy_talks::prelude::TalkBuilder;
+    // ///
+    // /// fn some_system(mut commands: Commands) {
+    // ///     let build_talk_cmd = TalkBuilder::default().say("Hello").build();
+    // ///     commands.add(build_talk_cmd);
+    // /// }
+    // /// ```
+    // pub fn build(self, manager_entity: Entity) -> BuildTalkCommand {
+    //     BuildTalkCommand {
+    //         builder: self,
+    //         parent: manager_entity,
+    //     }
+    // }
 
     /// Add a simple text node without any actor that will spawn an entity with `TalkText`.
     ///
@@ -344,16 +349,6 @@ mod tests {
     #[fixture]
     fn talk_builder() -> TalkBuilder {
         TalkBuilder::default()
-    }
-
-    #[rstest]
-    fn build_returns_command_with_queue(talk_builder: TalkBuilder) {
-        let build_talk_cmd = talk_builder.say("Hello").say("World!").build();
-        assert_eq!(build_talk_cmd.builder.queue.len(), 2);
-        assert_eq!(build_talk_cmd.builder.queue[0].text, "Hello");
-        assert_eq!(build_talk_cmd.builder.queue[1].text, "World!");
-        assert_eq!(build_talk_cmd.builder.queue[0].kind, NodeKind::Talk);
-        assert_eq!(build_talk_cmd.builder.queue[1].kind, NodeKind::Talk);
     }
 
     #[rstest]

@@ -236,9 +236,10 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().into_builder(&talk_asset);
+        let builder = TalkBuilder::default().fill_from_talk_data(&talk_asset);
 
-        builder.build().apply(&mut app.world);
+        BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
+
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
         assert_eq!(t.current_text, "".to_string());
         assert_eq!(t.current_kind, NodeKind::Talk);
@@ -274,9 +275,10 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().into_builder(&talk_asset);
+        let builder = TalkBuilder::default().fill_from_talk_data(&talk_asset);
 
-        builder.build().apply(&mut app.world);
+        BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
+
         let (e, t) = app.world.query::<(Entity, &Talk)>().single(&app.world);
         assert_eq!(t.current_text, "".to_string());
         assert_eq!(t.current_kind, NodeKind::Talk);
@@ -323,9 +325,9 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().into_builder(&talk_asset);
+        let builder = TalkBuilder::default().fill_from_talk_data(&talk_asset);
 
-        builder.build().apply(&mut app.world);
+        BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
         let (e, _) = app.world.query::<(Entity, &Talk)>().single(&app.world);
 
         app.world.send_event(NextActionRequest(e));

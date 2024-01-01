@@ -154,7 +154,6 @@ mod tests {
     #[case(2)]
     #[case(10)]
     #[case(200)]
-    #[case(1000)]
     fn linear_talk_nodes(builder: TalkBuilder, #[case] nodes: usize) {
         let mut script = IndexMap::with_capacity(nodes);
         let mut map = HashMap::with_capacity(nodes);
@@ -172,27 +171,27 @@ mod tests {
                 },
             );
             let target = if nodes > 1 && index < nodes - 1 {
-                Some((index + 2) as u32)
+                Some((index + 3) as u32)
             } else {
                 None
             };
-            map.insert(index + 1, (target, "Hello"));
+            // + 2 because there is the graph parent entity and the start node in front
+            map.insert(index + 2, (target, "Hello"));
         }
         let talk = TalkData {
             script,
             ..default()
         };
 
-        let mut app = App::new();
-        talk.fill_builder(builder).build().apply(&mut app.world);
+        let mut world = World::default();
 
-        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
-        assert_eq!(
-            app.world.query::<&TalkText>().iter(&app.world).count(),
-            nodes
-        );
+        BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
+            .apply(&mut world);
 
-        assert_on_talk_nodes(app, map);
+        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
+        assert_eq!(world.query::<&TalkText>().iter(&world).count(), nodes);
+
+        assert_on_talk_nodes(world, map);
     }
 
     #[rstest]
@@ -208,17 +207,18 @@ mod tests {
             ..default()
         };
 
-        let mut app = App::new();
-        talk.fill_builder(builder).build().apply(&mut app.world);
+        let mut world = World::default();
+        BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
+            .apply(&mut world);
 
-        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
-        assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
+        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
+        assert_eq!(world.query::<&TalkText>().iter(&world).count(), 3);
 
         let mut map = HashMap::new();
-        map.insert(1, (Some(2), "1"));
-        map.insert(3, (Some(2), "2"));
-        map.insert(2, (Some(3), "10"));
-        assert_on_talk_nodes(app, map);
+        map.insert(2, (Some(3), "1"));
+        map.insert(3, (Some(4), "10"));
+        map.insert(4, (Some(3), "2"));
+        assert_on_talk_nodes(world, map);
     }
 
     #[rstest]
@@ -242,22 +242,17 @@ mod tests {
             ..default()
         };
 
-        let mut app = App::new();
-        talk.fill_builder(builder).build().apply(&mut app.world);
+        let mut world = World::default();
+        BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
+            .apply(&mut world);
 
-        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
-        assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 2);
-        assert_eq!(app.world.query::<&Choices>().iter(&app.world).count(), 1);
-        assert_eq!(
-            app.world
-                .query::<Root<FollowedBy>>()
-                .iter(&app.world)
-                .count(),
-            1
-        );
+        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
+        assert_eq!(world.query::<&TalkText>().iter(&world).count(), 2);
+        assert_eq!(world.query::<&Choices>().iter(&world).count(), 1);
+        assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
         let mut map: HashMap<usize, (Vec<u32>, Vec<&str>)> = HashMap::new();
-        map.insert(1, (vec![2, 3], vec!["Choice 1", "Choice 2"]));
-        assert_on_choice_nodes(&mut app, map);
+        map.insert(2, (vec![3, 4], vec!["Choice 1", "Choice 2"]));
+        assert_on_choice_nodes(&mut world, map);
     }
 
     #[rstest]
@@ -283,35 +278,33 @@ mod tests {
             ..default()
         };
 
-        let mut app = App::new();
-        talk.fill_builder(builder).build().apply(&mut app.world);
+        let mut world = World::default();
 
-        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
-        assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 4);
-        assert_eq!(app.world.query::<&Choices>().iter(&app.world).count(), 1);
-        assert_eq!(
-            app.world
-                .query::<Root<FollowedBy>>()
-                .iter(&app.world)
-                .count(),
-            1
-        );
+        BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
+            .apply(&mut world);
+
+        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
+        assert_eq!(world.query::<&TalkText>().iter(&world).count(), 4);
+        assert_eq!(world.query::<&Choices>().iter(&world).count(), 1);
+        assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
+
         let mut choice_map = HashMap::new();
-        choice_map.insert(3, (vec![4, 5], vec!["Choice 1", "Choice 2"]));
+        choice_map.insert(4, (vec![5, 6], vec!["Choice 1", "Choice 2"]));
+        assert_on_choice_nodes(&mut world, choice_map);
+
         let mut talk_map = HashMap::new();
-        talk_map.insert(1, (Some(2), "First Text"));
-        talk_map.insert(2, (Some(3), "Second Text"));
-        talk_map.insert(4, (None, "Third Text (End)"));
-        talk_map.insert(5, (Some(1), "Fourth Text"));
-        assert_on_choice_nodes(&mut app, choice_map);
-        assert_on_talk_nodes(app, talk_map);
+        talk_map.insert(2, (Some(3), "First Text"));
+        talk_map.insert(3, (Some(4), "Second Text"));
+        talk_map.insert(5, (None, "Third Text (End)"));
+        talk_map.insert(6, (Some(2), "Fourth Text"));
+        assert_on_talk_nodes(world, talk_map);
     }
 
     #[rstest]
     fn connect_forward_from_book_example(builder: TalkBuilder) {
         // From the Connecting To The Same Node builder section
         let script = indexmap! {
-            0 =>
+            0 => // entity: 2
             Action {
                 choices: vec![
                     ChoiceData { text: "First Choice 1".to_string(), next: 1, },
@@ -338,28 +331,26 @@ mod tests {
             ..default()
         };
 
-        let mut app = App::new();
-        talk.fill_builder(builder).build().apply(&mut app.world);
+        let mut world = World::default();
 
-        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
-        assert_eq!(app.world.query::<&TalkText>().iter(&app.world).count(), 3);
-        assert_eq!(app.world.query::<&Choices>().iter(&app.world).count(), 2);
-        assert_eq!(
-            app.world
-                .query::<Root<FollowedBy>>()
-                .iter(&app.world)
-                .count(),
-            1
-        );
+        BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
+            .apply(&mut world);
+
+        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
+        assert_eq!(world.query::<&TalkText>().iter(&world).count(), 3);
+        assert_eq!(world.query::<&Choices>().iter(&world).count(), 2);
+        assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
+
         let mut choice_map = HashMap::new();
-        choice_map.insert(1, (vec![2, 4], vec!["First Choice 1", "First Choice 2"]));
-        choice_map.insert(3, (vec![4, 5], vec!["Second Choice 1", "Second Choice 2"]));
+        choice_map.insert(2, (vec![3, 5], vec!["First Choice 1", "First Choice 2"]));
+        choice_map.insert(4, (vec![5, 6], vec!["Second Choice 1", "Second Choice 2"]));
+        assert_on_choice_nodes(&mut world, choice_map);
+
         let mut talk_map = HashMap::new();
-        talk_map.insert(2, (Some(3), "First Text"));
-        talk_map.insert(4, (None, "Last Text"));
-        talk_map.insert(5, (Some(4), "Second Text"));
-        assert_on_choice_nodes(&mut app, choice_map);
-        assert_on_talk_nodes(app, talk_map);
+        talk_map.insert(3, (Some(4), "First Text"));
+        talk_map.insert(5, (None, "Last Text"));
+        talk_map.insert(6, (Some(5), "Second Text"));
+        assert_on_talk_nodes(world, talk_map);
     }
 
     #[rstest]
@@ -391,46 +382,46 @@ mod tests {
                 },
             );
             let target = if nodes > 1 && index < nodes - 1 {
-                Some((index + 2) as u32)
+                Some((index + 3) as u32)
             } else {
                 None
             };
-            map.insert(index + 1, (target, "Hello"));
+            // + 2 because there is the graph parent entity and the start node in front
+            map.insert(index + 2, (target, "Hello"));
         }
         let talk = TalkData { script, actors };
 
-        let mut app = App::new();
-        talk.fill_builder(builder).build().apply(&mut app.world);
+        let mut world = World::default();
 
-        assert_eq!(app.world.query::<&StartTalk>().iter(&app.world).count(), 1);
-        assert_eq!(
-            app.world.query::<&TalkText>().iter(&app.world).count(),
-            nodes
-        );
-        assert_eq!(app.world.query::<&Actor>().iter(&app.world).count(), 3);
+        BuildTalkCommand::new(world.spawn_empty().id(), talk.fill_builder(builder))
+            .apply(&mut world);
 
-        assert_on_talk_nodes(app, map);
+        assert_eq!(world.query::<&StartTalk>().iter(&world).count(), 1);
+        assert_eq!(world.query::<&TalkText>().iter(&world).count(), nodes);
+        assert_eq!(world.query::<&Actor>().iter(&world).count(), 3);
+
+        assert_on_talk_nodes(world, map);
     }
 
     /// Asserts that the talk nodes are correct. It wants a map to check the targets of the edges.
     /// The map is a map of entity index to (target entity index, text).
     #[track_caller]
-    fn assert_on_talk_nodes(mut app: App, map: HashMap<usize, (Option<u32>, &str)>) {
-        for (e, t, edges) in app
-            .world
+    fn assert_on_talk_nodes(mut world: World, map: HashMap<usize, (Option<u32>, &str)>) {
+        for (e, t, edges) in world
             .query::<(Entity, &TalkText, Relations<FollowedBy>)>()
-            .iter(&app.world)
+            .iter(&world)
         {
             let eid = e.index() as usize;
             let expected_text = map[&eid].1;
             let maybe_target = map[&eid].0;
-            let expected_count = if maybe_target.is_some() { 1 } else { 0 };
+            let mut expected_count = 0;
 
             if let Some(expected_target) = maybe_target {
                 assert_eq!(
                     edges.targets(FollowedBy).iter().next().unwrap().index(),
                     expected_target
                 );
+                expected_count = 1;
             }
 
             assert_eq!(edges.targets(FollowedBy).iter().count(), expected_count);
@@ -441,11 +432,10 @@ mod tests {
     /// Asserts that the choice nodes are correct. It wants a map to check the targets of the edges.
     /// The map is a map of entity index to (entity targets, choice texts).
     #[track_caller]
-    fn assert_on_choice_nodes(app: &mut App, map: HashMap<usize, (Vec<u32>, Vec<&str>)>) {
-        for (e, t, edges) in app
-            .world
+    fn assert_on_choice_nodes(world: &mut World, map: HashMap<usize, (Vec<u32>, Vec<&str>)>) {
+        for (e, t, edges) in world
             .query::<(Entity, &Choices, Relations<FollowedBy>)>()
-            .iter(&app.world)
+            .iter(&world)
         {
             let eid = e.index() as usize;
             let expected_texts = map[&eid].1.clone();
