@@ -1,5 +1,5 @@
 use bevy::{asset::LoadState, prelude::*};
-use bevy_talks::{builder::commands::TalkCommandsExt, prelude::*};
+use bevy_talks::prelude::*;
 
 #[derive(Component, Default)]
 struct ActiveTalk(bool);
