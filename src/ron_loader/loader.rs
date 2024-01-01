@@ -152,7 +152,7 @@ mod tests {
     // TODO: test for the RonLoaderErrors
 
     #[test]
-    fn test_parse_raw_talk() {
+    fn test_parse_talk() {
         let mut app = minimal_app();
         let asset_server = app.world.get_resource::<AssetServer>();
         assert!(asset_server.is_some());
