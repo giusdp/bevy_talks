@@ -21,7 +21,7 @@ just a sequence of texts forming a conversation between actors.
 You can have multiple entities each with their own *Talk* graph. Or you can make a VN-like game with one single big dialogue graph in the game.
 
 > [!NOTE]
-> A more in-depth documentation is being slowly written as an [mdbook here!](giusdp.github.io/bevy_talks/) Help is appreciated :)
+> A more in-depth documentation is being slowly written as an [mdbook here!](https://giusdp.github.io/bevy_talks/) Help is appreciated :)
 
 ## Actions and Actors
 
