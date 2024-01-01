@@ -12,8 +12,20 @@ use super::*;
 /// The command that spawns a dialogue graph in the world.
 /// You can create this command via the `build` method of the [`TalkBuilder`] struct.
 pub struct BuildTalkCommand {
+    /// The entity parent of a dialogue graph
+    pub(crate) parent: Entity,
     /// The builder that contains the queue of nodes to spawn.
     pub(crate) builder: TalkBuilder,
+}
+
+impl BuildTalkCommand {
+    /// Create a new `BuildTalkCommand`
+    pub(crate) fn new(p: Entity, b: TalkBuilder) -> Self {
+        Self {
+            parent: p,
+            builder: b,
+        }
+    }
 }
 
 impl Command for BuildTalkCommand {
@@ -25,7 +37,10 @@ impl Command for BuildTalkCommand {
         let (ents, mut node_entities) = spawn_dialogue_entities(&self.builder, world);
         let actor_ents: HashMap<ActorSlug, Entity> = spawn_actor_entities(&self.builder, world);
 
-        let mut manager = world.spawn(Talk::default());
+        let mut manager = world
+            .get_entity_mut(self.parent)
+            .expect("The graph manager entity");
+        manager.insert(Talk::default());
         manager.add_child(*start);
         for e in ents {
             manager.add_child(e);
@@ -537,12 +552,10 @@ mod integration_tests {
 
     #[rstest]
     #[should_panic]
-    fn test_panic_on_wrong_actor(talk_builder: TalkBuilder) {
+    fn test_panic_on_wrong_actor(mut talk_builder: TalkBuilder) {
         let mut world = World::default();
-        talk_builder
-            .actor_say("actor", "Hello")
-            .build()
-            .apply(&mut world);
+        talk_builder = talk_builder.actor_say("actor", "Hello");
+        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
     }
 
     #[rstest]
@@ -553,27 +566,27 @@ mod integration_tests {
     fn linear_say_graph_creation(mut talk_builder: TalkBuilder, #[case] text_nodes: Vec<&str>) {
         use crate::prelude::TalkText;
 
-        let mut app = App::new();
+        let mut world = World::default();
         let node_number = text_nodes.len();
 
         for t in text_nodes.iter() {
             talk_builder = talk_builder.say(*t);
         }
 
-        talk_builder.build().apply(&mut app.world);
+        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
 
-        let mut query = app.world.query::<&TalkText>();
+        let mut query = world.query::<&TalkText>();
 
         // check number of nodes with the text component
-        assert_eq!(query.iter(&app.world).count(), node_number);
+        assert_eq!(query.iter(&world).count(), node_number);
 
         // check texts
-        for t in query.iter(&app.world) {
+        for t in query.iter(&world) {
             assert!(text_nodes.iter().any(|&s| s == t.0));
         }
 
         // need to add 1 cause of the start node
-        assert_relationship_nodes(node_number, node_number + 1, 1, &mut app);
+        assert_relationship_nodes(node_number, node_number + 1, 1, &mut world);
     }
 
     #[rstest]
@@ -587,7 +600,7 @@ mod integration_tests {
     ) {
         use crate::prelude::Choices;
 
-        let mut app = App::new();
+        let mut world = World::default();
 
         for _ in 0..choice_node_number {
             talk_builder = talk_builder.choose(vec![
@@ -596,20 +609,25 @@ mod integration_tests {
             ]);
         }
 
-        talk_builder.build().apply(&mut app.world);
+        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
 
-        let mut query = app.world.query::<&Choices>();
+        let mut query = world.query::<&Choices>();
 
         // check length
-        assert_eq!(query.iter(&app.world).count(), choice_node_number);
+        assert_eq!(query.iter(&world).count(), choice_node_number);
 
         // check texts
-        for t in query.iter(&app.world) {
+        for t in query.iter(&world) {
             assert_eq!(t.0[0].text, "Choice1");
             assert_eq!(t.0[1].text, "Choice2");
         }
 
-        assert_relationship_nodes(choice_node_number, expected_nodes_in_relation, 2, &mut app);
+        assert_relationship_nodes(
+            choice_node_number,
+            expected_nodes_in_relation,
+            2,
+            &mut world,
+        );
     }
 
     #[rstest]
@@ -623,7 +641,7 @@ mod integration_tests {
         #[case] expected_nodes: usize,
         #[case] expected_leaves: usize,
     ) {
-        let mut app = App::new();
+        let mut world = World::default();
 
         let max_range = if choice_number > say_number {
             choice_number
@@ -642,40 +660,37 @@ mod integration_tests {
             }
         }
 
-        talk_builder.build().apply(&mut app.world);
+        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
 
-        assert_relationship_nodes(choice_number, expected_nodes, expected_leaves, &mut app);
+        assert_relationship_nodes(choice_number, expected_nodes, expected_leaves, &mut world);
     }
 
     #[test]
     fn connect_back_from_branch_book_example() {
         // From the Branching and Manual Connections builder section
-        let talk_builder = TalkBuilder::default().say("Hello");
+        let mut builder = TalkBuilder::default().say("Hello");
 
         // grab latest node
-        let convo_start = talk_builder.last_node_id();
+        let convo_start = builder.last_node_id();
 
-        let cmd = talk_builder
-            .say("Hey")
-            .choose(vec![
-                (
-                    "Good Choice".to_string(),
-                    TalkBuilder::default().say("End of the conversation"),
-                ),
-                (
-                    "Wrong Choice".to_string(),
-                    TalkBuilder::default()
-                        .say("Go Back")
-                        .connect_to(convo_start),
-                ),
-            ])
-            .build();
+        builder = builder.say("Hey").choose(vec![
+            (
+                "Good Choice".to_string(),
+                TalkBuilder::default().say("End of the conversation"),
+            ),
+            (
+                "Wrong Choice".to_string(),
+                TalkBuilder::default()
+                    .say("Go Back")
+                    .connect_to(convo_start),
+            ),
+        ]);
 
-        let mut app = App::new();
-        cmd.apply(&mut app.world);
+        let mut world = World::default();
+        BuildTalkCommand::new(world.spawn_empty().id(), builder).apply(&mut world);
 
         // TODO: I should assert on the actual structure of the graph instead of simple number of nodes, leaf and roots.
-        assert_relationship_nodes(6, 6, 1, &mut app);
+        assert_relationship_nodes(6, 6, 1, &mut world);
     }
 
     #[test]
@@ -698,44 +713,37 @@ mod integration_tests {
             ),
         ]);
 
-        let build_cmd = TalkBuilder::default()
-            .choose(vec![
-                ("Good Choice".to_string(), good_branch),
-                // If we never pass the actual biulder the end node would never be created
-                ("Bad Choice".to_string(), end_branch_builder),
-            ])
-            .build();
+        let builder = TalkBuilder::default().choose(vec![
+            ("Good Choice".to_string(), good_branch),
+            // If we never pass the actual biulder the end node would never be created
+            ("Bad Choice".to_string(), end_branch_builder),
+        ]);
+        let mut world = World::default();
+        BuildTalkCommand::new(world.spawn_empty().id(), builder).apply(&mut world);
 
-        let mut app = App::new();
-        build_cmd.apply(&mut app.world);
-
-        assert_relationship_nodes(6, 6, 1, &mut app);
+        assert_relationship_nodes(6, 6, 1, &mut world);
     }
 
     #[rstest]
     fn actor_say_creates_node_with_actor_relationship(mut talk_builder: TalkBuilder) {
-        let mut app = App::new();
+        let mut world = World::default();
 
         talk_builder = talk_builder
             .add_actor(Actor::new("actor", "Actor"))
             .actor_say("actor", "Hello");
+        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
 
-        talk_builder.build().apply(&mut app.world);
-
-        let mut query = app.world.query::<Relations<PerformedBy>>();
+        let mut query = world.query::<Relations<PerformedBy>>();
 
         // check number of nodes in the performed by relationship
-        assert_eq!(query.iter(&app.world).count(), 2);
+        assert_eq!(query.iter(&world).count(), 2);
 
-        let mut r_query = app.world.query::<(&TalkText, Relations<PerformedBy>)>();
+        let mut r_query = world.query::<(&TalkText, Relations<PerformedBy>)>();
 
-        let (actor_ent, _) = app
-            .world
-            .query::<(Entity, With<Actor>)>()
-            .single(&app.world);
+        let (actor_ent, _) = world.query::<(Entity, With<Actor>)>().single(&world);
 
         // check that the only existing actor is in the relationship
-        for (t, edges) in r_query.iter(&app.world) {
+        for (t, edges) in r_query.iter(&world) {
             assert_eq!(t.0, "Hello");
             assert_eq!(edges.targets(PerformedBy).len(), 1);
             for e in edges.targets(PerformedBy) {
@@ -744,7 +752,7 @@ mod integration_tests {
         }
 
         // need to add 1 cause of the start node
-        assert_relationship_nodes(1, 2, 1, &mut app);
+        assert_relationship_nodes(1, 2, 1, &mut world);
     }
 
     #[track_caller]
@@ -752,33 +760,30 @@ mod integration_tests {
         node_number: usize,
         expected_nodes_in_relation: usize,
         expected_leaf_nodes: usize,
-        app: &mut App,
+        world: &mut World,
     ) {
         // some assertions on the relationship. We are collecting the vec for debug purposes.
 
         // there should be 1 root node in all cases (besides when 0 nodes)
         // For the 1 node case, there is still a root cause of the special start node
         // We have to use Leaf tho cause in aery Root and Leaf are swapped
-        let root_nodes: Vec<_> = app
-            .world
+        let root_nodes: Vec<_> = world
             .query::<(Entity, Leaf<FollowedBy>)>()
-            .iter(&app.world)
+            .iter(&world)
             .collect();
         assert_eq!(root_nodes.len(), if node_number > 0 { 1 } else { 0 });
 
         // check relations (e1, e2)
-        let related_nodes: Vec<_> = app
-            .world
+        let related_nodes: Vec<_> = world
             .query::<(Entity, Relations<FollowedBy>)>()
-            .iter(&app.world)
+            .iter(&world)
             .collect();
         assert_eq!(related_nodes.len(), expected_nodes_in_relation);
 
         // check leaf nodes
-        let leaf_nodes: Vec<_> = app
-            .world
+        let leaf_nodes: Vec<_> = world
             .query::<(Entity, Root<FollowedBy>)>()
-            .iter(&app.world)
+            .iter(&world)
             .collect();
         assert_eq!(leaf_nodes.len(), expected_leaf_nodes);
     }
