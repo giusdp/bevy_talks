@@ -1,44 +1,62 @@
 (
     actors: [
       (
-        id: "bevy",
-        name: "Bevy",
-        asset: Some("images/bev.png"),
+        slug: "bevy",
+        name: "Bev",
       ),
     ],
     script: [
         (
             id: 1,
             actors: ["bevy"],
-            text: Some("Hello there!")
+            text: Some("Hello there!"),
+            next: Some(3)
         ),
         (
             id: 3,
             actors: ["bevy"],
-            text: Some("This is an in-game conversation tied to an entity!")
+            text: Some("This is an in-game conversation tied to an entity!"),
+            next: Some(4)
         ),
         (
             id: 4,
             actors: ["bevy"],
-            text: Some("There is a cool TalkerBundle that adds all the required components and you use events to interact with the convo!")
+            text: Some("You just need the TalkCommands to spawn these cool dialogue graphs."),
+            next: Some(5)
         ),
         (
             id: 5,
             actors: ["bevy"],
-            text: Some("Bye bye!")
+            text: Some("You will get an entity with the Talk component that gives you access to the graph."),
+            next: Some(6)
         ),
         (
             id: 6,
             actors: ["bevy"],
-            text: Some("Bye bye!")
+            text: Some("For example here I have the Talk entity as my child."),
+            next: Some(7)
         ),
         (
             id: 7,
             actors: ["bevy"],
-            text: Some("Bye bye!")
+            text: Some("Bye bye!"),
+            next: Some(8)
         ),
         (
             id: 8,
+            actors: ["bevy"],
+            text: Some("Bye bye!"),
+            next: Some(9)
+
+        ),
+        (
+            id: 9,
+            actors: ["bevy"],
+            text: Some("Bye bye!"),
+            next: Some(10)
+        ),
+        (
+            id: 10,
             actors: ["bevy"],
             text: Some("Dude gtfo")
         )
