@@ -124,7 +124,7 @@ The plugin adds an `AssetLoader` for these ron files, so it's as easy as:
 let handle: Handle<TalkData> = asset_server.load("simple.talk.ron");
 ```
 
-Then you can use `Talk::builder()` to create a `TalkBuilder`, which has the `fill_from_talk_data` method. 
+Then you can use `Talk::builder()` to create a `TalkBuilder`, which has the `fill_with_talk_data` method. 
 You can retrieve the `TalkData` from the assets collection `talks: Res<Assets<TalkData>>`.
 
 
@@ -142,7 +142,7 @@ struct TalkAsset {
 
 fn spawn(mut commands: Commands, talks: Res<Assets<TalkData>>, talk_asset: Res<TalkAsset>) {
     let talk = talks.get(&talk_asset.handle).unwrap();
-    let talk_builder = TalkBuilder::default().fill_from_talk_data(simple_talk);
+    let talk_builder = TalkBuilder::default().fill_with_talk_data(simple_talk);
 
     // grab the talk commands
     let mut talk_commands = commands.talks();
@@ -152,7 +152,6 @@ fn spawn(mut commands: Commands, talks: Res<Assets<TalkData>>, talk_asset: Res<T
 ```
 
 Spawning that talk graph will result in this:
-
 
 ```mermaid
 graph LR;
