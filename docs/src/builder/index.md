@@ -1,11 +1,11 @@
-# Talk Builder
+# Creating Talks with TalkBuilder
 
 You can build dialogue graphs programmatically using the `TalkBuilder`. 
 
 > [&#9432;] 
 > The `TalkBuilder` is also used under the hood to build the graphs from the asset files.
 
-If you need to generate procedurally dialogue graphs, or you just don't like the asset files, you can use this approach.
+If you need to generate procedurally dialogue graphs, or you just don't like the asset files, you can use this approach. Otherwise use the `talk.ron` files explained in the [Getting Started](../getting-started/index.md) chapter.
 
 ### Simple Usage
 
@@ -198,4 +198,21 @@ let builder = Talk::builder().choose(vec![
 
 ### Adding Actors to the mix
 
-Coming soon...
+We saw the builder in action with just the `say` method, but we can also have actors say stuff. 
+First we need to add the actors to the builder:
+
+```rust,no_run
+let mut talk_builder = Talk::builder()
+    .add_actor("bob", "Bob")
+    .add_actor("alice", "Alice");
+```
+
+Then we can use the `actor_say` method (or `actors_say` for multiple actors at once):
+
+```rust,no_run
+talk_builder = talk_builder.actor_say("bob", "Hello")
+    .actor_say("alice", "Hi Bob");
+```
+
+The first argument is the actor slug. If the builder doesn't have an actor with that slug, it will panic when building. 
+So always make sure to add the correct actors first.
