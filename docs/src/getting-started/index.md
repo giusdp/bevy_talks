@@ -3,7 +3,7 @@
 *In this tutorial we will nstall Bevy Talks and do a quick overview on how to build and spawn a dialogue in your game.*
 
 ## Content
-[toc]
+<!-- toc -->
 
 ## 1. Installation
 
