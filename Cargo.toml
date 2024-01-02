@@ -1,6 +1,6 @@
 [package]
 name = "bevy_talks"
-version = "0.4.0-dev"
+version = "0.4.0"
 edition = "2021"
 description = "A Bevy plugin to write dialogues for your characters to say and do things, together with player choices."
 repository = "https://github.com/giusdp/bevy_talks"
@@ -8,7 +8,7 @@ homepage = "https://github.com/giusdp/bevy_talks"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "gamedev", "plugin", "dialogues", "dialogs"]
-exclude = ["assets/", ".github/", "examples/"]
+exclude = ["assets/", ".github/", "examples/", "docs/"]
 
 
 [dependencies]
