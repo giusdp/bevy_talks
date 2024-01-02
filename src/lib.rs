@@ -236,7 +236,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().fill_from_talk_data(&talk_asset);
+        let builder = TalkBuilder::default().fill_with_talk_data(&talk_asset);
 
         BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
 
@@ -275,7 +275,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().fill_from_talk_data(&talk_asset);
+        let builder = TalkBuilder::default().fill_with_talk_data(&talk_asset);
 
         BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
 
@@ -325,7 +325,7 @@ mod tests {
         let mut talk_asset = TalkData::default();
         talk_asset.script = script;
 
-        let builder = TalkBuilder::default().fill_from_talk_data(&talk_asset);
+        let builder = TalkBuilder::default().fill_with_talk_data(&talk_asset);
 
         BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
         let (e, _) = app.world.query::<(Entity, &Talk)>().single(&app.world);

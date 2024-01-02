@@ -53,7 +53,7 @@ fn setup_talk(
     simple_talk_asset: Res<SimpleTalkAsset>,
 ) {
     let simple_talk = talks.get(&simple_talk_asset.handle).unwrap();
-    let talk_builder = TalkBuilder::default().fill_from_talk_data(simple_talk);
+    let talk_builder = TalkBuilder::default().fill_with_talk_data(simple_talk);
 
     let mut talk_commands = commands.talks();
     talk_commands.spawn_talk(talk_builder, ());

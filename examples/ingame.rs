@@ -93,7 +93,7 @@ fn setup(
 
     let bev: Handle<Image> = assets.load("images/bev.png");
     let bev_talk_data = raws.get(&talk_asset.bev_talk_handle).unwrap();
-    let bev_talk_builder = Talk::builder().fill_from_talk_data(bev_talk_data);
+    let bev_talk_builder = Talk::builder().fill_with_talk_data(bev_talk_data);
 
     let mut talk_commands = commands.talks();
     let talk_graph_ent = talk_commands
@@ -114,7 +114,7 @@ fn setup(
 
     let feri: Handle<Image> = assets.load("images/feri.png");
     let feri_talk_data = raws.get(&talk_asset.feri_talk_handle).unwrap();
-    let feri_talk_builder = Talk::builder().fill_from_talk_data(feri_talk_data);
+    let feri_talk_builder = Talk::builder().fill_with_talk_data(feri_talk_data);
 
     let mut talk_commands = commands.talks();
     let talk_graph_ent = talk_commands

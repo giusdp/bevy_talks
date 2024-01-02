@@ -94,7 +94,7 @@ fn spawn_actor_entities(
     talk_builder: &TalkBuilder,
     world: &mut World,
 ) -> HashMap<ActorSlug, Entity> {
-    // TODO Perf: this is probably not the most efficient way to do this. Looks pretty slow.
+    // TODO: this is probably not the most efficient way to do this. Looks pretty slow.
 
     let mut actor_ents: HashMap<Entity, Actor> = HashMap::with_capacity(talk_builder.actors.len());
     let mut actors_to_spawn = talk_builder.actors.clone();

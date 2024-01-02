@@ -87,11 +87,11 @@ impl TalkBuilder {
     ///
     /// fn spawn_system(talk_handle: Res<ATalkHandle>, assets: Res<Assets<TalkData>>) {
     ///     let talk = assets.get(&talk_handle.0).unwrap();
-    ///     let talk_builder = TalkBuilder::default().fill_from_talk_data(talk);
+    ///     let talk_builder = TalkBuilder::default().fill_with_talk_data(talk);
     /// }
     /// ```
     ///
-    pub fn fill_from_talk_data(self, talk: &TalkData) -> TalkBuilder {
+    pub fn fill_with_talk_data(self, talk: &TalkData) -> TalkBuilder {
         talk.fill_builder(self)
     }
 

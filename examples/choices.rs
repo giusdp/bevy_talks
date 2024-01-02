@@ -49,7 +49,7 @@ fn setup_talk(
     choice_talk_asset: Res<ChoiceTalkAsset>,
 ) {
     let choice_talk = talks.get(&choice_talk_asset.handle).unwrap();
-    let talk_builder = TalkBuilder::default().fill_from_talk_data(choice_talk);
+    let talk_builder = TalkBuilder::default().fill_with_talk_data(choice_talk);
     let mut talk_commands = commands.talks();
     talk_commands.spawn_talk(talk_builder, ());
 

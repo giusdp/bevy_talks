@@ -49,7 +49,7 @@ fn setup_talk(
     full_talk_asset: Res<FullTalkAsset>,
 ) {
     let talk = talks.get(&full_talk_asset.handle).unwrap();
-    let talk_builder = TalkBuilder::default().fill_from_talk_data(talk);
+    let talk_builder = TalkBuilder::default().fill_with_talk_data(talk);
     let mut talk_commands = commands.talks();
     talk_commands.spawn_talk(talk_builder, ());
 

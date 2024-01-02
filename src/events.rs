@@ -29,3 +29,4 @@ impl ChooseActionRequest {
 }
 
 // TODO: more events to talk to the library... (reset talk?)
+// TODO: events in the other direction: from the library to the game (e.g. text event when reaching a text action node...)
