@@ -48,10 +48,11 @@ impl Talk {
         TalkBuilder::default()
     }
 }
+
 /// Marker component for the current node in a Talk.
 #[derive(Component)]
 #[component(storage = "SparseSet")]
-pub(crate) struct CurrentNode;
+pub struct CurrentNode;
 
 /// An enumeration of the different kinds of actions that can be performed in a Talk.
 #[derive(Component, Debug, Default, Clone, Hash, Eq, PartialEq, serde::Deserialize)]
