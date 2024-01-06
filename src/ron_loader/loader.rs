@@ -23,7 +23,7 @@ pub enum RonLoaderError {
     /// An [IO Error](std::io::Error)
     #[error("Could not read the file: {0}")]
     Io(#[from] std::io::Error),
-    /// A [RON Error](ron::error::SpannedError)
+    /// A [RON Error](serde_ron::error::SpannedError)
     #[error("Could not parse RON: {0}")]
     RonError(#[from] serde_ron::error::SpannedError),
     /// Multiple actions have same id error
