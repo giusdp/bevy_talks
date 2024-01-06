@@ -1,0 +1,21 @@
+[package]
+name = "bevy_talks_macros"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+authors = ["Giuseppe De Palma"]
+description = "Macros for the `bevy_talks` crate"
+repository = "https://github.com/giusdp/bevy_talks"
+homepage = "https://github.com/giusdp/bevy_talks"
+
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"
+proc-macro-crate = "3.0.0"

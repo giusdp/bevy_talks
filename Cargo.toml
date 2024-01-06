@@ -2,28 +2,39 @@
 name = "bevy_talks"
 version = "0.4.0"
 edition = "2021"
+authors = ["Giuseppe De Palma"]
 description = "A Bevy plugin to write dialogues for your characters to say and do things, together with player choices."
 repository = "https://github.com/giusdp/bevy_talks"
 homepage = "https://github.com/giusdp/bevy_talks"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["bevy", "gamedev", "plugin", "dialogues", "dialogs"]
-exclude = ["assets/", ".github/", "examples/", "docs/"]
+categories = ["games", "game-development"]
+exclude = [
+    "examples/**/*",
+    "docs/**/*",
+    "assets/**/*",
+    "tools/**/*",
+    ".github/**/*",
+]
 
+[profile.dev]
+opt-level = 3
+
+[workspace]
+members = ["./", "tools/ci", "macros"]
 
 [dependencies]
-bevy = { version = "0.12.1", default-features = false, features = [
-    "bevy_asset",
-    "bevy_render",
-] }
+bevy = { version = "0.12", default-features = false, features = ["bevy_asset"] }
 thiserror = "1.0"
 serde = { version = "1" }
 serde_ron = { version = "0.8", package = "ron" }
 aery = "0.5.2"
 indexmap = "2.1.0"
+bevy-trait-query = "0.4.0"
 
 [dev-dependencies]
-bevy = "0.12"
+bevy = { version = "0.12" }
 rstest = "0.18.2"
 
 [[example]]
@@ -41,3 +52,7 @@ path = "examples/full.rs"
 [[example]]
 name = "ingame"
 path = "examples/ingame.rs"
+
+[lib]
+name = "bevy_talks"
+path = "src/lib.rs"
