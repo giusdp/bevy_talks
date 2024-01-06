@@ -41,7 +41,7 @@ pub(crate) struct BuildNode {
 /// To build an entity dialogue graph you will define it with the `TalkBuilder` methods
 /// and finally call `build` to generate the `BuildTalkCommand`.
 ///
-/// This [`Command`] is what will actually spawn all the entities, you will have to `add` it to the commands queue.
+/// This `Command` is what will actually spawn all the entities, you will have to `add` it to the commands queue.
 ///
 /// ```rust,no_run
 /// use bevy::app::App;
@@ -71,10 +71,6 @@ impl TalkBuilder {
     ///
     /// This function also validates the `Talk` asset (checks that the `next` and `choice.next` fields point to existing actions)
     /// and then fills the [`TalkBuilder`] with all the actions.
-    ///
-    /// # Errors
-    ///
-    /// If the `TalkData` asset is not valid, this function will return a [`BuildTalkError`].
     ///
     /// # Example
     ///
