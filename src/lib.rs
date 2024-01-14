@@ -1,6 +1,6 @@
 //! `bevy_talks` is a Bevy plugin that provides the basics to build and handle dialogues in games.
 
-use aery::prelude::*;
+use aery::{prelude::*, tuple_traits::RelationEntries};
 use bevy::prelude::*;
 
 use prelude::*;
@@ -34,14 +34,15 @@ impl Plugin for TalksPlugin {
             .register_asset_loader(TalksLoader)
             .init_asset::<TalkData>()
             .configure_sets(PreUpdate, TalksSet)
-            .add_systems(PreUpdate, next_handler.pipe(error_logger).in_set(TalksSet))
             .add_systems(
                 PreUpdate,
-                set_has_started.after(next_handler).in_set(TalksSet),
-            )
-            .add_systems(
-                PreUpdate,
-                choice_handler.pipe(error_logger).in_set(TalksSet),
+                (
+                    next_handler.pipe(error_logger),
+                    choice_handler.pipe(error_logger),
+                    refire_handler.pipe(error_logger),
+                    set_has_started.after(next_handler),
+                )
+                    .in_set(TalksSet),
             );
     }
 }
@@ -56,9 +57,123 @@ fn error_logger(In(result): In<Result<(), NextActionError>>) {
     }
 }
 
+fn refire_handler(
+    mut cmd: Commands,
+    mut reqs: EventReader<RefireNodeRequest>,
+    current_nodes: Query<(Entity, &Parent), With<CurrentNode>>,
+    start: Query<Entity, With<StartNode>>,
+    end: Query<Entity, With<EndNode>>,
+    all_actors: Query<&Actor>,
+    performers: Query<Relations<PerformedBy>>,
+    emitters: Query<&dyn NodeEventEmitter>,
+    type_registry: Res<AppTypeRegistry>,
+    mut start_ev_writer: EventWriter<StartEvent>,
+    mut end_ev_writer: EventWriter<EndEvent>,
+) -> Result<(), NextActionError> {
+    for event in reqs.read() {
+        for (current_node, talk_parent) in &current_nodes {
+            let this_talk = talk_parent.get();
+            // if this is the talk we want to advance
+            if this_talk == event.talk {
+                // send start event if we are at the start node
+                maybe_emit_start_event(&start, current_node, &mut start_ev_writer, event.talk);
+
+                // send end event if current node is an end node
+                maybe_emit_end_event(&end, current_node, &mut end_ev_writer, event.talk);
+
+                // grab the actors in the next node
+                let actors_in_node = retrieve_actors(&performers, current_node, &all_actors);
+
+                // emit the events in current node
+                emit_events(
+                    &mut cmd,
+                    &emitters,
+                    current_node,
+                    &type_registry,
+                    actors_in_node,
+                );
+                return Ok(());
+            }
+        }
+        return Err(NextActionError::NoTalk);
+    }
+    Ok(())
+}
+#[inline]
+pub(crate) fn maybe_emit_start_event(
+    start: &Query<Entity, With<StartNode>>,
+    current_node: Entity,
+    start_ev_writer: &mut EventWriter<StartEvent>,
+    requested_talk: Entity,
+) {
+    if let Ok(_) = start.get(current_node) {
+        start_ev_writer.send(StartEvent(requested_talk));
+    }
+}
+
+#[inline]
+pub(crate) fn maybe_emit_end_event(
+    end: &Query<Entity, With<EndNode>>,
+    next_node: Entity,
+    end_ev_writer: &mut EventWriter<EndEvent>,
+    requested_talk: Entity,
+) {
+    if let Ok(_) = end.get(next_node) {
+        end_ev_writer.send(EndEvent(requested_talk));
+    }
+}
+
+#[inline]
+pub(crate) fn retrieve_actors(
+    performers: &Query<Relations<PerformedBy>>,
+    next_node: Entity,
+    all_actors: &Query<&Actor>,
+) -> Vec<Actor> {
+    let mut actors_in_node = Vec::<Actor>::new();
+    if let Ok(actor_edges) = &performers.get(next_node) {
+        for actor in actor_edges.targets(PerformedBy) {
+            actors_in_node.push(all_actors.get(*actor).expect("Actor").clone());
+        }
+    }
+    actors_in_node
+}
+
+#[inline]
+pub(crate) fn emit_events(
+    cmd: &mut Commands,
+    emitters: &Query<&dyn NodeEventEmitter>,
+    next_node: Entity,
+    type_registry: &Res<AppTypeRegistry>,
+    actors_in_node: Vec<Actor>,
+) {
+    if let Ok(emitters) = emitters.get(next_node) {
+        let type_registry = type_registry.read();
+
+        for emitter in &emitters {
+            let emitted_event = emitter.make(&actors_in_node);
+
+            let event_type_id = emitted_event.type_id();
+            // The #[reflect] attribute we put on our event trait generated a new `ReflectEvent` struct,
+            // which implements TypeData. This was added to MyType's TypeRegistration.
+            let reflect_event = type_registry
+                .get_type_data::<ReflectEvent>(event_type_id)
+                .expect("Event not registered for event type")
+                .clone();
+
+            cmd.add(move |world: &mut World| {
+                reflect_event.send(&*emitted_event, world);
+            });
+        }
+    }
+}
 #[cfg(test)]
 mod tests {
-    use bevy::ecs::query::{ROQueryItem, WorldQuery};
+    use bevy::ecs::{
+        query::{ROQueryItem, WorldQuery},
+        system::Command,
+    };
+
+    use indexmap::indexmap;
 
     use super::*;
 
@@ -72,5 +187,43 @@ mod tests {
     #[inline]
     pub fn single<Q: WorldQuery>(world: &mut World) -> ROQueryItem<Q> {
         world.query::<Q>().single(world)
+    }
+
+    /// Setup a talk with the given data, and send the first `NextActionRequest` event.
+    /// Returns the app for further testing.
+    #[track_caller]
+    pub fn setup_and_next(talk_data: &TalkData) -> App {
+        let mut app = talks_minimal_app();
+        let builder = TalkBuilder::default().fill_with_talk_data(talk_data);
+        BuildTalkCommand::new(app.world.spawn(Talk::default()).id(), builder).apply(&mut app.world);
+        let (talk_ent, _) = single::<(Entity, With<Talk>)>(&mut app.world);
+        let (edges, _) = single::<(Relations<FollowedBy>, With<CurrentNode>)>(&mut app.world);
+
+        assert_eq!(edges.targets(FollowedBy).len(), 1);
+        let start_following_ent = edges.targets(FollowedBy)[0];
+
+        app.world.send_event(NextNodeRequest::new(talk_ent));
+        app.update();
+
+        let (next_e, _) = single::<(Entity, With<CurrentNode>)>(&mut app.world);
+        assert_eq!(next_e, start_following_ent);
+        app
+    }
+
+    #[test]
+    fn refire_request_sends_events() {
+        let script = indexmap! {
+            0 => Action { text: "Hello".to_string(), actors: vec!["actor_1".to_string()], ..default() }, // this will be a text node
+        };
+        let mut app = setup_and_next(&TalkData::new(script, vec![Actor::new("actor_1", "Actor")]));
+        let evs = app.world.resource::<Events<TextNodeEvent>>();
+        assert!(evs.get_reader().read(evs).len() == 1);
+
+        let (talk_ent, _) = single::<(Entity, With<Talk>)>(&mut app.world);
+        app.world.send_event(RefireNodeRequest::new(talk_ent));
+        app.update();
+
+        let evs = app.world.resource::<Events<TextNodeEvent>>();
+        assert!(evs.get_reader().read(evs).len() == 2);
     }
 }

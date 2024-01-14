@@ -51,8 +51,7 @@ pub(crate) struct BuildNode {
 ///
 /// fn some_startup_system(mut commands: Commands) {
 ///     let builder = TalkBuilder::default().say("Hello");
-///     let mut talk_cmds = commands.talks();
-///     talk_cmds.spawn_talk(builder, ());
+///     commands.spawn_talk(builder, ());
 /// }
 /// ```
 #[derive(Default, Debug, Clone)]

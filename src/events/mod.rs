@@ -18,6 +18,7 @@ impl Plugin for TalksEventsPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<NextNodeRequest>()
             .add_event::<ChooseNodeRequest>()
+            .add_event::<RefireNodeRequest>()
             .add_event::<StartEvent>()
             .add_event::<EndEvent>()
             .register_node_event::<TextNode, TextNodeEvent>()

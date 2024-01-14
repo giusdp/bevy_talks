@@ -1,6 +1,8 @@
 //! Dialogue graph traversal systems.
 
-use crate::prelude::*;
+use crate::{
+    emit_events, maybe_emit_end_event, maybe_emit_start_event, prelude::*, retrieve_actors,
+};
 use aery::{prelude::*, tuple_traits::RelationEntries};
 use bevy::prelude::*;
 
@@ -15,7 +17,7 @@ pub(crate) fn next_handler(
     mut cmd: Commands,
     mut reqs: EventReader<NextNodeRequest>,
     current_nodes: Query<(Entity, &Parent, Relations<FollowedBy>), With<CurrentNode>>,
-    start: Query<Entity, (With<StartNode>, With<CurrentNode>)>,
+    start: Query<Entity, With<StartNode>>,
     end: Query<Entity, With<EndNode>>,
     all_actors: Query<&Actor>,
     performers: Query<Relations<PerformedBy>>,
@@ -69,7 +71,7 @@ pub(crate) fn choice_handler(
     mut cmd: Commands,
     mut reqs: EventReader<ChooseNodeRequest>,
     current_nodes: Query<(Entity, &Parent, Relations<FollowedBy>), With<CurrentNode>>,
-    start: Query<Entity, (With<StartNode>, With<CurrentNode>)>,
+    start: Query<Entity, With<StartNode>>,
     end: Query<Entity, With<EndNode>>,
     all_actors: Query<&Actor>,
     performers: Query<Relations<PerformedBy>>,
@@ -116,77 +118,9 @@ pub(crate) fn choice_handler(
 }
 
 #[inline]
-fn maybe_emit_start_event(
-    start: &Query<Entity, (With<StartNode>, With<CurrentNode>)>,
-    current_node: Entity,
-    start_ev_writer: &mut EventWriter<StartEvent>,
-    requested_talk: Entity,
-) {
-    if let Ok(_) = start.get(current_node) {
-        start_ev_writer.send(StartEvent(requested_talk));
-    }
-}
-
-#[inline]
-fn maybe_emit_end_event(
-    end: &Query<Entity, With<EndNode>>,
-    next_node: Entity,
-    end_ev_writer: &mut EventWriter<EndEvent>,
-    requested_talk: Entity,
-) {
-    if let Ok(_) = end.get(next_node) {
-        end_ev_writer.send(EndEvent(requested_talk));
-    }
-}
-
-#[inline]
 fn move_current(cmd: &mut Commands<'_, '_>, current_node: Entity, next_node: Entity) {
     cmd.entity(current_node).remove::<CurrentNode>();
     cmd.entity(next_node).insert(CurrentNode);
-}
-
-#[inline]
-fn retrieve_actors(
-    performers: &Query<Relations<PerformedBy>>,
-    next_node: Entity,
-    all_actors: &Query<&Actor>,
-) -> Vec<Actor> {
-    let mut actors_in_node = Vec::<Actor>::new();
-    if let Ok(actor_edges) = &performers.get(next_node) {
-        for actor in actor_edges.targets(PerformedBy) {
-            actors_in_node.push(all_actors.get(*actor).expect("Actor").clone());
-        }
-    }
-    actors_in_node
-}
-
-#[inline]
-fn emit_events(
-    cmd: &mut Commands,
-    emitters: &Query<&dyn NodeEventEmitter>,
-    next_node: Entity,
-    type_registry: &Res<AppTypeRegistry>,
-    actors_in_node: Vec<Actor>,
-) {
-    if let Ok(emitters) = emitters.get(next_node) {
-        let type_registry = type_registry.read();
-
-        for emitter in &emitters {
-            let emitted_event = emitter.make(&actors_in_node);
-
-            let event_type_id = emitted_event.type_id();
-            // The #[reflect] attribute we put on our event trait generated a new `ReflectEvent` struct,
-            // which implements TypeData. This was added to MyType's TypeRegistration.
-            let reflect_event = type_registry
-                .get_type_data::<ReflectEvent>(event_type_id)
-                .expect("Event not registered for event type")
-                .clone();
-
-            cmd.add(move |world: &mut World| {
-                reflect_event.send(&*emitted_event, world);
-            });
-        }
-    }
 }
 
 #[inline]
@@ -213,36 +147,13 @@ fn validate_chosen_node(
 
 #[cfg(test)]
 mod tests {
-
     use crate::{
         prelude::Action,
-        tests::{single, talks_minimal_app},
+        tests::{setup_and_next, single},
     };
-    use bevy::ecs::system::Command;
     use indexmap::indexmap;
 
     use super::*;
-
-    /// Setup a talk with the given data, and send the first `NextActionRequest` event.
-    /// Returns the app for further testing.
-    #[track_caller]
-    fn setup_and_next(talk_data: &TalkData) -> App {
-        let mut app = talks_minimal_app();
-        let builder = TalkBuilder::default().fill_with_talk_data(talk_data);
-        BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
-        let (talk_ent, _) = single::<(Entity, With<Talk>)>(&mut app.world);
-        let (edges, _) = single::<(Relations<FollowedBy>, With<CurrentNode>)>(&mut app.world);
-
-        assert_eq!(edges.targets(FollowedBy).len(), 1);
-        let start_following_ent = edges.targets(FollowedBy)[0];
-
-        app.world.send_event(NextNodeRequest::new(talk_ent));
-        app.update();
-
-        let (next_e, _) = single::<(Entity, With<CurrentNode>)>(&mut app.world);
-        assert_eq!(next_e, start_following_ent);
-        app
-    }
 
     #[test]
     fn next_request_moves_current_node_marker() {

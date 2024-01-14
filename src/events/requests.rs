@@ -2,7 +2,20 @@
 
 use bevy::prelude::*;
 
-/// Event to request the next action in a `Talk`. It requires an entity with the `Talk` component you want to update.
+/// Event to request the current node to re-send all its events.
+#[derive(Event)]
+pub struct RefireNodeRequest {
+    /// The entity with the `Talk` component you want to update.
+    pub talk: Entity,
+}
+
+impl RefireNodeRequest {
+    /// Creates a new `RefireNodeRequest`.
+    pub fn new(talk: Entity) -> Self {
+        Self { talk }
+    }
+}
+/// Event to request the next node in a `Talk`. It requires an entity with the `Talk` component you want to update.
 ///
 /// This event is typically used wired to an input from the player, e.g. a mouse click to advance the current dialogue.
 /// It can fail (and logs an error) in case there is no next action or in case the current action is a choice action.
@@ -13,7 +26,7 @@ pub struct NextNodeRequest {
 }
 
 impl NextNodeRequest {
-    /// Creates a new `NextActionRequest`.
+    /// Creates a new `NextNodeRequest`.
     pub fn new(talk: Entity) -> Self {
         Self { talk }
     }
@@ -32,7 +45,7 @@ pub struct ChooseNodeRequest {
 }
 
 impl ChooseNodeRequest {
-    /// Creates a new `ChooseActionRequest`.
+    /// Creates a new `ChooseNodeRequest`.
     pub fn new(talk: Entity, next: Entity) -> Self {
         Self { talk, next }
     }
