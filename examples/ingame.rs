@@ -1,5 +1,6 @@
+//! This example shows multiple dialogue graphs attached to different entities.
 use bevy::{asset::LoadState, prelude::*};
-use bevy_talks::prelude::*;
+use bevy_talks::{events::requests::NextNodeRequest, prelude::*};
 
 #[derive(Component, Default)]
 struct ActiveTalk(bool);
@@ -45,6 +46,7 @@ fn main() {
                 print,
                 interact,
                 advance_convo,
+                reset_text,
             )
                 .run_if(in_state(AppState::Loaded)),
         )
@@ -80,6 +82,7 @@ fn setup(
     talk_asset: Res<TalkAsset>,
 ) {
     commands.spawn(Camera2dBundle::default());
+
     let player_handle: Handle<Image> = assets.load("images/player.png");
     commands.spawn((
         Player,
@@ -95,8 +98,7 @@ fn setup(
     let bev_talk_data = raws.get(&talk_asset.bev_talk_handle).unwrap();
     let bev_talk_builder = Talk::builder().fill_with_talk_data(bev_talk_data);
 
-    let mut talk_commands = commands.talks();
-    let talk_graph_ent = talk_commands
+    let talk_graph_ent = commands
         .spawn_talk(bev_talk_builder, ActiveTalk(false))
         .id();
 
@@ -116,8 +118,7 @@ fn setup(
     let feri_talk_data = raws.get(&talk_asset.feri_talk_handle).unwrap();
     let feri_talk_builder = Talk::builder().fill_with_talk_data(feri_talk_data);
 
-    let mut talk_commands = commands.talks();
-    let talk_graph_ent = talk_commands
+    let talk_graph_ent = commands
         .spawn_talk(feri_talk_builder, ActiveTalk(false))
         .id();
     commands
@@ -175,13 +176,13 @@ fn move_player(
 
 fn advance_convo(
     input: Res<Input<KeyCode>>,
-    mut next_action_events: EventWriter<NextActionRequest>,
+    mut next_action_events: EventWriter<NextNodeRequest>,
     talks: Query<(Entity, &ActiveTalk), With<Talk>>,
 ) {
     if input.just_pressed(KeyCode::Space) {
         for (entity, active) in talks.iter() {
             if active.0 {
-                next_action_events.send(NextActionRequest(entity));
+                next_action_events.send(NextNodeRequest::new(entity));
             }
         }
     }
@@ -191,17 +192,24 @@ fn interact(
     input: Res<Input<KeyCode>>,
     player_query: Query<&Transform, With<Player>>,
     characters: Query<(&Transform, &Children), With<Interactable>>,
-    mut q_child: Query<(Entity, &Talk, &mut ActiveTalk)>,
-    mut next_action_events: EventWriter<NextActionRequest>,
+    mut talks: Query<(Entity, &Talk, &mut ActiveTalk)>,
+    mut next_events: EventWriter<NextNodeRequest>,
+    mut refire_events: EventWriter<RefireNodeRequest>,
 ) {
     if input.just_pressed(KeyCode::E) {
         let player_transform = player_query.single();
         for (transform, children) in &characters {
             if transform.translation.distance(player_transform.translation) < 100. {
-                let (e, t, mut active) = q_child.get_mut(children[0]).unwrap();
-                active.0 = !active.0;
-                if active.0 && t.current_kind == NodeKind::Start {
-                    next_action_events.send(NextActionRequest(e));
+                let (e, talk, mut active) = talks.get_mut(children[0]).unwrap();
+                active.0 = !active.0; // toggle active
+                if active.0 {
+                    if !talk.has_started {
+                        // if active and not started, start it now
+                        next_events.send(NextNodeRequest::new(e));
+                    } else {
+                        // if active again, refire the current node
+                        refire_events.send(RefireNodeRequest::new(e));
+                    }
                 }
             }
         }
@@ -225,29 +233,24 @@ fn deactive_talk_when_far(
 }
 
 /// Print the current talk node (if changed) to the console.
-fn print(talk_comps: Query<(&Talk, Ref<ActiveTalk>)>, mut texts: Query<&mut Text, With<Dialogue>>) {
-    for (talk, active) in &talk_comps {
-        // If talk was deactivated, clear the text
+fn print(mut text_events: EventReader<TextNodeEvent>, mut texts: Query<&mut Text, With<Dialogue>>) {
+    for txt_ev in text_events.read() {
+        let speaker = &txt_ev.actors[0];
+        let display = format!("{speaker}: {}", txt_ev.text);
+        texts.single_mut().sections[0].value = display;
+    }
+}
+
+/// Reset the text when a talk is deactivated.
+fn reset_text(
+    active_talks: Query<Ref<ActiveTalk>, With<Talk>>,
+    mut texts: Query<&mut Text, With<Dialogue>>,
+) {
+    for active in active_talks.iter() {
         if active.is_changed() && !active.0 {
             texts.single_mut().sections[0].value =
                 "A-D to move. E near a character to interact. Space to advance convo.".to_string();
             continue;
         }
-
-        // If just not active, skip
-        if !active.0 {
-            continue;
-        }
-
-        if talk.current_kind == NodeKind::Start {
-            continue;
-        }
-
-        let speaker = &talk.current_actors[0];
-        let display = match talk.current_kind {
-            NodeKind::Talk => format!("{speaker}: {}", talk.current_text),
-            _ => "Not implemented for this example".to_string(),
-        };
-        texts.single_mut().sections[0].value = display;
     }
 }
