@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy::reflect::{FromType, Reflect};
 use bevy_trait_query::RegisterExt;
 
-use crate::prelude::{ChoiceNode, JoinNode, LeaveNode, TextNode};
+use crate::prelude::{Actor, ChoiceNode, JoinNode, LeaveNode, TextNode};
 use crate::TalksSet;
 
 use self::{node_events::*, requests::*};
@@ -158,7 +158,7 @@ impl<E: Event + Reflect + Clone> FromType<E> for ReflectEvent {
 #[bevy_trait_query::queryable]
 pub trait NodeEventEmitter {
     /// Creates an event to be emitted when a node is reached.
-    fn make(&self, actors: &[Entity]) -> Box<dyn Reflect>;
+    fn make(&self, actors: &[Actor]) -> Box<dyn Reflect>;
 }
 
 #[derive(Event)]
@@ -174,15 +174,16 @@ fn relay_node_event<T: Event>(mut t: ResMut<Events<EmissionTrigger<T>>>, mut w: 
 
 #[cfg(test)]
 mod tests {
-    // #[test]
-    // fn text_node_event_in_dialogue_node_events() {
-    //     use super::*;
+    use crate::tests::talks_minimal_app;
 
-    //     let mut app = App::new();
-    //     app.register_node_event::<TextNodeEvent>();
-    //     assert!(
-    //         app.world.contains_resource::<Events<TextNodeEvent>>(),
-    //         "TextNodeEvent should be registered"
-    //     );
-    // }
+    #[test]
+    fn node_events_registered() {
+        use super::*;
+
+        let app = talks_minimal_app();
+        assert!(app.world.contains_resource::<Events<TextNodeEvent>>());
+        assert!(app.world.contains_resource::<Events<ChoiceNodeEvent>>());
+        assert!(app.world.contains_resource::<Events<JoinNodeEvent>>());
+        assert!(app.world.contains_resource::<Events<LeaveNodeEvent>>());
+    }
 }

@@ -1,7 +1,7 @@
 //! Events the plugin emits.
 use bevy::prelude::*;
 
-use crate::prelude::{Choice, ChoiceNode, JoinNode, LeaveNode, TextNode};
+use crate::prelude::{Actor, Choice, ChoiceNode, JoinNode, LeaveNode, TextNode};
 
 use super::{NodeEventEmitter, ReflectEvent};
 
@@ -23,15 +23,15 @@ pub struct EndEvent(pub Entity);
 pub struct TextNodeEvent {
     /// The text from the node.
     pub text: String,
-    /// The actors from the node.
-    pub actors: Vec<Entity>,
+    /// The actor names from the node.
+    pub actors: Vec<String>,
 }
 
 impl NodeEventEmitter for TextNode {
-    fn make(&self, actors: &[Entity]) -> Box<dyn Reflect> {
+    fn make(&self, actors: &[Actor]) -> Box<dyn Reflect> {
         Box::from(TextNodeEvent {
             text: self.0.clone(),
-            actors: actors.to_vec(),
+            actors: actors.iter().map(|a| a.name.clone()).collect(),
         })
     }
 }
@@ -45,7 +45,7 @@ pub struct ChoiceNodeEvent {
 }
 
 impl NodeEventEmitter for ChoiceNode {
-    fn make(&self, _actors: &[Entity]) -> Box<dyn Reflect> {
+    fn make(&self, _actors: &[Actor]) -> Box<dyn Reflect> {
         Box::from(ChoiceNodeEvent {
             choices: self.0.clone(),
         })
@@ -56,14 +56,14 @@ impl NodeEventEmitter for ChoiceNode {
 #[derive(Event, Reflect, Default, Clone)]
 #[reflect(Event)]
 pub struct JoinNodeEvent {
-    /// The actors from the node.
-    pub actors: Vec<Entity>,
+    /// The actor names from the node.
+    pub actors: Vec<String>,
 }
 
 impl NodeEventEmitter for JoinNode {
-    fn make(&self, actors: &[Entity]) -> Box<dyn Reflect> {
+    fn make(&self, actors: &[Actor]) -> Box<dyn Reflect> {
         Box::from(JoinNodeEvent {
-            actors: actors.to_vec(),
+            actors: actors.iter().map(|a| a.name.clone()).collect(),
         })
     }
 }
@@ -72,13 +72,14 @@ impl NodeEventEmitter for JoinNode {
 #[derive(Event, Reflect, Default, Clone)]
 #[reflect(Event)]
 pub struct LeaveNodeEvent {
-    /// The actors from the node.
-    pub actors: Vec<Entity>,
+    /// The actor names from the node.
+    pub actors: Vec<String>,
 }
+
 impl NodeEventEmitter for LeaveNode {
-    fn make(&self, actors: &[Entity]) -> Box<dyn Reflect> {
+    fn make(&self, actors: &[Actor]) -> Box<dyn Reflect> {
         Box::from(LeaveNodeEvent {
-            actors: actors.to_vec(),
+            actors: actors.iter().map(|a| a.name.clone()).collect(),
         })
     }
 }
