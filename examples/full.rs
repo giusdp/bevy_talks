@@ -1,3 +1,4 @@
+//! This example combines the simple linear talk with choices to have a more complete example with all the built-in nodes.
 use bevy::{asset::LoadState, prelude::*};
 use bevy_talks::prelude::*;
 
@@ -22,7 +23,15 @@ fn main() {
         .add_systems(OnEnter(AppState::Loaded), setup_talk)
         .add_systems(
             Update,
-            (interact, print, bevy::window::close_on_esc).run_if(in_state(AppState::Loaded)),
+            (
+                interact,
+                print_text,
+                print_join,
+                print_leave,
+                print_choice,
+                bevy::window::close_on_esc,
+            )
+                .run_if(in_state(AppState::Loaded)),
         )
         .run();
 }
@@ -50,62 +59,69 @@ fn setup_talk(
 ) {
     let talk = talks.get(&full_talk_asset.handle).unwrap();
     let talk_builder = TalkBuilder::default().fill_with_talk_data(talk);
-    let mut talk_commands = commands.talks();
-    talk_commands.spawn_talk(talk_builder, ());
+    commands.spawn_talk(talk_builder, ());
 
     println!("-----------------------------------------");
     println!("Press space to advance the conversation.");
     println!("-----------------------------------------");
 }
-
-/// Print the current talk node (if changed) to the console.
-fn print(talk_comps: Query<Ref<Talk>>) {
-    for talk in &talk_comps {
-        if !talk.is_changed() || talk.is_added() {
-            continue;
-        }
-
-        let actors = &talk.current_actors;
-
-        let mut speaker = "Narrator";
-        if !talk.current_actors.is_empty() {
-            speaker = &talk.current_actors[0];
-        }
-
-        match talk.current_kind {
-            NodeKind::Talk => println!("{speaker}: {}", talk.current_text),
-            NodeKind::Join => println!("--- {actors:?} enters the scene."),
-            NodeKind::Leave => println!("--- {actors:?} exit the scene."),
-            NodeKind::Choice => {
-                println!("Choices:");
-                for (i, choice) in talk.current_choices.iter().enumerate() {
-                    println!("{}: {}", i + 1, choice.text);
-                }
-            }
-            _ => (),
-        };
-    }
-}
-
+/// Advance the talk when the space key is pressed and select choices with 1 and 2.
 fn interact(
     input: Res<Input<KeyCode>>,
     mut next_action_events: EventWriter<NextActionRequest>,
     mut choose_action_events: EventWriter<ChooseActionRequest>,
-    talks: Query<(Entity, &Talk)>,
+    talks: Query<Entity, With<Talk>>,
+    choices: Query<&ChoiceNode, With<CurrentNode>>,
 ) {
-    let (talk_ent, talk) = talks.single();
-
-    if talk.current_kind == NodeKind::Choice {
-        if input.just_pressed(KeyCode::Key1) {
-            let next_ent = talk.current_choices[0].next;
-            choose_action_events.send(ChooseActionRequest::new(talk_ent, next_ent));
-        } else if input.just_pressed(KeyCode::Key2) {
-            let next_ent = talk.current_choices[1].next;
-            choose_action_events.send(ChooseActionRequest::new(talk_ent, next_ent));
-        }
-    }
+    let talk_ent = talks.single();
 
     if input.just_pressed(KeyCode::Space) {
-        next_action_events.send(NextActionRequest(talk_ent));
+        next_action_events.send(NextActionRequest::new(talk_ent));
+    }
+
+    // Note that you CAN have a TextNode component and a ChoiceNode component at the same time.
+    // It would allow you to display some text beside the choices.
+    if choices.iter().count() == 0 {
+        return;
+    }
+
+    let choice_node = choices.single();
+
+    if input.just_pressed(KeyCode::Key1) {
+        choose_action_events.send(ChooseActionRequest::new(talk_ent, choice_node.0[0].next));
+    } else if input.just_pressed(KeyCode::Key2) {
+        choose_action_events.send(ChooseActionRequest::new(talk_ent, choice_node.0[1].next));
+    }
+}
+
+fn print_text(mut text_events: EventReader<TextNodeEvent>) {
+    for txt_ev in text_events.read() {
+        let mut speaker = "Narrator";
+        if !txt_ev.actors.is_empty() {
+            speaker = &txt_ev.actors[0];
+        }
+
+        println!("{speaker}: {}", txt_ev.text);
+    }
+}
+
+fn print_join(mut join_events: EventReader<JoinNodeEvent>) {
+    for join_event in join_events.read() {
+        println!("--- {:?} enters the scene.", join_event.actors);
+    }
+}
+
+fn print_leave(mut leave_events: EventReader<LeaveNodeEvent>) {
+    for leave_event in leave_events.read() {
+        println!("--- {:?} exit the scene.", leave_event.actors);
+    }
+}
+
+fn print_choice(mut choice_events: EventReader<ChoiceNodeEvent>) {
+    for choice_event in choice_events.read() {
+        println!("Choices:");
+        for (i, choice) in choice_event.choices.iter().enumerate() {
+            println!("{}: {}", i + 1, choice.text);
+        }
     }
 }
