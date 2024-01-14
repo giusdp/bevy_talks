@@ -1,6 +1,25 @@
 # Changelog
 
-## 0.4.0 - 2024-01-01
+## Unreleased
+
+### Added
+
+- Add `NodeEventEmitter` component to emit events from nodes
+- Add `TextNode` component to store the text of a node
+- Add `ChoiceNode` component to store the choices of a node
+- Add `JoinNode` component for the join node kind
+- Add `LeaveNode` component for the leave node kind
+
+### Changed
+
+- Set `CurrentNode` visibility to public
+- Remove component derive on `NodeKind`
+
+
+### Removed
+
+
+## 0.4.0 - 2024-02-02
 
 ### Added
 - `TalkCommands` to spawn the dialogue graphs
