@@ -17,30 +17,10 @@ pub struct FollowedBy;
 #[aery(Recursive, Poly)]
 pub struct PerformedBy;
 
-/// The Talk component. It's used to identify the parent entity of dialogue entity graphs.
+/// Market component used to identify the parent entity of dialogue entity graphs.
 /// Build entities with Talk components via the [`TalkBuilder`] to correctly setup the dialogue graph.
 #[derive(Component, Debug)]
-pub struct Talk {
-    /// The text of the current node (if not a Talk node it's empty)
-    pub current_text: String,
-    /// The kind of the current node
-    pub current_kind: NodeKind,
-    /// The actor(s) name of the current node
-    pub current_actors: Vec<String>,
-    /// The choices of the current node (if not a Choice node it's empty)
-    pub current_choices: Vec<Choice>,
-}
-
-impl Default for Talk {
-    fn default() -> Self {
-        Self {
-            current_text: Default::default(),
-            current_kind: NodeKind::Start,
-            current_actors: Default::default(),
-            current_choices: Default::default(),
-        }
-    }
-}
+pub struct Talk;
 
 impl Talk {
     /// Create a default [`TalkBuilder`].
@@ -54,101 +34,32 @@ impl Talk {
 #[component(storage = "SparseSet")]
 pub struct CurrentNode;
 
-/// An enumeration of the different kinds of actions that can be performed in a Talk.
-#[derive(Component, Debug, Default, Clone, Hash, Eq, PartialEq, serde::Deserialize)]
-pub enum NodeKind {
-    /// An entry point of the dialogue graph
-    Start,
-    /// A talk action, where a character speaks dialogue.
-    #[default]
-    Talk,
-    /// A choice action, where the user is presented with a choice.
-    Choice,
-    /// An enter action, where a character enters a scene.
-    Join,
-    /// An exit action, where a character exits a scene.
-    Leave,
-}
-
-/// The components that define a Talk node in the dialogue graph.
-/// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
-#[derive(Bundle, Default)]
-pub struct TalkNodeBundle {
-    /// The kind of action that the node performs. This should be `NodeKind::Talk` as the TalkNodeBundle is used to create a talk node.
-    pub kind: NodeKind,
-    /// The text to be displayed by the talk node.
-    pub text: TalkText,
-}
-
-impl TalkNodeBundle {
-    /// Creates a new `TalkNodeBundle` with the specified `text`.
-    /// The node kind is set to `NodeKind::Talk`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use bevy_talks::prelude::*;
-    ///
-    /// let text = "Hello, world!".to_string();
-    /// let actors = vec!["Alice".to_string(), "Bob".to_string()];
-    /// let bundle = TalkNodeBundle::new(text.clone());
-    ///
-    /// assert_eq!(bundle.kind, NodeKind::Talk);
-    /// assert_eq!(bundle.text.0, text);
-    /// ```
-    pub fn new(text: String) -> Self {
-        Self {
-            kind: NodeKind::Talk,
-            text: TalkText(text),
-        }
-    }
-}
-
-/// The components that defines a `Choice` node in the dialogue graph.
-/// Use `TalkNodeBundle::new()` to create a new `TalkNodeBundle`.
-#[derive(Bundle, Default)]
-pub struct ChoiceNodeBundle {
-    /// Should be `NodeKind::Choice` for the choice node.
-    pub kind: NodeKind,
-    /// The choices of the node.
-    pub choices: Choices,
-}
-
-impl ChoiceNodeBundle {
-    /// Creates a new `ChoiceNodeBundle`.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use bevy_talks::prelude::*;
-    /// use bevy::prelude::*;
-    ///
-    /// let mut world = World::default();
-    /// let e = world.spawn_empty().id();
-    ///
-    /// let bundle = ChoiceNodeBundle::new(vec![Choice::new("Choice 1", e)]);
-    ///
-    /// assert_eq!(bundle.kind, NodeKind::Choice);
-    /// assert_eq!(bundle.choices.0[0].text, "Choice 1".to_string());
-    /// ```
-    pub fn new(cs: Vec<Choice>) -> Self {
-        Self {
-            kind: NodeKind::Choice,
-            choices: Choices(cs),
-        }
-    }
-}
-
-/// The text component to be displayed from a Talk Node.
+/// Mark a dialogue node as a starting node.
 #[derive(Component, Default, Debug)]
-pub struct TalkText(pub String);
+pub struct StartNode;
 
-/// The choices texts component to be displayed from a Choice Node.
+/// Mark a dialogue node as an end node.
 #[derive(Component, Default, Debug)]
-pub struct Choices(pub Vec<Choice>);
+pub struct EndNode;
+
+/// Component to mark a dialogue node as a text node containing some text.
+#[derive(Component, Default, Debug)]
+pub struct TextNode(pub String);
+
+/// Component to mark a dialogue node as a choice node containing some choices.
+#[derive(Component, Default, Debug)]
+pub struct ChoiceNode(pub Vec<Choice>);
+
+/// Component to mark a dialogue node as a join node.
+#[derive(Component, Debug)]
+pub struct JoinNode;
+
+/// Component to mark a dialogue node as a leave node.
+#[derive(Component, Debug)]
+pub struct LeaveNode;
 
 /// The text and next entity of a choice.
-#[derive(Debug, Clone)]
+#[derive(Debug, Reflect, Clone)]
 pub struct Choice {
     /// The text of the choice.
     pub text: String,
