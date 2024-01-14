@@ -1,3 +1,5 @@
+//! A simple example that loads a linear talk from a file and prints the text to the console.
+
 use bevy::{asset::LoadState, prelude::*};
 use bevy_talks::prelude::*;
 
@@ -24,7 +26,14 @@ fn main() {
         .add_systems(OnEnter(AppState::Loaded), setup_talk)
         .add_systems(
             Update,
-            (interact, print, bevy::window::close_on_esc).run_if(in_state(AppState::Loaded)),
+            (
+                interact,
+                print_text,
+                print_join,
+                print_leave,
+                bevy::window::close_on_esc,
+            )
+                .run_if(in_state(AppState::Loaded)),
         )
         .add_systems(Update, bevy::window::close_on_esc)
         .run();
@@ -55,8 +64,7 @@ fn setup_talk(
     let simple_talk = talks.get(&simple_talk_asset.handle).unwrap();
     let talk_builder = TalkBuilder::default().fill_with_talk_data(simple_talk);
 
-    let mut talk_commands = commands.talks();
-    talk_commands.spawn_talk(talk_builder, ());
+    commands.spawn_talk(talk_builder, ());
 
     println!("-----------------------------------------");
     println!("Press space to advance the conversation.");
@@ -70,30 +78,29 @@ fn interact(
     talks: Query<Entity, With<Talk>>,
 ) {
     if input.just_pressed(KeyCode::Space) {
-        next_action_events.send(NextActionRequest(talks.single()));
+        next_action_events.send(NextActionRequest::new(talks.single()));
     }
 }
 
-/// Print the current talk node (if changed) to the console.
-fn print(talk_comps: Query<Ref<Talk>>) {
-    for talk in &talk_comps {
-        if !talk.is_changed() || talk.is_added() {
-            continue;
-        }
-
-        let actors = &talk.current_actors;
-
+fn print_text(mut text_events: EventReader<TextNodeEvent>) {
+    for txt_ev in text_events.read() {
         let mut speaker = "Narrator";
-        if !talk.current_actors.is_empty() {
-            speaker = &talk.current_actors[0];
+        if !txt_ev.actors.is_empty() {
+            speaker = &txt_ev.actors[0];
         }
 
-        match talk.current_kind {
-            NodeKind::Talk => println!("{speaker}: {}", talk.current_text),
-            NodeKind::Join => println!("--- {actors:?} enters the scene."),
-            NodeKind::Leave => println!("--- {actors:?} exit the scene."),
-            NodeKind::Choice => println!("Not implemented"),
-            _ => (),
-        };
+        println!("{speaker}: {}", txt_ev.text);
+    }
+}
+
+fn print_join(mut join_events: EventReader<JoinNodeEvent>) {
+    for join_event in join_events.read() {
+        println!("--- {:?} enters the scene.", join_event.actors);
+    }
+}
+
+fn print_leave(mut leave_events: EventReader<LeaveNodeEvent>) {
+    for leave_event in leave_events.read() {
+        println!("--- {:?} exit the scene.", leave_event.actors);
     }
 }
