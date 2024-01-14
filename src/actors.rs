@@ -1,6 +1,9 @@
 //! Main actor types
 
-use bevy::ecs::{bundle::Bundle, component::Component};
+use bevy::{
+    ecs::{bundle::Bundle, component::Component},
+    reflect::Reflect,
+};
 
 /// A unique identifier for an actor in a Talk.
 ///
@@ -10,7 +13,7 @@ use bevy::ecs::{bundle::Bundle, component::Component};
 pub(crate) type ActorSlug = String;
 
 /// The actor component for the actor entities in a Talk.
-#[derive(Component, Debug, Clone, PartialEq, Eq)]
+#[derive(Component, Reflect, Debug, Clone, PartialEq, Eq)]
 pub struct Actor {
     /// The name of the character that the actor plays.
     pub name: String,
