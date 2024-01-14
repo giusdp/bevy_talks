@@ -15,7 +15,7 @@ pub enum NextActionError {
     ChoicesNotHandled,
     /// ChooseActionRequest event emitted for a talk
     /// where an action with given id does not exist.
-    #[error("A wrong entity was given to go to in the dialogue graph.")]
+    #[error("A wrong entity was given to jump to in the dialogue graph.")]
     BadChoice,
     /// NextRequest event emitted for a talk that does not exist.
     #[error("No talk was found with the given entity from the event.")]

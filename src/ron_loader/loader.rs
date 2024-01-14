@@ -145,7 +145,7 @@ mod tests {
 
     use bevy::prelude::*;
 
-    use crate::{prelude::*, tests::minimal_app};
+    use crate::{prelude::*, tests::talks_minimal_app};
 
     use super::*;
 
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_parse_talk() {
-        let mut app = minimal_app();
+        let mut app = talks_minimal_app();
         let asset_server = app.world.get_resource::<AssetServer>();
         assert!(asset_server.is_some());
 
