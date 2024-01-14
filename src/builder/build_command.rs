@@ -3,7 +3,8 @@ use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
 use crate::prelude::{
-    ActorSlug, Choice, ChoiceNodeBundle, CurrentNode, FollowedBy, PerformedBy, Talk, TalkNodeBundle,
+    ActorSlug, Choice, ChoiceNode, CurrentNode, EndNode, FollowedBy, JoinNode, LeaveNode,
+    PerformedBy, StartNode, Talk, TextNode,
 };
 
 use super::*;
@@ -18,7 +19,8 @@ pub struct BuildTalkCommand {
 }
 
 impl BuildTalkCommand {
-    /// Create a new `BuildTalkCommand`
+    /// Create a new `BuildTalkCommand` with a parent entity and a builder.
+    /// The parent entity will be the parent of the dialogue graph and will have a [`Talk`] component.
     pub(crate) fn new(p: Entity, b: TalkBuilder) -> Self {
         Self {
             parent: p,
@@ -30,16 +32,14 @@ impl BuildTalkCommand {
 impl Command for BuildTalkCommand {
     fn apply(self, world: &mut World) {
         // spawn the start node
-        let start = &world.spawn((NodeKind::Start, CurrentNode)).id();
+        let start = &world.spawn((StartNode, CurrentNode)).id();
 
         // First pass: spawn all the node entities and add them to the map with their build node id
         let (ents, mut node_entities) = spawn_dialogue_entities(&self.builder, world);
         let actor_ents: HashMap<ActorSlug, Entity> = spawn_actor_entities(&self.builder, world);
 
-        let mut manager = world
-            .get_entity_mut(self.parent)
-            .expect("The graph manager entity");
-        manager.insert(Talk::default());
+        let mut manager = world.entity_mut(self.parent);
+        manager.insert(Talk);
         manager.add_child(*start);
         for e in ents {
             manager.add_child(e);
@@ -186,7 +186,7 @@ fn form_graph(
     if !talk_builder.queue.is_empty() && !first_child_set {
         first_child_ent = *node_entities
             .get(&talk_builder.queue[0].id)
-            .expect("First entity fro the builder");
+            .expect("First entity from the builder");
     }
 
     let mut peekable_queue = talk_builder.queue.iter().peekable();
@@ -207,11 +207,10 @@ fn form_graph(
         );
 
         match build_node.kind {
-            NodeKind::Start => (), // nothing to do for this as of now
             NodeKind::Talk => {
                 world
                     .entity_mut(this_ent)
-                    .insert(TalkNodeBundle::new(build_node.text.clone()));
+                    .insert(TextNode(build_node.text.clone()));
                 previous_node_was_choice = false;
             }
             NodeKind::Choice => {
@@ -227,20 +226,19 @@ fn form_graph(
                 }
 
                 // insert the ChoicesTexts component
-                world
-                    .entity_mut(this_ent)
-                    .insert(ChoiceNodeBundle::new(choices));
+                world.entity_mut(this_ent).insert(ChoiceNode(choices));
 
                 previous_node_was_choice = true;
             }
             NodeKind::Join => {
-                world.entity_mut(this_ent).insert(NodeKind::Join);
+                world.entity_mut(this_ent).insert(JoinNode);
                 previous_node_was_choice = false;
             }
             NodeKind::Leave => {
-                world.entity_mut(this_ent).insert(NodeKind::Leave);
+                world.entity_mut(this_ent).insert(LeaveNode);
                 previous_node_was_choice = false;
             }
+            _ => (), // ignore other kinds for now
         }
 
         // Let's add the extra connections here
@@ -254,6 +252,11 @@ fn form_graph(
         // if this is the last node, it's a leaf
         if peekable_queue.peek().is_none() {
             leaves.push(this_ent);
+
+            // if it was not manually connected add EndNode component
+            if build_node.manual_connections.is_empty() {
+                world.entity_mut(this_ent).insert(EndNode);
+            }
         }
         // set the new parent for the next iteration
         parent = this_ent;
@@ -269,22 +272,20 @@ fn process_manual_connections(
     child: Entity,
     world: &mut World,
 ) {
-    if !manual_connections.is_empty() {
-        for input_id in manual_connections {
-            // get the entity node from the map
-            let entity_to_connect_to = build_node_entities.get(input_id);
+    for input_id in manual_connections {
+        // get the entity node from the map
+        let entity_to_connect_to = build_node_entities.get(input_id);
 
-            // if the node is not present, log a warning and skip it
-            if entity_to_connect_to.is_none() {
-                warn!("You attempted to connect a dialogue node with that is not (yet) present in the builder. Skipping.");
-                continue;
-            }
-
-            // connect it
-            world
-                .entity_mut(child)
-                .set::<FollowedBy>(*entity_to_connect_to.unwrap());
+        // if the node is not present, log a warning and skip it
+        if entity_to_connect_to.is_none() {
+            warn!("You attempted to connect a dialogue node with that is not (yet) present in the builder. Skipping.");
+            continue;
         }
+
+        // connect it
+        world
+            .entity_mut(child)
+            .set::<FollowedBy>(*entity_to_connect_to.unwrap());
     }
 }
 
@@ -541,7 +542,7 @@ mod integration_tests {
     use bevy::prelude::*;
     use rstest::{fixture, rstest};
 
-    use crate::prelude::TalkText;
+    use crate::prelude::TextNode;
 
     use super::*;
 
@@ -564,8 +565,6 @@ mod integration_tests {
     #[case(vec!["Hi", "Hello", "World!"])]
     #[case(vec!["Hi", "Hello", "World!", "The End"])]
     fn linear_say_graph_creation(mut talk_builder: TalkBuilder, #[case] text_nodes: Vec<&str>) {
-        use crate::prelude::TalkText;
-
         let mut world = World::default();
         let node_number = text_nodes.len();
 
@@ -575,7 +574,7 @@ mod integration_tests {
 
         BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
 
-        let mut query = world.query::<&TalkText>();
+        let mut query = world.query::<&TextNode>();
 
         // check number of nodes with the text component
         assert_eq!(query.iter(&world).count(), node_number);
@@ -598,8 +597,6 @@ mod integration_tests {
         #[case] choice_node_number: usize,
         #[case] expected_nodes_in_relation: usize,
     ) {
-        use crate::prelude::Choices;
-
         let mut world = World::default();
 
         for _ in 0..choice_node_number {
@@ -611,7 +608,7 @@ mod integration_tests {
 
         BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
 
-        let mut query = world.query::<&Choices>();
+        let mut query = world.query::<&ChoiceNode>();
 
         // check length
         assert_eq!(query.iter(&world).count(), choice_node_number);
@@ -738,7 +735,7 @@ mod integration_tests {
         // check number of nodes in the performed by relationship
         assert_eq!(query.iter(&world).count(), 2);
 
-        let mut r_query = world.query::<(&TalkText, Relations<PerformedBy>)>();
+        let mut r_query = world.query::<(&TextNode, Relations<PerformedBy>)>();
 
         let (actor_ent, _) = world.query::<(Entity, With<Actor>)>().single(&world);
 
