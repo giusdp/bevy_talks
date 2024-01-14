@@ -74,11 +74,11 @@ fn setup_talk(
 /// Advance the talk when the space key is pressed.
 fn interact(
     input: Res<Input<KeyCode>>,
-    mut next_action_events: EventWriter<NextActionRequest>,
+    mut next_action_events: EventWriter<NextNodeRequest>,
     talks: Query<Entity, With<Talk>>,
 ) {
     if input.just_pressed(KeyCode::Space) {
-        next_action_events.send(NextActionRequest::new(talks.single()));
+        next_action_events.send(NextNodeRequest::new(talks.single()));
     }
 }
 

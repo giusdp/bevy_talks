@@ -66,15 +66,15 @@ fn setup_talk(
 
 fn interact(
     input: Res<Input<KeyCode>>,
-    mut next_action_events: EventWriter<NextActionRequest>,
-    mut choose_action_events: EventWriter<ChooseActionRequest>,
+    mut next_action_events: EventWriter<NextNodeRequest>,
+    mut choose_action_events: EventWriter<ChooseNodeRequest>,
     talks: Query<Entity, With<Talk>>,
     choices: Query<&ChoiceNode, With<CurrentNode>>,
 ) {
     let talk_ent = talks.single();
 
     if input.just_pressed(KeyCode::Space) {
-        next_action_events.send(NextActionRequest::new(talk_ent));
+        next_action_events.send(NextNodeRequest::new(talk_ent));
     }
 
     // Note that you CAN have a TextNode component and a ChoiceNode component at the same time.
@@ -86,9 +86,9 @@ fn interact(
     let choice_node = choices.single();
 
     if input.just_pressed(KeyCode::Key1) {
-        choose_action_events.send(ChooseActionRequest::new(talk_ent, choice_node.0[0].next));
+        choose_action_events.send(ChooseNodeRequest::new(talk_ent, choice_node.0[0].next));
     } else if input.just_pressed(KeyCode::Key2) {
-        choose_action_events.send(ChooseActionRequest::new(talk_ent, choice_node.0[1].next));
+        choose_action_events.send(ChooseNodeRequest::new(talk_ent, choice_node.0[1].next));
     }
 }
 
