@@ -14,7 +14,7 @@ pub enum NextActionError {
     #[error("Current node is a Choice. Cannot just advance.")]
     ChoicesNotHandled,
     /// ChooseActionRequest error.
-    #[error("A wrong entity was given to jump to in the dialogue graph.")]
+    #[error("The current node has no choice with the given entity. (If the talk has not started you need to Next first)")]
     BadChoice,
     /// Requests error.
     #[error("No talk was found with the given entity from the event.")]
