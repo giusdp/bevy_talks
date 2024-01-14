@@ -4,7 +4,7 @@ use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
 use crate::prelude::{
     ActorSlug, Choice, ChoiceNode, CurrentNode, EndNode, FollowedBy, JoinNode, LeaveNode,
-    PerformedBy, StartNode, Talk, TextNode,
+    PerformedBy, StartNode, TextNode,
 };
 
 use super::*;
@@ -39,7 +39,6 @@ impl Command for BuildTalkCommand {
         let actor_ents: HashMap<ActorSlug, Entity> = spawn_actor_entities(&self.builder, world);
 
         let mut manager = world.entity_mut(self.parent);
-        manager.insert(Talk);
         manager.add_child(*start);
         for e in ents {
             manager.add_child(e);

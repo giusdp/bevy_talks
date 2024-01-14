@@ -7,12 +7,12 @@ use bevy::prelude::*;
 /// This event is typically used wired to an input from the player, e.g. a mouse click to advance the current dialogue.
 /// It can fail (and logs an error) in case there is no next action or in case the current action is a choice action.
 #[derive(Event)]
-pub struct NextActionRequest {
+pub struct NextNodeRequest {
     /// The entity with the `Talk` component you want to update.
     pub talk: Entity,
 }
 
-impl NextActionRequest {
+impl NextNodeRequest {
     /// Creates a new `NextActionRequest`.
     pub fn new(talk: Entity) -> Self {
         Self { talk }
@@ -24,14 +24,14 @@ impl NextActionRequest {
 /// It is typically used when you want to go to a target node from a choice node.
 /// The `ActionId` to jump to is the one defined in the next field for the Choice choosen by the player.
 #[derive(Event)]
-pub struct ChooseActionRequest {
+pub struct ChooseNodeRequest {
     /// The entity with the `Talk` component you want to update.
     pub talk: Entity,
     /// The next entity to go to.
     pub next: Entity,
 }
 
-impl ChooseActionRequest {
+impl ChooseNodeRequest {
     /// Creates a new `ChooseActionRequest`.
     pub fn new(talk: Entity, next: Entity) -> Self {
         Self { talk, next }

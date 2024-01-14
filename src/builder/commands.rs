@@ -24,7 +24,7 @@ impl<'w, 's> TalkCommandsExt<'w, 's> for Commands<'w, 's> {
     where
         T: Bundle + 'static,
     {
-        let parent = self.spawn(bundle).insert(Talk).id();
+        let parent = self.spawn(bundle).insert(Talk::default()).id();
         self.add(BuildTalkCommand::new(parent, builder));
         self.entity(parent)
     }
