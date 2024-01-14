@@ -73,7 +73,8 @@ pub struct TalkData {
 }
 
 impl TalkData {
-    /// Creates a new TalkData.
+    /// Creates a new TalkData with the given script and actors.
+    #[allow(dead_code)]
     pub(crate) fn new(script: IndexMap<ActionId, Action>, actors: Vec<Actor>) -> Self {
         Self { script, actors }
     }

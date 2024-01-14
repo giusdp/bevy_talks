@@ -1,5 +1,4 @@
 //! Commands for talks
-use std::ops::{Deref, DerefMut};
 
 use bevy::ecs::{
     bundle::Bundle,

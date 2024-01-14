@@ -7,17 +7,16 @@ use crate::prelude::ActorSlug;
 /// Errors when moving to the next action
 #[derive(Error, Debug, PartialEq, Eq)]
 pub enum NextActionError {
-    /// NextRequest event emitted for a talk where the current action has no next action.
+    /// NextActionRequest error.
     #[error("No next action found.")]
     NoNextAction,
-    /// NextRequest event emitted for a talk where the current action is a choice action.
+    /// NextActionRequest error.
     #[error("Current node is a Choice. Cannot just advance.")]
     ChoicesNotHandled,
-    /// ChooseActionRequest event emitted for a talk
-    /// where an action with given id does not exist.
+    /// ChooseActionRequest error.
     #[error("A wrong entity was given to jump to in the dialogue graph.")]
     BadChoice,
-    /// NextRequest event emitted for a talk that does not exist.
+    /// Requests error.
     #[error("No talk was found with the given entity from the event.")]
     NoTalk,
 }

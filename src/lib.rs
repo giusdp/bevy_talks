@@ -5,7 +5,7 @@ use bevy::prelude::*;
 
 use prelude::*;
 use ron_loader::loader::TalksLoader;
-use traverse::next_handler;
+use traverse::{choice_handler, next_handler};
 
 pub mod actors;
 pub mod builder;
@@ -34,7 +34,11 @@ impl Plugin for TalksPlugin {
             .register_asset_loader(TalksLoader)
             .init_asset::<TalkData>()
             .configure_sets(PreUpdate, TalksSet)
-            .add_systems(PreUpdate, next_handler.pipe(error_logger).in_set(TalksSet));
+            .add_systems(PreUpdate, next_handler.pipe(error_logger).in_set(TalksSet))
+            .add_systems(
+                PreUpdate,
+                choice_handler.pipe(error_logger).in_set(TalksSet),
+            );
         // .add_systems(Update, choice_handler.pipe(error_handler))
     }
 }

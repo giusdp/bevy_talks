@@ -2,8 +2,6 @@
 
 use bevy::prelude::*;
 
-use crate::prelude::Actor;
-
 /// Event to request the next action in a `Talk`. It requires an entity with the `Talk` component you want to update.
 ///
 /// This event is typically used wired to an input from the player, e.g. a mouse click to advance the current dialogue.
