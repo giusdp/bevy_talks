@@ -19,8 +19,12 @@ pub struct PerformedBy;
 
 /// Market component used to identify the parent entity of dialogue entity graphs.
 /// Build entities with Talk components via the [`TalkBuilder`] to correctly setup the dialogue graph.
-#[derive(Component, Debug)]
-pub struct Talk;
+#[derive(Component, Default, Debug)]
+pub struct Talk {
+    /// Helper field to know if the talk has started.
+    /// You can also check if the child `CurrentNode` has the `StartNode` component.
+    pub has_started: bool,
+}
 
 impl Talk {
     /// Create a default [`TalkBuilder`].
