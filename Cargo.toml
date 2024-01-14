@@ -24,6 +24,17 @@ opt-level = 3
 [workspace]
 members = ["./", "tools/ci", "macros"]
 
+[lints]
+[lints.rust]
+missing_docs = "deny"
+unsafe_code = "forbid"
+
+[lints.clippy]
+missing_docs_in_private_items = "deny"
+doc_markdown = "warn"
+type_complexity = "allow"
+too_many_arguments = "allow"
+
 [dependencies]
 bevy = { version = "0.12", default-features = false, features = ["bevy_asset"] }
 thiserror = "1.0"
