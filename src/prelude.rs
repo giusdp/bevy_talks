@@ -7,3 +7,4 @@ pub use super::errors::*;
 pub use super::events::{node_events::*, requests::*, *};
 pub use super::talk::*;
 pub use super::talk_asset::*;
+pub use bevy_talks_macros::NodeEventEmitter;
