@@ -70,22 +70,6 @@ pub struct ReflectEvent(ReflectEventFns);
 ///
 /// This is used when creating custom implementations of [`ReflectEvent`] with
 /// [`ReflectEvent::new()`].
-///
-/// > **Note:**
-/// > Creating custom implementations of [`ReflectEvent`] is an advanced feature that most users
-/// > will not need.
-/// > Usually a [`ReflectEvent`] is created for a type by deriving [`Reflect`]
-/// > and adding the `#[reflect(Event)]` attribute.
-/// > After adding the component to the [`TypeRegistry`][bevy::reflect::TypeRegistry],
-/// > its [`ReflectEvent`] can then be retrieved when needed.
-///
-/// Creating a custom [`ReflectEvent`] may be useful if you need to create new component types
-/// at runtime, for example, for scripting implementations.
-///
-/// By creating a custom [`ReflectEvent`] and inserting it into a type's
-/// [`TypeRegistration`][bevy_reflect::TypeRegistration],
-/// you can modify the way that reflected components of that type will be inserted into the Bevy
-/// world.
 #[derive(Clone)]
 pub struct ReflectEventFns {
     /// Function pointer implementing [`ReflectEvent::send()`].
@@ -110,36 +94,11 @@ impl ReflectEvent {
     }
 
     /// Create a custom implementation of [`ReflectEvent`].
-    ///
-    /// This is an advanced feature,
-    /// useful for scripting implementations,
-    /// that should not be used by most users
-    /// unless you know what you are doing.
-    ///
-    /// Usually you should derive [`Reflect`] and add the `#[reflect(Component)]` component
-    /// to generate a [`ReflectEvent`] implementation automatically.
-    ///
-    /// See [`ReflectEventFns`] for more information.
     pub fn new(fns: ReflectEventFns) -> Self {
         Self(fns)
     }
 
-    /// The underlying function pointers implementing methods on `ReflectComponent`.
-    ///
-    /// This is useful when you want to keep track locally of an individual
-    /// function pointer.
-    ///
-    /// Calling [`TypeRegistry::get`] followed by
-    /// [`TypeRegistration::data::<ReflectComponent>`] can be costly if done several
-    /// times per frame. Consider cloning [`ReflectEvent`] and keeping it
-    /// between frames, cloning a `ReflectComponent` is very cheap.
-    ///
-    /// If you only need a subset of the methods on `ReflectComponent`,
-    /// use `fn_pointers` to get the underlying [`ReflectComponentFns`]
-    /// and copy the subset of function pointers you care about.
-    ///
-    /// [`TypeRegistration::data::<ReflectComponent>`]: bevy_reflect::TypeRegistration::data
-    /// [`TypeRegistry::get`]: bevy_reflect::TypeRegistry::get
+    /// The underlying function pointers implementing methods on `ReflectEvent`.
     pub fn fn_pointers(&self) -> &ReflectEventFns {
         &self.0
     }

@@ -9,7 +9,7 @@ use crate::prelude::Talk;
 
 use super::{build_command::BuildTalkCommand, TalkBuilder};
 
-/// Extension trait for [`Commands`] to get [`TalkCommands`]
+/// Extension trait for [`Commands`] to spawn a talk.
 pub trait TalkCommandsExt<'w, 's> {
     /// Spawns a dialogue graph and a parent entity with a [`Talk`] component + the input bundle.
     /// Returns a handle of the parent entity.

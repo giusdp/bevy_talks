@@ -20,7 +20,7 @@ pub struct BuildTalkCommand {
 
 impl BuildTalkCommand {
     /// Create a new `BuildTalkCommand` with a parent entity and a builder.
-    /// The parent entity will be the parent of the dialogue graph and will have a [`Talk`] component.
+    /// The parent entity will be the parent of the dialogue graph and will have a `Talk` component.
     pub(crate) fn new(p: Entity, b: TalkBuilder) -> Self {
         Self {
             parent: p,
