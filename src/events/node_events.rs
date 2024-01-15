@@ -5,7 +5,6 @@ use crate::prelude::{Actor, Choice, ChoiceNode, JoinNode, LeaveNode, TextNode};
 
 use super::{NodeEventEmitter, ReflectEvent};
 
-// TODO: start and end events
 /// Start event sent when a talk is started.
 /// It happens when a next action request is sent to the talk that is still in the start node.
 /// Contains the talk parent entity.
