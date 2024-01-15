@@ -28,7 +28,9 @@ impl Plugin for TalksEventsPlugin {
     }
 }
 
+/// Extension trait for [`App`] to register dialogue node events.
 trait AppExt {
+    /// Registers a node event for a component.
     fn register_node_event<
         C: Component + NodeEventEmitter,
         T: Event + bevy::reflect::GetTypeRegistration,
@@ -162,11 +164,14 @@ pub trait NodeEventEmitter {
     fn make(&self, actors: &[Actor]) -> Box<dyn Reflect>;
 }
 
+/// Internal event used to trigger the emission of a node event.
 #[derive(Event)]
 pub(crate) struct EmissionTrigger<T: Event> {
+    /// The event to be emitted.
     pub(crate) event: T,
 }
 
+/// System that relays node events to their respective event channels.
 fn relay_node_event<T: Event>(mut t: ResMut<Events<EmissionTrigger<T>>>, mut w: EventWriter<T>) {
     t.drain().for_each(|EmissionTrigger { event }| {
         w.send(event);

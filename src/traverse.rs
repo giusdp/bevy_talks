@@ -6,6 +6,7 @@ use crate::{
 use aery::{prelude::*, tuple_traits::RelationEntries};
 use bevy::prelude::*;
 
+/// Sets the `has_started` field of the `Talk` component to true when a `StartEvent` is received.
 pub(crate) fn set_has_started(mut talks: Query<&mut Talk>, mut start_evs: EventReader<StartEvent>) {
     for event in start_evs.read() {
         let mut talk = talks.get_mut(event.0).expect("Talk");
@@ -13,6 +14,8 @@ pub(crate) fn set_has_started(mut talks: Query<&mut Talk>, mut start_evs: EventR
     }
 }
 
+/// Handles `NextActionRequest` events by moving the current node of the given `Talk` to the next one
+/// and emitting the events in the next node.
 pub(crate) fn next_handler(
     mut cmd: Commands,
     mut reqs: EventReader<NextNodeRequest>,
@@ -26,7 +29,7 @@ pub(crate) fn next_handler(
     mut start_ev_writer: EventWriter<StartEvent>,
     mut end_ev_writer: EventWriter<EndEvent>,
 ) -> Result<(), NextActionError> {
-    for event in reqs.read() {
+    if let Some(event) = reqs.read().next() {
         for (current_node, talk_parent, edges) in &current_nodes {
             let this_talk = talk_parent.get();
             // if this is the talk we want to advance
@@ -36,7 +39,7 @@ pub(crate) fn next_handler(
 
                 let followings = edges.targets(FollowedBy);
 
-                let next_node = validate_next_node(&followings)?;
+                let next_node = validate_next_node(followings)?;
 
                 // send end event if next node is an end node
                 maybe_emit_end_event(&end, next_node, &mut end_ev_writer, event.talk);
@@ -80,7 +83,7 @@ pub(crate) fn choice_handler(
     mut start_ev_writer: EventWriter<StartEvent>,
     mut end_ev_writer: EventWriter<EndEvent>,
 ) -> Result<(), NextActionError> {
-    for event in reqs.read() {
+    if let Some(event) = reqs.read().next() {
         for (current_node, talk_parent, edges) in &current_nodes {
             let this_talk = talk_parent.get();
             // if this is the talk we want to advance
@@ -90,7 +93,7 @@ pub(crate) fn choice_handler(
 
                 let followings = edges.targets(FollowedBy);
 
-                let next_node = validate_chosen_node(&followings, event.next)?;
+                let next_node = validate_chosen_node(followings, event.next)?;
 
                 // send end event if next node is an end node
                 maybe_emit_end_event(&end, next_node, &mut end_ev_writer, event.talk);
@@ -117,12 +120,14 @@ pub(crate) fn choice_handler(
     Ok(())
 }
 
+/// Moves the `CurrentNode` component from the current node to the next node.
 #[inline]
 fn move_current(cmd: &mut Commands<'_, '_>, current_node: Entity, next_node: Entity) {
     cmd.entity(current_node).remove::<CurrentNode>();
     cmd.entity(next_node).insert(CurrentNode);
 }
 
+/// Validates that there is only one next node.
 #[inline]
 fn validate_next_node(followings: &[Entity]) -> Result<Entity, NextActionError> {
     if followings.len() > 1 {
@@ -134,6 +139,7 @@ fn validate_next_node(followings: &[Entity]) -> Result<Entity, NextActionError> 
     Ok(followings[0])
 }
 
+/// Validates that the chosen next node is connected to the current node.
 fn validate_chosen_node(
     followings: &[Entity],
     chosen_node: Entity,

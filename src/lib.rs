@@ -47,6 +47,7 @@ impl Plugin for TalksPlugin {
     }
 }
 
+/// The `SystemSet` for the `TalksPlugin`.
 #[derive(SystemSet, Debug, Default, Clone, PartialEq, Eq, Hash)]
 struct TalksSet;
 
@@ -57,6 +58,7 @@ fn error_logger(In(result): In<Result<(), NextActionError>>) {
     }
 }
 
+/// Handles the `RefireNodeRequest` events. It will emit the events in the current node.
 fn refire_handler(
     mut cmd: Commands,
     mut reqs: EventReader<RefireNodeRequest>,
@@ -70,7 +72,7 @@ fn refire_handler(
     mut start_ev_writer: EventWriter<StartEvent>,
     mut end_ev_writer: EventWriter<EndEvent>,
 ) -> Result<(), NextActionError> {
-    for event in reqs.read() {
+    if let Some(event) = reqs.read().next() {
         for (current_node, talk_parent) in &current_nodes {
             let this_talk = talk_parent.get();
             // if this is the talk we want to advance
@@ -99,6 +101,8 @@ fn refire_handler(
     }
     Ok(())
 }
+
+/// Emits the start event if the current node is a start node.
 #[inline]
 pub(crate) fn maybe_emit_start_event(
     start: &Query<Entity, With<StartNode>>,
@@ -106,11 +110,12 @@ pub(crate) fn maybe_emit_start_event(
     start_ev_writer: &mut EventWriter<StartEvent>,
     requested_talk: Entity,
 ) {
-    if let Ok(_) = start.get(current_node) {
+    if start.get(current_node).is_ok() {
         start_ev_writer.send(StartEvent(requested_talk));
     }
 }
 
+/// Emit the end event if the current node is an end node.
 #[inline]
 pub(crate) fn maybe_emit_end_event(
     end: &Query<Entity, With<EndNode>>,
@@ -118,11 +123,12 @@ pub(crate) fn maybe_emit_end_event(
     end_ev_writer: &mut EventWriter<EndEvent>,
     requested_talk: Entity,
 ) {
-    if let Ok(_) = end.get(next_node) {
+    if end.get(next_node).is_ok() {
         end_ev_writer.send(EndEvent(requested_talk));
     }
 }
 
+/// Retrieves the actors connected to the given node.
 #[inline]
 pub(crate) fn retrieve_actors(
     performers: &Query<Relations<PerformedBy>>,
@@ -138,6 +144,7 @@ pub(crate) fn retrieve_actors(
     actors_in_node
 }
 
+/// Iterates over the `NodeEventEmitter` in the current node and emits the events.
 #[inline]
 pub(crate) fn emit_events(
     cmd: &mut Commands,
@@ -217,13 +224,13 @@ mod tests {
         };
         let mut app = setup_and_next(&TalkData::new(script, vec![Actor::new("actor_1", "Actor")]));
         let evs = app.world.resource::<Events<TextNodeEvent>>();
-        assert!(evs.get_reader().read(evs).len() == 1);
+        assert_eq!(evs.get_reader().read(evs).len(), 1);
 
         let (talk_ent, _) = single::<(Entity, With<Talk>)>(&mut app.world);
         app.world.send_event(RefireNodeRequest::new(talk_ent));
         app.update();
 
         let evs = app.world.resource::<Events<TextNodeEvent>>();
-        assert!(evs.get_reader().read(evs).len() == 2);
+        assert_eq!(evs.get_reader().read(evs).len(), 2);
     }
 }
