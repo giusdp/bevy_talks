@@ -1,9 +1,6 @@
 //! Commands for talks
 
-use bevy::ecs::{
-    bundle::Bundle,
-    system::{Commands, EntityCommands},
-};
+use bevy::ecs::system::{Commands, EntityCommands};
 
 use crate::prelude::Talk;
 
