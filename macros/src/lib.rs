@@ -30,6 +30,7 @@ pub fn derive_node_event_emitter(input: TokenStream) -> TokenStream {
                 let field_types: Vec<&syn::Type> = fs.named.iter().map(|f| &f.ty).collect();
 
                 quote! {
+                    /// The event emitted by the component.
                     #[derive(Event, Reflect, Default, Clone)]
                     #[reflect(Event)]
                     pub struct #event_struct_name {
