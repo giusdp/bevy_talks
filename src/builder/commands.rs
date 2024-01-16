@@ -10,7 +10,16 @@ use super::{build_command::BuildTalkCommand, TalkBuilder};
 pub trait TalkCommandsExt<'w, 's> {
     /// Spawns a dialogue graph and a parent entity with a [`Talk`] component + the input bundle.
     /// Returns a handle of the parent entity.
-    /// TODO: write example
+    ///
+    /// # Example
+    /// ```rust
+    /// use bevy_talks::prelude::*;
+    /// use bevy::prelude::*;
+    ///
+    /// fn setup(mut commands: Commands) {
+    ///     let talk_builder = TalkBuilder::default().say("Hello world!");
+    ///     commands.spawn_talk(talk_builder);
+    /// }
     fn spawn_talk(&mut self, builder: TalkBuilder) -> EntityCommands<'w, 's, '_>;
 }
 
