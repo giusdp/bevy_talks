@@ -265,4 +265,4 @@ additional terms or conditions.
 [crates]: https://crates.io/crates/bevy_talks
 [doc]: https://docs.rs/bevy_talks/
 [license]: https://github.com/giusdp/bevy_talks#license
-[tracking]: https://github.com/bevyengine/bevy/blob/main/docs/plugins_guidelines.md#main-branch-tracking
+[tracking]: https://bevyengine.org/learn/book/plugin-development/#main-branch-tracking
