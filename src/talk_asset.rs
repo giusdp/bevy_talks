@@ -160,7 +160,7 @@ fn prepare_builder(
 
 #[cfg(test)]
 mod tests {
-    use crate::{prelude::*, FollowedBy};
+    use crate::{prelude::*, tests::count, FollowedBy};
 
     use aery::{edges::Root, operations::utils::Relations, tuple_traits::RelationEntries};
     use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
@@ -208,7 +208,7 @@ mod tests {
             map.insert(index + 2, (target, "Hello"));
         }
         let mut world = build(TalkData::new(script, vec![]));
-        assert_eq!(world.query::<&TextNode>().iter(&world).count(), nodes);
+        assert_eq!(count::<&TextNode>(&mut world), nodes);
         assert_on_text_nodes(world, map);
     }
 
@@ -221,7 +221,7 @@ mod tests {
         };
 
         let mut world = build(TalkData::new(script, vec![]));
-        assert_eq!(world.query::<&TextNode>().iter(&world).count(), 3);
+        assert_eq!(count::<&TextNode>(&mut world), 3);
         let mut map = HashMap::new();
         map.insert(2, (Some(3), "1"));
         map.insert(3, (Some(4), "10"));
@@ -247,9 +247,9 @@ mod tests {
 
         let mut world = build(TalkData::new(script, vec![]));
 
-        assert_eq!(world.query::<&TextNode>().iter(&world).count(), 2);
-        assert_eq!(world.query::<&ChoiceNode>().iter(&world).count(), 1);
-        assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
+        assert_eq!(count::<&TextNode>(&mut world), 2);
+        assert_eq!(count::<&ChoiceNode>(&mut world), 1);
+        assert_eq!(count::<Root<FollowedBy>>(&mut world), 1);
         let mut map: HashMap<usize, (Vec<u32>, Vec<&str>)> = HashMap::new();
         map.insert(2, (vec![3, 4], vec!["Choice 1", "Choice 2"]));
         assert_on_choice_nodes(&mut world, map);
@@ -275,9 +275,9 @@ mod tests {
         };
         let mut world = build(TalkData::new(script, vec![]));
 
-        assert_eq!(world.query::<&TextNode>().iter(&world).count(), 4);
-        assert_eq!(world.query::<&ChoiceNode>().iter(&world).count(), 1);
-        assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
+        assert_eq!(count::<&TextNode>(&mut world), 4);
+        assert_eq!(count::<&ChoiceNode>(&mut world), 1);
+        assert_eq!(count::<Root<FollowedBy>>(&mut world), 1);
 
         let mut choice_map = HashMap::new();
         choice_map.insert(4, (vec![5, 6], vec!["Choice 1", "Choice 2"]));
@@ -319,9 +319,9 @@ mod tests {
         };
         let mut world = build(TalkData::new(script, vec![]));
 
-        assert_eq!(world.query::<&TextNode>().iter(&world).count(), 3);
-        assert_eq!(world.query::<&ChoiceNode>().iter(&world).count(), 2);
-        assert_eq!(world.query::<Root<FollowedBy>>().iter(&world).count(), 1);
+        assert_eq!(count::<&TextNode>(&mut world), 3);
+        assert_eq!(count::<&ChoiceNode>(&mut world), 2);
+        assert_eq!(count::<Root<FollowedBy>>(&mut world), 1);
 
         let mut choice_map = HashMap::new();
         choice_map.insert(2, (vec![3, 5], vec!["First Choice 1", "First Choice 2"]));
@@ -373,8 +373,8 @@ mod tests {
         }
         let mut world = build(TalkData::new(script, actors));
 
-        assert_eq!(world.query::<&TextNode>().iter(&world).count(), nodes);
-        assert_eq!(world.query::<&Actor>().iter(&world).count(), 3);
+        assert_eq!(count::<&TextNode>(&mut world), nodes);
+        assert_eq!(count::<&Actor>(&mut world), 3);
 
         assert_on_text_nodes(world, map);
     }

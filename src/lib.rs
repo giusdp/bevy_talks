@@ -192,6 +192,13 @@ mod tests {
     }
 
     #[inline]
+    #[track_caller]
+    pub fn count<Q: WorldQuery>(world: &mut World) -> usize {
+        world.query::<Q>().iter(&world).count()
+    }
+
+    #[inline]
+    #[track_caller]
     pub fn single<Q: WorldQuery>(world: &mut World) -> ROQueryItem<Q> {
         world.query::<Q>().single(world)
     }

@@ -315,6 +315,8 @@ mod tests {
     use bevy::{prelude::*, utils::HashMap};
     use rstest::rstest;
 
+    use crate::tests::{count, single};
+
     use super::*;
 
     #[test]
@@ -324,14 +326,8 @@ mod tests {
         let builder = TalkBuilder::default()
             .say("Hello")
             .choose(vec![
-                (
-                    "Choice 1".to_string(),
-                    TalkBuilder::default().say("Hi").to_owned(),
-                ),
-                (
-                    "Choice 2".to_string(),
-                    TalkBuilder::default().say("World!").to_owned(),
-                ),
+                ("Choice 1".to_string(), TalkBuilder::default().say("Hi")),
+                ("Choice 2".to_string(), TalkBuilder::default().say("World!")),
             ])
             .say("something");
 
@@ -452,24 +448,10 @@ mod tests {
         );
 
         // Assert that the connections are made correctly
-        assert_eq!(
-            world.query::<(Entity, Leaf<FollowedBy>)>().single(&world).0,
-            root_ent
-        );
-
-        assert_eq!(
-            world.query::<(Entity, Root<FollowedBy>)>().single(&world).0,
-            leaf_ent
-        );
-
+        assert_eq!(single::<(Entity, Leaf<FollowedBy>)>(&mut world).0, root_ent);
+        assert_eq!(single::<(Entity, Root<FollowedBy>)>(&mut world).0, leaf_ent);
         if previous_node_was_choice {
-            assert_eq!(
-                world
-                    .query::<(Entity, Branch<FollowedBy>)>()
-                    .iter(&world)
-                    .count(),
-                2
-            );
+            assert_eq!(count::<(Entity, Branch<FollowedBy>)>(&mut world), 2);
         }
     }
 
@@ -485,10 +467,7 @@ mod tests {
         // Assert that the relationships are built correctly
         assert_ne!(ent, root);
         assert_eq!(leaves.len(), 1);
-        assert_eq!(
-            world.query::<Relations<FollowedBy>>().iter(&world).count(),
-            2
-        );
+        assert_eq!(count::<Relations<FollowedBy>>(&mut world), 2);
     }
     #[test]
     fn test_add_relationships() {
@@ -507,31 +486,10 @@ mod tests {
         form_graph(root, &talk_builder, &mut build_node_entities, &mut world);
 
         // Assert that the relationships are built correctly
-        assert_eq!(
-            world.query::<Relations<FollowedBy>>().iter(&world).count(),
-            5
-        );
-        assert_eq!(
-            world
-                .query::<(Entity, Leaf<FollowedBy>)>()
-                .iter(&world)
-                .count(),
-            1
-        );
-        assert_eq!(
-            world
-                .query::<(Entity, Branch<FollowedBy>)>()
-                .iter(&world)
-                .count(),
-            3
-        );
-        assert_eq!(
-            world
-                .query::<(Entity, Root<FollowedBy>)>()
-                .iter(&world)
-                .count(),
-            1
-        );
+        assert_eq!(count::<Relations<FollowedBy>>(&mut world), 5);
+        assert_eq!(count::<(Entity, Leaf<FollowedBy>)>(&mut world), 1);
+        assert_eq!(count::<(Entity, Branch<FollowedBy>)>(&mut world), 3);
+        assert_eq!(count::<(Entity, Root<FollowedBy>)>(&mut world), 1);
     }
 }
 
@@ -685,7 +643,6 @@ mod integration_tests {
         let mut world = World::default();
         BuildTalkCommand::new(world.spawn_empty().id(), builder).apply(&mut world);
 
-        // TODO: I should assert on the actual structure of the graph instead of simple number of nodes, leaf and roots.
         assert_relationship_nodes(6, 6, 1, &mut world);
     }
 
