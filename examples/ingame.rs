@@ -99,7 +99,8 @@ fn setup(
     let bev_talk_builder = Talk::builder().fill_with_talk_data(bev_talk_data);
 
     let talk_graph_ent = commands
-        .spawn_talk(bev_talk_builder, ActiveTalk(false))
+        .spawn_talk(bev_talk_builder)
+        .insert(ActiveTalk(false))
         .id();
 
     commands
@@ -119,7 +120,8 @@ fn setup(
     let feri_talk_builder = Talk::builder().fill_with_talk_data(feri_talk_data);
 
     let talk_graph_ent = commands
-        .spawn_talk(feri_talk_builder, ActiveTalk(false))
+        .spawn_talk(feri_talk_builder)
+        .insert(ActiveTalk(false))
         .id();
     commands
         .spawn((

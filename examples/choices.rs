@@ -57,7 +57,7 @@ fn setup_talk(
 ) {
     let choice_talk = talks.get(&choice_talk_asset.handle).unwrap();
     let talk_builder = TalkBuilder::default().fill_with_talk_data(choice_talk);
-    commands.spawn_talk(talk_builder, ());
+    commands.spawn_talk(talk_builder);
 
     println!("-----------------------------------------");
     println!("Press space to advance the conversation. And 1, 2 to pick a choice.");

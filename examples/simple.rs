@@ -64,7 +64,7 @@ fn setup_talk(
     let simple_talk = talks.get(&simple_talk_asset.handle).unwrap();
     let talk_builder = TalkBuilder::default().fill_with_talk_data(simple_talk);
 
-    commands.spawn_talk(talk_builder, ());
+    commands.spawn_talk(talk_builder);
 
     println!("-----------------------------------------");
     println!("Press space to advance the conversation.");
