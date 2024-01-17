@@ -9,15 +9,21 @@
 - Add `ChoiceNode` component to store the choices of a node
 - Add `JoinNode` component for the join node kind
 - Add `LeaveNode` component for the leave node kind
+- Add `StartNode` and `EndNode` components for the start and end node kinds
+- Add `with_component` and `empty_node` methods to `TalkBuilder`
+- Add `RefireNodeRequest` event to refire a node's events
 
 ### Changed
 
 - Set `CurrentNode` visibility to public
-- Remove component derive on `NodeKind`
-
+- Builder adds the XNode components with the methods
+- Builder now adds the components to the node entities instead of checking NodeKind
+- `NextActionRequest` renamed to `NextNodeRequest`
+- `ChooseActionRequest` renamed to `ChooseNodeRequest`
 
 ### Removed
 
+- Component derive on `NodeKind`
 
 ## 0.4.0 - 2024-02-02
 
