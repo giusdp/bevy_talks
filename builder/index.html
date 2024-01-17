@@ -1,0 +1,431 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Creating Talks with TalkBuilder - Bevy Talks Documentation</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "navy" : "light";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('light')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item expanded "><a href="../index.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item expanded "><a href="../getting-started/index.html"><strong aria-hidden="true">2.</strong> Getting Started</a></li><li class="chapter-item expanded "><a href="../builder/index.html" class="active"><strong aria-hidden="true">3.</strong> Creating Talks with TalkBuilder</a></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="ayu">Ayu</button></li>
+                        </ul>
+                        <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Bevy Talks Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <h1 id="creating-talks-with-talkbuilder"><a class="header" href="#creating-talks-with-talkbuilder">Creating Talks with TalkBuilder</a></h1>
+<p>You can build dialogue graphs programmatically using the <code>TalkBuilder</code>. </p>
+<blockquote>
+<p>[ⓘ] 
+The <code>TalkBuilder</code> is also used under the hood to build the graphs from the asset files.</p>
+</blockquote>
+<p>If you need to generate procedurally dialogue graphs, or you just don't like the asset files, you can use this approach. Otherwise use the <code>talk.ron</code> files explained in the <a href="../getting-started/index.html">Getting Started</a> chapter.</p>
+<h3 id="simple-usage"><a class="header" href="#simple-usage">Simple Usage</a></h3>
+<p>Depending on your needs, building a dialogue graph via code can be more or less verbose. 
+A simple, linear, conversation such as:</p>
+<pre><code class="language-mermaid">graph LR
+    A((Start)) --&gt; B[Say]
+    B --&gt; C[Say]
+</code></pre>
+<p>can be built with just a few lines of code:</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let talk_builder = Talk::builder().say(&quot;Hello&quot;).say(&quot;World&quot;);
+let talk_commands = commands.talks();
+commands.spawn_talk(talk_builder);
+<span class="boring">}</span></code></pre></pre>
+<p>To actually spawn the entities with the relationships, you pass the <code>TalkBuilder</code> to the <code>Commands::spawn_talk</code> method, which will prepare a <code>Command</code> to be added to the command queue.</p>
+<p>The command, when applied, will first spawn the main parent entity of the graph with the <code>Talk</code> component. Then add a start node with <code>StartNode</code> component (the entry point of the graph) and finally spawn entities for each <code>say</code>, <code>choose</code> etc.</p>
+<p>Usually the builder will connect the entities linearly based on the concatenated methods, with the only exception being the <code>choose</code> method which is used for branching. In the example above you would have 3 entities each in a relationship with the next one (start -&gt; say -&gt; say), all children of the main <code>Talk</code> entity.</p>
+<p>You can check out all the methods that the builder provides in the <a href="https://docs.rs/bevy_talks/latest/bevy_talks/builder/struct.TalkBuilder.html">API docs</a>.</p>
+<h3 id="build-branching-conversations"><a class="header" href="#build-branching-conversations">Build Branching Conversations</a></h3>
+<p>The simplest example would be a conversation with just 1 choice node:</p>
+<pre><code class="language-mermaid">graph LR
+    A((Start)) --&gt; B[Say]
+    B --&gt; C[Choice]
+    C --&gt; D[Say]
+    C --&gt; E[Say]
+</code></pre>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let talk_builder = Talk::builder();
+
+talk_builder.say(&quot;How are you?&quot;)
+    .choose(vec![
+        (&quot;I'm fine&quot;, Talk::builder().say(&quot;I'm glad to hear that&quot;)), 
+        (&quot;I'm not fine&quot;, Talk::builder().say(&quot;I'm sorry to hear that&quot;)), 
+    ]);
+<span class="boring">}</span></code></pre></pre>
+<p>The <code>choose</code> method expects a vector of tuples. The first element is the text field of the choice (to be displayed) and the second is the branch of the conversation, which is another <code>TalkBuilder</code> instance.</p>
+<h3 id="multiple-branches"><a class="header" href="#multiple-branches">Multiple Branches</a></h3>
+<p>To make the example a bit more complex, let's say we have another choice in a branch:</p>
+<pre><code class="language-mermaid">graph LR
+    A((Start)) --&gt; B[Say]
+    B --&gt; C[Choice]
+    C --&gt; D[Say]
+    C --&gt; E[Say]
+    E --&gt; F[Choice]
+    F --&gt; G[Say]
+    F --&gt; H[Say]
+</code></pre>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let talk_builder = Talk::builder();
+
+let happy_branch = Talk::builder().say(&quot;I'm glad to hear that&quot;);
+let sad_branch = Talk::builder()
+    .say(&quot;Why?&quot;)
+    .choose(vec![
+        (&quot;Jk, I'm fine&quot;, Talk::builder().say(&quot;Aight&quot;)), 
+        (&quot;I want an editor!&quot;, Talk::builder().say(&quot;Me too :(&quot;))
+    ]);
+
+talk_builder.say(&quot;How are you?&quot;)
+    .choose(vec![(&quot;I'm fine&quot;, happy_branch), (&quot;I'm not fine&quot;, sad_branch)]);
+<span class="boring">}</span></code></pre></pre>
+<p>It's easy to keep branching but it can get quite verbose and hard to read. </p>
+<p>It is recommended to use the asset files for more complex conversations, but this can be useful if you want to quickly give some lines of texts to an item, or an NPC, or you are generating the conversation procedurally.</p>
+<h3 id="connecting-nodes-manually"><a class="header" href="#connecting-nodes-manually">Connecting Nodes Manually</a></h3>
+<p>You can connect nodes manually with the <code>connect_to</code> method. But you will need to have the node to connect to. </p>
+<p>If for some reason we need a loop like this:</p>
+<pre><code class="language-mermaid">graph LR
+    A((Start)) --&gt; B[Say]
+    B --&gt; C[Say]
+    C --&gt; B
+</code></pre>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut talk_builder = Talk::builder().say(&quot;Hello&quot;);
+
+// grab latest node
+let node_a = talk_builder.last_node_id();
+
+talk_builder ? talk_builder.say(&quot;World&quot;).connect_to(node_a);
+<span class="boring">}</span></code></pre></pre>
+<p>The <code>node</code> method returns an identifier of the node, and we can use it to do manual connections. 
+Note you cannot create one node loops since currently self referential relationships are not supported.</p>
+<p>You can also chain multiple <code>connect_to</code> calls to connect multiple nodes to the same node.</p>
+<h3 id="branching-and-manual-connections"><a class="header" href="#branching-and-manual-connections">Branching and Manual Connections</a></h3>
+<p>Suppose we want to build this conversation:</p>
+<pre><code class="language-mermaid">graph LR
+    A((Start)) --&gt; B[Say]
+    B --&gt; C[Say]
+    C --&gt; D[Choice]
+    D --&gt; E[Say]
+    D --&gt; F[Say]
+    F --&gt; B
+</code></pre>
+<p>Situations like this are somewhat common in games. You are talking to an NPC where only one choice lets you continue 
+and the others are just some flavour text or some extra lore. </p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut talk_builder = Talk::builder().say(&quot;Hello&quot;);
+
+// grab latest node
+let convo_start = talk_builder.last_node_id();
+
+talk_builder = talk_builder
+    .say(&quot;Hey&quot;)
+    .choose(vec![
+        (&quot;Good Choice&quot;, Talk::builder().say(&quot;End of the conversation&quot;)),
+        (&quot;Wrong Choice&quot;, Talk::builder().say(&quot;Go Back&quot;).connect_to(convo_start))
+    ]);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="connecting-to-the-same-node"><a class="header" href="#connecting-to-the-same-node">Connecting To The Same Node</a></h3>
+<p>Imagine you want to land on a node from multiple places like this:</p>
+<pre><code class="language-mermaid">graph LR
+    A((Start)) --&gt; B[Choice]
+    B --&gt; C[Say]
+    C --&gt; D[Choice]
+    D --&gt; E[Say]
+    D --&gt; F[Say]
+    E --&gt; F
+    B --&gt; F
+</code></pre>
+<p>You have an initial choice that can take the player to the end of the conversation, or go for some chat and then another choices which either goes to the end or passes by a talk node first.</p>
+<p>You can think of that last talk node as its own branch that is pointed by multiple nodes. </p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let end_branch_builder = Talk::builder().say(&quot;The End&quot;); // Create the end immediately
+let end_node_id = end_branch_builder.last_node_id(); // &lt;- grab the end node
+
+// Create the good path
+let good_branch = Talk::builder().say(&quot;something&quot;).choose(vec![
+    (&quot;Bad Choice&quot;, Talk::builder().connect_to(end_node_id.clone())),
+    (
+        &quot;Another Good Choice&quot;, 
+        Talk::builder().say(&quot;Before the end...&quot;).connect_to(end_node_id)
+    ),
+]);
+
+let builder = Talk::builder().choose(vec![
+    (&quot;Good Choice&quot;, good_branch),
+    // NB the builder is passed here. If we never add it and keep using connect_to
+    // the end node would never be created
+    (&quot;Bad Choice&quot;, end_branch_builder) 
+]);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="adding-actors-to-the-mix"><a class="header" href="#adding-actors-to-the-mix">Adding Actors to the mix</a></h3>
+<p>We saw the builder in action with just the <code>say</code> method, but we can also have actors say stuff. 
+First we need to add the actors to the builder:</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let mut talk_builder = Talk::builder()
+    .add_actor(&quot;bob&quot;, &quot;Bob&quot;)
+    .add_actor(&quot;alice&quot;, &quot;Alice&quot;);
+<span class="boring">}</span></code></pre></pre>
+<p>Then we can use the <code>actor_say</code> method (or <code>actors_say</code> for multiple actors at once):</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>talk_builder = talk_builder.actor_say(&quot;bob&quot;, &quot;Hello&quot;)
+    .actor_say(&quot;alice&quot;, &quot;Hi Bob&quot;);
+<span class="boring">}</span></code></pre></pre>
+<p>The first argument is the actor slug. If the builder doesn't have an actor with that slug, it will panic when building. So always make sure to add the correct actors first. Also there is a <code>actors_say</code> method that takes a vector of actors slug.</p>
+<p>Actors can also &quot;join&quot; or &quot;leave&quot; the conversation. For that there are the relative methods <code>join</code> and <code>leave</code>:</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>talk_builder = talk_builder.add_actor(&quot;bob&quot;, &quot;Bob&quot;)
+    .join(&quot;bob&quot;)
+    .actor_say(&quot;bob&quot;, &quot;Folks, it do be me.&quot;);
+<span class="boring">}</span></code></pre></pre>
+<h3 id="node-event-emitters"><a class="header" href="#node-event-emitters">Node Event Emitters</a></h3>
+<p>The dialogue graph emits events when a node is reached. The way it does that is by using the <code>NodeEventEmitter</code> trait for the node components that implement it. </p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>/// Trait to implement on dialogue node components to make them emit an event when reached.
+#[bevy_trait_query::queryable]
+pub trait NodeEventEmitter {
+    /// Creates an event to be emitted when a node is reached.
+    fn make(&amp;self, actors: &amp;[Actor]) -&gt; Box&lt;dyn Reflect&gt;;
+}
+<span class="boring">}</span></code></pre></pre>
+<p>In case of <code>say</code>, <code>choose</code>, <code>join</code> and <code>leave</code> the builder will spawn an entity and add the <code>TextNode</code>, <code>ChoiceNode</code>, <code>JoinNode</code> and <code>LeaveNode</code> components respectively. Each of these components implement the <code>NodeEventEmitter</code> trait.</p>
+<p>The idea is that you can create a <code>Component</code>, implement the trait so you can create an <code>Event</code> (optionally injecting the active actors) and then use that event to trigger some logic in your game.</p>
+<p>You can check out the <a href="https://github.com/giusdp/bevy_talks/blob/main/examples/custom_node_event.rs"><code>custom_node_event</code></a> example to see how to implement custom events. You will see that there is also a macro to help you with that and that you need to register the component (and event) with the <code>app.register_node_event::&lt;C, T&gt;()</code>.</p>
+<h3 id="custom-node-components"><a class="header" href="#custom-node-components">Custom Node Components</a></h3>
+<p>Related to the previous section, you can also add any custom components to a node with the <code>with_component</code> method:</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+struct MyCustomComponent {
+    pub some: bool,
+}
+
+talk_builder = Talk::builder().say(&quot;Hello&quot;).with_component(MyCustomComponent::default());
+<span class="boring">}</span></code></pre></pre>
+<p>This will add the component to the node entity, but remember to register the component type first with <code>app.register_type::&lt;MyCustomComponent&gt;();</code>.</p>
+<p>Going one step further, you can do a completely customized node by creating one empty first and then adding components to it:</p>
+<pre><pre class="playground"><code class="language-rust no_run"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>let builder = Talk::builder().empty_node().with_component(MyCustomComponent::default());
+<span class="boring">}</span></code></pre></pre>
+<p>You could create any kind of entity graph this way!</p>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../getting-started/index.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../getting-started/index.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+            </nav>
+
+        </div>
+
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../mermaid.min.js"></script>
+        <script src="../mermaid-init.js"></script>
+
+
+    </div>
+    </body>
+</html>
