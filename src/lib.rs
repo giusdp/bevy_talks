@@ -33,10 +33,6 @@ impl Plugin for TalksPlugin {
         app.add_plugins(TalksEventsPlugin)
             .register_asset_loader(TalksLoader)
             .init_asset::<TalkData>()
-            .register_type::<TextNode>()
-            .register_type::<ChoiceNode>()
-            .register_type::<JoinNode>()
-            .register_type::<LeaveNode>()
             .configure_sets(PreUpdate, TalksSet)
             .add_systems(
                 PreUpdate,

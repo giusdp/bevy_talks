@@ -1,34 +1,14 @@
 //! Programmatically build Talks
+
 use bevy::prelude::*;
 use bevy::utils::Uuid;
 use std::collections::VecDeque;
 
-use crate::prelude::{Actor, ActorSlug, NodeKind, TalkData};
+use crate::prelude::{Actor, ActorSlug, TalkData};
+use crate::{JoinNode, LeaveNode, TextNode};
 
 pub mod build_command;
 pub mod commands;
-
-/// The ID of the nodes in the builder. It is used to identify the dialogue graph nodes before
-/// they are actually spawned in the world.
-/// It is useful to connect manually the nodes at build time with the `connect_to` method.
-pub type BuildNodeId = String;
-
-/// A struct with the data to build a node.
-#[derive(Default, Debug, Clone)]
-pub(crate) struct BuildNode {
-    /// The id of the node to build.
-    pub(crate) id: BuildNodeId,
-    /// The kind of the node to build.
-    pub(crate) kind: NodeKind,
-    /// The text of the node to build. If it's a choice node, it will be empty.
-    pub(crate) text: String,
-    /// The choices of the node to build. If it's a talk node, it will be empty.
-    pub(crate) choices: Vec<(String, TalkBuilder)>,
-    /// The ids to add extra connections.
-    pub(crate) manual_connections: Vec<BuildNodeId>,
-    /// The actors slugs that are performing the node action.
-    pub(crate) actors: Vec<ActorSlug>,
-}
 
 /// An implementation of the builder pattern for the dialogue graph.
 /// You can define dialogue graphs programmatically using this builder and
@@ -51,10 +31,10 @@ pub(crate) struct BuildNode {
 ///
 /// fn some_startup_system(mut commands: Commands) {
 ///     let builder = TalkBuilder::default().say("Hello");
-///     commands.spawn_talk(builder, ());
+///     commands.spawn_talk(builder);
 /// }
 /// ```
-#[derive(Default, Debug, Clone)]
+#[derive(Default)]
 pub struct TalkBuilder {
     /// The main queue of nodes that will be spawned.
     pub(crate) queue: VecDeque<BuildNode>,
@@ -63,6 +43,30 @@ pub struct TalkBuilder {
     /// It is set when `connect_to` is called on an empty builder.
     /// It signals the Command to connect the last node of the parent builder (in a choice node).
     pub(crate) connect_parent: Option<BuildNodeId>,
+}
+
+/// The ID of the nodes in the builder. It is used to identify the dialogue graph nodes before
+/// they are actually spawned in the world.
+/// It is useful to connect manually the nodes at build time with the `connect_to` method.
+pub type BuildNodeId = String;
+
+/// A struct with the data to build a node.
+#[derive(Default)]
+pub(crate) struct BuildNode {
+    /// The id of the node to build.
+    pub(crate) id: BuildNodeId,
+    /// The choices of the node to build.
+    /// NOTE: due to the limitation of current entity relationship system (with aery) we need to store the choices
+    /// until the entities are spawned cause edges cannot hold any data, so we can't already create the
+    /// choice node components.
+    pub(crate) choices: Vec<(String, TalkBuilder)>,
+    /// The ids to add extra connections.
+    pub(crate) manual_connections: Vec<BuildNodeId>,
+    /// The actors slugs that are performing the node action.
+    pub(crate) actors: Vec<ActorSlug>,
+    /// The components to add to the node entity. These will be `TextNode`, JoinNode`, `LeaveNode` + custom components.
+    /// `ChoiceNode` components are added later when the entities are spawned.
+    pub(crate) components: Vec<Box<dyn Reflect>>,
 }
 
 impl TalkBuilder {
@@ -86,34 +90,9 @@ impl TalkBuilder {
     /// }
     /// ```
     ///
-    pub fn fill_with_talk_data(self, talk: &TalkData) -> TalkBuilder {
+    pub fn fill_with_talk_data(self, talk: &TalkData) -> Self {
         talk.fill_builder(self)
     }
-
-    // /// Generate a `BuildTalkCommand` that will spawn all the dialogue nodes
-    // /// and connect them to each other to form a dialogue graph.
-    // ///
-    // /// Takes in input the parent [`Entity`] of the dialogue graph.
-    // /// After building, this parent entity will have the [`Talk`] component and
-    // /// all the dialogue node entities as children.
-    // ///
-    // /// # Example
-    // ///
-    // /// ```rust,no_run
-    // /// use bevy::prelude::Commands;
-    // /// use bevy_talks::prelude::TalkBuilder;
-    // ///
-    // /// fn some_system(mut commands: Commands) {
-    // ///     let build_talk_cmd = TalkBuilder::default().say("Hello").build();
-    // ///     commands.add(build_talk_cmd);
-    // /// }
-    // /// ```
-    // pub fn build(self, manager_entity: Entity) -> BuildTalkCommand {
-    //     BuildTalkCommand {
-    //         builder: self,
-    //         parent: manager_entity,
-    //     }
-    // }
 
     /// Add a simple text node without any actor that will spawn an entity with `TalkText`.
     ///
@@ -124,16 +103,13 @@ impl TalkBuilder {
     ///
     /// TalkBuilder::default().say("Hello").say("World!");
     /// ```
-    pub fn say(mut self, text: impl Into<String>) -> TalkBuilder {
-        let id = Uuid::new_v4().to_string();
+    pub fn say(mut self, text: impl Into<String>) -> Self {
         let talk_node = BuildNode {
-            id: id.clone(),
-            text: text.into(),
-            kind: NodeKind::Talk,
+            id: Uuid::new_v4().to_string(),
+            components: vec![Box::new(TextNode(text.into()))],
             ..default()
         };
         self.queue.push_back(talk_node);
-
         self
     }
 
@@ -171,20 +147,17 @@ impl TalkBuilder {
     ///     ("Choice 2", TalkBuilder::default().say("World!")),
     /// ]).say("Hi");
     /// ```
-    pub fn choose(mut self, choices: Vec<(impl Into<String>, TalkBuilder)>) -> TalkBuilder {
-        if choices.is_empty() {
-            warn!("You attempted to add a choice node without any choices. It will be treated as a talk node to avoid dead ends.");
-        }
+    pub fn choose(mut self, choices: Vec<(impl Into<String>, Self)>) -> Self {
+        assert!(!choices.is_empty(), "You can't choose node without choices");
 
         let choices = choices
             .into_iter()
-            .map(|(text, builder)| (text.into(), builder))
-            .collect::<Vec<_>>();
+            .map(|(t, b)| (t.into(), b))
+            .collect::<Vec<(String, TalkBuilder)>>();
 
         let choice_node = BuildNode {
             id: Uuid::new_v4().to_string(),
             choices,
-            kind: NodeKind::Choice,
             ..default()
         };
 
@@ -193,11 +166,11 @@ impl TalkBuilder {
     }
 
     /// Add a Join node to the dialogue graph.
-    pub fn join(mut self, actor_slugs: &[ActorSlug]) -> TalkBuilder {
+    pub fn join(mut self, actor_slugs: &[ActorSlug]) -> Self {
         let join_node = BuildNode {
             id: Uuid::new_v4().to_string(),
-            kind: NodeKind::Join,
             actors: actor_slugs.to_vec(),
+            components: vec![Box::new(JoinNode)],
             ..default()
         };
         self.queue.push_back(join_node);
@@ -205,11 +178,11 @@ impl TalkBuilder {
     }
 
     /// Add a Leave node to the dialogue graph.
-    pub fn leave(mut self, actor_slugs: &[ActorSlug]) -> TalkBuilder {
+    pub fn leave(mut self, actor_slugs: &[ActorSlug]) -> Self {
         let leave_node = BuildNode {
             id: Uuid::new_v4().to_string(),
-            kind: NodeKind::Leave,
             actors: actor_slugs.to_vec(),
+            components: vec![Box::new(LeaveNode)],
             ..default()
         };
         self.queue.push_back(leave_node);
@@ -250,7 +223,7 @@ impl TalkBuilder {
     /// builder = builder.say("how are you?");
     /// builder = builder.connect_to(hello_id);
     /// ```
-    pub fn connect_to(mut self, node_id: BuildNodeId) -> TalkBuilder {
+    pub fn connect_to(mut self, node_id: BuildNodeId) -> Self {
         match self.queue.back_mut() {
             None => self.connect_parent = Some(node_id),
             Some(node) => node.manual_connections.push(node_id),
@@ -281,33 +254,27 @@ impl TalkBuilder {
     }
 
     /// Add an actor to the builder to be spawned (if not already present in the world, checked with the slug identifier).
-    pub fn add_actor(mut self, actor: Actor) -> TalkBuilder {
+    /// # Note
+    /// Adding actors to nested builders (when branching) has no effect. Add them to the root builder instead.
+    pub fn add_actor(mut self, actor: Actor) -> Self {
         self.actors.push(actor);
         self
     }
 
     /// Add multiple actors to the builder to be spawned (if not already present in the world, checked with the slug identifier).
-    pub fn add_actors(mut self, actors: Vec<Actor>) -> TalkBuilder {
+    /// # Note
+    /// Adding actors to nested builders (when branching) has no effect. Add them to the root builder instead.
+    pub fn add_actors(mut self, actors: Vec<Actor>) -> Self {
         self.actors.extend(actors);
         self
     }
 
     /// Add a talk node with an actor. It will spawn an entity with `TalkText` connected with the actor entity identified by the slug.
-    pub fn actor_say(
-        mut self,
-        actor_slug: impl Into<String>,
-        text: impl Into<String>,
-    ) -> TalkBuilder {
-        // let actor_slug = actor_slug.into();
-        // if !self.actors.iter().any(|a| a.slug == actor_slug) {
-        //     return Err(ActorError::Invalid(actor_slug));
-        // }
-        let id = Uuid::new_v4().to_string();
+    pub fn actor_say(mut self, actor_slug: impl Into<String>, text: impl Into<String>) -> Self {
         let talk_node = BuildNode {
-            id: id.clone(),
-            text: text.into(),
-            kind: NodeKind::Talk,
+            id: Uuid::new_v4().to_string(),
             actors: vec![actor_slug.into()],
+            components: vec![Box::new(TextNode(text.into()))],
             ..default()
         };
         self.queue.push_back(talk_node);
@@ -316,30 +283,39 @@ impl TalkBuilder {
 
     /// Add a talk node with multiple actors.
     /// It will spawn an entity with `TalkText` connected with the actor entities identified by the slugs.
-    pub fn actors_say(mut self, actor_slugs: &[ActorSlug], text: impl Into<String>) -> TalkBuilder {
-        // for slug in actor_slugs.iter() {
-        //     if !self.actors.iter().any(|a| a.slug == *slug) {
-        //         return Err(ActorError::Invalid(slug.clone()));
-        //     }
-        // }
-        let id = Uuid::new_v4().to_string();
+    pub fn actors_say(mut self, actor_slugs: &[ActorSlug], text: impl Into<String>) -> Self {
         let talk_node = BuildNode {
-            id: id.clone(),
-            text: text.into(),
-            kind: NodeKind::Talk,
+            id: Uuid::new_v4().to_string(),
+            components: vec![Box::new(TextNode(text.into()))],
             actors: actor_slugs.to_vec(),
             ..default()
         };
         self.queue.push_back(talk_node);
         self
     }
+
+    /// Add components attached to the latest added node.
+    /// If you add a `NodeEventEmitter` component the node will automatically emit the relative event when reached.
+    ///
+    /// # Note
+    /// Remember to register the types! For `NodeEventEmitter` components you can use app.register_node_event::<MyComp, MyCompEvent>()
+    /// to setup everything at once. If it is a normal component, just use `app.world.register_type::<MyComp>()`.
+    ///
+    /// # Panics
+    /// If you call this method on an empty builder it will panic.
+    pub fn add_component<C: Component + Reflect>(mut self, comp: C) -> Self {
+        match self.queue.back_mut() {
+            None => panic!("You can't add a custom component to an empty builder"),
+            Some(node) => node.components.push(Box::new(comp)),
+        };
+        self
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use rstest::{fixture, rstest};
-
     use super::*;
+    use rstest::{fixture, rstest};
 
     #[fixture]
     fn talk_builder() -> TalkBuilder {
@@ -355,10 +331,9 @@ mod tests {
         }
 
         assert_eq!(talk_builder.queue.len(), expected_texts.len());
-
-        for t in expected_texts {
-            let text = talk_builder.queue.pop_front().unwrap().text;
-            assert_eq!(text, t);
+        assert_eq!(talk_builder.queue.pop_front().unwrap().components.len(), 1);
+        if expected_texts.len() > 1 {
+            assert_eq!(talk_builder.queue.pop_front().unwrap().components.len(), 1);
         }
     }
 
@@ -367,14 +342,12 @@ mod tests {
         let added_node = talk_builder
             .choose(vec![(
                 "Hello".to_string(),
-                TalkBuilder::default().say("hello").to_owned(),
+                TalkBuilder::default().say("hello"),
             )])
             .queue
             .pop_front()
             .unwrap();
-        assert_eq!(added_node.text, "");
         assert_eq!(added_node.choices.len(), 1);
-        assert_eq!(added_node.kind, NodeKind::Choice);
     }
 
     #[rstest]
@@ -414,7 +387,7 @@ mod tests {
         let actors = vec!["actor1".to_string(), "actor2".to_string()];
         let builder = talk_builder.join(&actors);
         assert_eq!(builder.queue.len(), 1);
-        assert_eq!(builder.queue[0].kind, NodeKind::Join);
+        assert_eq!(builder.queue[0].components.len(), 1);
     }
 
     #[rstest]
@@ -422,7 +395,7 @@ mod tests {
         let actors = vec!["actor1".to_string(), "actor2".to_string()];
         let builder = talk_builder.leave(&actors);
         assert_eq!(builder.queue.len(), 1);
-        assert_eq!(builder.queue[0].kind, NodeKind::Leave);
+        assert_eq!(builder.queue[0].components.len(), 1);
     }
 
     #[rstest]
@@ -444,8 +417,22 @@ mod tests {
         });
         let builder = builder.actor_say("slug", "hello");
         assert_eq!(builder.queue.len(), 1);
-        assert_eq!(builder.queue[0].kind, NodeKind::Talk);
-        assert_eq!(builder.queue[0].text, "hello");
         assert_eq!(builder.queue[0].actors[0], "slug");
+    }
+
+    #[derive(Component, Reflect)]
+    struct MyComp;
+
+    #[rstest]
+    fn add_component_on_last_node(talk_builder: TalkBuilder) {
+        let builder = talk_builder.say("hello").add_component(MyComp);
+        assert_eq!(builder.queue.len(), 1);
+        assert_eq!(builder.queue[0].components.len(), 2);
+    }
+
+    #[rstest]
+    #[should_panic]
+    fn add_component_on_empty_panics(talk_builder: TalkBuilder) {
+        talk_builder.add_component(MyComp);
     }
 }

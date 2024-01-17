@@ -66,10 +66,6 @@ pub struct JoinNode;
 #[reflect(Component)]
 pub struct LeaveNode;
 
-/// Component holding all the events a node will emit.
-#[derive(Component)]
-pub(crate) struct NodeEvents(pub(crate) Vec<Box<dyn Event>>);
-
 /// The text and next entity of a choice.
 #[derive(Debug, Reflect, Clone)]
 pub struct Choice {

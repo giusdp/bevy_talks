@@ -29,10 +29,10 @@ impl Plugin for TalksEventsPlugin {
 }
 
 /// Extension trait for [`App`] to register dialogue node events.
-trait AppExt {
+pub trait AppExt {
     /// Registers a node event for a component.
     fn register_node_event<
-        C: Component + NodeEventEmitter,
+        C: Component + NodeEventEmitter + bevy::reflect::GetTypeRegistration,
         T: Event + bevy::reflect::GetTypeRegistration,
     >(
         &mut self,
@@ -41,17 +41,18 @@ trait AppExt {
 
 impl AppExt for App {
     fn register_node_event<
-        C: Component + NodeEventEmitter,
-        T: Event + bevy::reflect::GetTypeRegistration,
+        C: Component + NodeEventEmitter + bevy::reflect::GetTypeRegistration,
+        E: Event + bevy::reflect::GetTypeRegistration,
     >(
         &mut self,
     ) -> &mut Self {
-        if !self.world.contains_resource::<Events<T>>() {
-            self.add_event::<T>();
+        if !self.world.contains_resource::<Events<E>>() {
+            self.add_event::<E>();
         }
-        self.add_event::<EmissionTrigger<T>>();
-        self.add_systems(PreUpdate, relay_node_event::<T>.after(TalksSet));
-        self.register_type::<T>();
+        self.add_event::<EmissionTrigger<E>>();
+        self.add_systems(PreUpdate, relay_node_event::<E>.after(TalksSet));
+        self.register_type::<C>();
+        self.register_type::<E>();
         self.register_component_as::<dyn NodeEventEmitter, C>();
         info!("Registered node emitter: {}", std::any::type_name::<C>());
 

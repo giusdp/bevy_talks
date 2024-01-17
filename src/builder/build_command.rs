@@ -1,10 +1,10 @@
 //! The Bevy Command to spawn Talk entity graphs
+
 use aery::prelude::*;
 use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
 
 use crate::prelude::{
-    ActorSlug, Choice, ChoiceNode, CurrentNode, EndNode, FollowedBy, JoinNode, LeaveNode,
-    PerformedBy, StartNode, TextNode,
+    ActorSlug, Choice, ChoiceNode, CurrentNode, EndNode, FollowedBy, PerformedBy, StartNode,
 };
 
 use super::*;
@@ -31,34 +31,102 @@ impl BuildTalkCommand {
 
 impl Command for BuildTalkCommand {
     fn apply(self, world: &mut World) {
-        // spawn the start node
+        // spawn the start node with all the start events
         let start = &world.spawn((StartNode, CurrentNode)).id();
 
         // First pass: spawn all the node entities and add them to the map with their build node id
-        let (ents, mut node_entities) = spawn_dialogue_entities(&self.builder, world);
-        let actor_ents: HashMap<ActorSlug, Entity> = spawn_actor_entities(&self.builder, world);
+        let (ents, mut node_entities) = spawn_dialogue_entities(&self.builder.queue, world);
+        let actor_ents = spawn_actor_entities(&self.builder.actors, world);
 
+        // add the start entity and all the other entities to the parent
         let mut manager = world.entity_mut(self.parent);
         manager.add_child(*start);
         for e in ents {
             manager.add_child(e);
         }
 
-        // Second pass: connect them to form the graph
-        form_graph(*start, &self.builder, &mut node_entities, world);
+        // Second pass: Extract all the components associated with the nodes
+        let component_map = prepare_node_components(&self.builder.queue, &node_entities, world);
 
-        // Third pass: connect the actors to the nodes
-        connect_nodes_with_actors(&self.builder, node_entities, actor_ents, world);
+        // and insert them in the world
+        component_map.into_iter().for_each(|(e, comps)| {
+            let mut entity_mut = world.entity_mut(e);
+            for (comp, comp_reflect) in comps {
+                let comp_to_insert = &**comp;
+                comp_reflect.insert(&mut entity_mut, comp_to_insert);
+            }
+        });
+
+        // Third pass: connect the entities to form the graph
+        form_graph(
+            *start,
+            &self.builder.queue,
+            self.builder.connect_parent,
+            &mut node_entities,
+            world,
+        );
+
+        // Fourth pass: connect the actors to the nodes
+        connect_nodes_with_actors(&self.builder.queue, node_entities, actor_ents, world);
     }
 }
+
+/// Extract the components from the build nodes and return a map of entity => components,
+/// so they can be inserted in the world.
+fn prepare_node_components<'a>(
+    build_nodes: &'a VecDeque<BuildNode>,
+    node_entities: &HashMap<BuildNodeId, Entity>,
+    world: &mut World,
+) -> HashMap<Entity, Vec<(&'a Box<dyn Reflect>, ReflectComponent)>> {
+    let mut entity_components = HashMap::new();
+    for build_node in build_nodes {
+        let Some(entity) = node_entities.get(&build_node.id) else {
+            panic!("Error retrieving node entity while adding components. It should not happen!")
+        };
+
+        // extract the components
+        let reflect_comps = {
+            let type_reg = world.resource::<AppTypeRegistry>().read();
+            build_node
+                .components
+                .iter()
+                .map(|component| {
+                    (
+                        component,
+                        type_reg
+                            .get_type_data::<ReflectComponent>((**component).type_id())
+                            .expect(&format!(
+                                "Component {:?} not registered. Cannot build dialogue graph! :(",
+                                component
+                            ))
+                            .clone(),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+
+        entity_components.insert(*entity, reflect_comps);
+
+        // recursively insert the inner nodes
+        if !build_node.choices.is_empty() {
+            for (_, inner_builder) in build_node.choices.iter() {
+                let inner_comps =
+                    prepare_node_components(&inner_builder.queue, node_entities, world);
+                entity_components.extend(inner_comps);
+            }
+        }
+    }
+    entity_components
+}
+
 /// Connect the nodes to the actors.
 fn connect_nodes_with_actors(
-    talk_builder: &TalkBuilder,
+    build_nodes: &VecDeque<BuildNode>,
     node_entities: HashMap<String, Entity>,
     all_actors: HashMap<String, Entity>,
     world: &mut World,
 ) {
-    for node in talk_builder.queue.iter() {
+    for node in build_nodes {
         if !node.actors.is_empty() {
             let node_ent = node_entities.get(&node.id).unwrap();
 
@@ -77,7 +145,7 @@ fn connect_nodes_with_actors(
         if !node.choices.is_empty() {
             for (_, inner_builder) in node.choices.iter() {
                 connect_nodes_with_actors(
-                    inner_builder,
+                    &inner_builder.queue,
                     node_entities.clone(),
                     all_actors.clone(),
                     world,
@@ -87,16 +155,10 @@ fn connect_nodes_with_actors(
     }
 }
 
-/// Spawn the actor entities in the world and return a map with the entities and the actors.
+/// Spawn the actor entities in the world and return a map of actor slug => entity.
 /// If the actor is already present in the world (identified via the slug), it will not be spawned again.
-fn spawn_actor_entities(
-    talk_builder: &TalkBuilder,
-    world: &mut World,
-) -> HashMap<ActorSlug, Entity> {
-    // TODO: this is probably not the most efficient way to do this. Looks pretty slow.
-
-    let mut actor_ents: HashMap<Entity, Actor> = HashMap::with_capacity(talk_builder.actors.len());
-    let mut actors_to_spawn = talk_builder.actors.clone();
+fn spawn_actor_entities(actors: &[Actor], world: &mut World) -> HashMap<ActorSlug, Entity> {
+    let mut actor_ents = HashMap::with_capacity(actors.len());
 
     // find the already existing actors in the world
     let already_spawned_actors = world
@@ -105,38 +167,41 @@ fn spawn_actor_entities(
         .map(|(e, a)| (a.slug.clone(), (e, a.clone())))
         .collect::<HashMap<String, (Entity, Actor)>>();
 
-    actors_to_spawn.retain(|a| !already_spawned_actors.contains_key(&a.slug));
+    debug!("Already spawned actors: {:?}", already_spawned_actors);
 
-    for (_, (e, actor)) in already_spawned_actors {
-        actor_ents.insert(e, actor);
+    for a in actors.iter() {
+        if already_spawned_actors.contains_key(&a.slug) {
+            actor_ents.insert(a.slug.clone(), already_spawned_actors[&a.slug].0);
+        } else {
+            actor_ents.insert(a.slug.clone(), world.spawn(a.clone()).id());
+        }
     }
 
-    for a in actors_to_spawn {
-        let e = world.spawn(a.clone()).id();
-        actor_ents.insert(e, a);
+    // add the remaining actors from the already spawned ones to the map
+    for (slug, (e, _)) in already_spawned_actors.iter() {
+        if !actor_ents.contains_key(slug) {
+            actor_ents.insert(slug.clone(), *e);
+        }
     }
 
     actor_ents
-        .into_iter()
-        .map(|(e, a)| (a.slug, e))
-        .collect::<HashMap<_, _>>()
 }
 
 /// A recursive function that spawns all the nodes from a talk builder and adds them in the given hashmap.
 /// It is used as the first pass of the building, so we have all the entities spawned and the `build_node_entities` map filled.
 fn spawn_dialogue_entities(
-    talk_builder: &TalkBuilder,
+    build_nodes: &VecDeque<BuildNode>,
     world: &mut World,
 ) -> (Vec<Entity>, HashMap<BuildNodeId, Entity>) {
-    let mut entities: Vec<Entity> = Vec::with_capacity(talk_builder.queue.len());
+    let mut entities: Vec<Entity> = Vec::with_capacity(build_nodes.len());
     let mut build_node_entities = HashMap::new();
-    for n in talk_builder.queue.iter() {
+    for n in build_nodes.iter() {
         let e = world.spawn_empty().id();
         entities.push(e);
         build_node_entities.insert(n.id.clone(), e);
 
         for (_, inner_builder) in n.choices.iter() {
-            let (inner_ents, inner_bne) = spawn_dialogue_entities(inner_builder, world);
+            let (inner_ents, inner_bne) = spawn_dialogue_entities(&inner_builder.queue, world);
             entities.extend(inner_ents);
             build_node_entities.extend(inner_bne);
         }
@@ -144,7 +209,8 @@ fn spawn_dialogue_entities(
     (entities, build_node_entities)
 }
 
-/// A recursive function that spawns all the nodes in the queue and connects them to each other.
+/// A recursive function that connects the entity nodes in the queue with `aery` relations.
+/// This also adds the `ChoiceNode` component!
 ///
 /// # Returns
 ///
@@ -157,7 +223,8 @@ fn spawn_dialogue_entities(
 /// add the choice text to the edge and use the edge directly to perform the choice.
 fn form_graph(
     root: Entity,
-    talk_builder: &TalkBuilder,
+    build_nodes: &VecDeque<BuildNode>,
+    connect_parent: Option<BuildNodeId>,
     node_entities: &mut HashMap<BuildNodeId, Entity>,
     world: &mut World,
 ) -> (Entity, Vec<Entity>) {
@@ -167,7 +234,7 @@ fn form_graph(
     let mut first_child_ent = root;
 
     // Connect parent entity (choice node) to the given node.
-    if let Some(connect_node_id) = &talk_builder.connect_parent {
+    if let Some(connect_node_id) = &connect_parent {
         let entity_to_connect_to = node_entities.get(connect_node_id);
         first_child_ent = *entity_to_connect_to.unwrap();
         first_child_set = true;
@@ -182,13 +249,13 @@ fn form_graph(
     let mut leaves: Vec<Entity> = vec![];
     let mut previous_node_was_choice = false;
 
-    if !talk_builder.queue.is_empty() && !first_child_set {
+    if !build_nodes.is_empty() && !first_child_set {
         first_child_ent = *node_entities
-            .get(&talk_builder.queue[0].id)
+            .get(&build_nodes[0].id)
             .expect("First entity from the builder");
     }
 
-    let mut peekable_queue = talk_builder.queue.iter().peekable();
+    let mut peekable_queue = build_nodes.iter().peekable();
 
     // for each node in the queue, spawn it and connect it to the previous one
     while let Some(build_node) = peekable_queue.next() {
@@ -205,39 +272,28 @@ fn form_graph(
             this_ent,
         );
 
-        match build_node.kind {
-            NodeKind::Talk => {
-                world
-                    .entity_mut(this_ent)
-                    .insert(TextNode(build_node.text.clone()));
-                previous_node_was_choice = false;
+        previous_node_was_choice = false;
+        if !build_node.choices.is_empty() {
+            // We have to process the branches from the inner builders
+            // and connect them to the choice node
+            let mut choices: Vec<Choice> = Vec::with_capacity(build_node.choices.len());
+            for (choice_text, inner_builder) in build_node.choices.iter() {
+                // recursively spawn the branches
+                let (branch_root, branch_leaves) = form_graph(
+                    this_ent,
+                    &inner_builder.queue,
+                    inner_builder.connect_parent.clone(),
+                    node_entities,
+                    world,
+                );
+                choices.push(Choice::new(choice_text, branch_root));
+                leaves.extend(branch_leaves);
             }
-            NodeKind::Choice => {
-                // We have to spawn the branches from the inner builders
-                // and connect them to the choice node
-                let mut choices: Vec<Choice> = Vec::with_capacity(build_node.choices.len());
-                for (choice_text, inner_builder) in build_node.choices.iter() {
-                    // recursively spawn the branches
-                    let (branch_root, branch_leaves) =
-                        form_graph(this_ent, inner_builder, node_entities, world);
-                    choices.push(Choice::new(choice_text, branch_root));
-                    leaves.extend(branch_leaves);
-                }
 
-                // insert the ChoicesTexts component
-                world.entity_mut(this_ent).insert(ChoiceNode(choices));
+            // insert the ChoiceNode component here
+            world.entity_mut(this_ent).insert(ChoiceNode(choices));
 
-                previous_node_was_choice = true;
-            }
-            NodeKind::Join => {
-                world.entity_mut(this_ent).insert(JoinNode);
-                previous_node_was_choice = false;
-            }
-            NodeKind::Leave => {
-                world.entity_mut(this_ent).insert(LeaveNode);
-                previous_node_was_choice = false;
-            }
-            _ => (), // ignore other kinds for now
+            previous_node_was_choice = true;
         }
 
         // Let's add the extra connections here
@@ -315,7 +371,7 @@ mod tests {
     use bevy::{prelude::*, utils::HashMap};
     use rstest::rstest;
 
-    use crate::tests::{count, single};
+    use crate::tests::{count, single, talks_minimal_app};
 
     use super::*;
 
@@ -331,20 +387,34 @@ mod tests {
             ])
             .say("something");
 
-        let (ents, map) = spawn_dialogue_entities(&builder, &mut app.world);
+        let (ents, map) = spawn_dialogue_entities(&builder.queue, &mut app.world);
 
         assert_eq!(map.len(), 5);
         assert_eq!(ents.len(), 5);
         assert_eq!(app.world.iter_entities().count(), 5);
     }
 
-    #[rstest]
-    #[case(0)]
-    #[case(5)]
-    fn test_spawn_actor_entities(#[case] already_spawned: usize) {
+    #[test]
+    fn spawn_actor_entities_without_already_spawned() {
         let mut app = App::new();
 
-        for i in 0..already_spawned {
+        let builder = TalkBuilder::default()
+            .add_actor(Actor::new("my_actor", "Actor"))
+            .add_actor(Actor::new("actor_0", "Actor2"))
+            .say("Hello");
+
+        let actor_ents = spawn_actor_entities(&builder.actors, &mut app.world);
+        app.update();
+
+        assert_eq!(actor_ents.len(), 2);
+        assert_eq!(app.world.iter_entities().count(), 2);
+    }
+
+    #[test]
+    fn spawn_actor_entities_with_prespawned() {
+        let mut app = App::new();
+
+        for i in 0..3 {
             app.world
                 .spawn(Actor::new(format!("actor_{}", i), format!("Actor {}", i)));
         }
@@ -354,19 +424,13 @@ mod tests {
             .add_actor(Actor::new("actor_0", "Actor2"))
             .say("Hello")
             .say("something");
-
-        app.update();
-        let actor_ents = spawn_actor_entities(&builder, &mut app.world);
         app.update();
 
-        let expected = if already_spawned > 0 {
-            already_spawned + 1
-        } else {
-            2
-        };
+        let actor_ents = spawn_actor_entities(&builder.actors, &mut app.world);
+        app.update();
 
-        assert_eq!(actor_ents.len(), expected);
-        assert_eq!(app.world.iter_entities().count(), expected);
+        assert_eq!(actor_ents.len(), 4);
+        assert_eq!(app.world.iter_entities().count(), 4);
     }
 
     #[test]
@@ -385,9 +449,9 @@ mod tests {
                 ("Choice 2", TalkBuilder::default().say("World!")),
             ]);
 
-        let (_, node_entities) = spawn_dialogue_entities(&builder, &mut app.world);
-        let actor_ents = spawn_actor_entities(&builder, &mut app.world);
-        connect_nodes_with_actors(&builder, node_entities, actor_ents, &mut app.world);
+        let (_, node_entities) = spawn_dialogue_entities(&builder.queue, &mut app.world);
+        let actor_ents = spawn_actor_entities(&builder.actors, &mut app.world);
+        connect_nodes_with_actors(&builder.queue, node_entities, actor_ents, &mut app.world);
 
         let nodes_with_actors = app
             .world
@@ -459,10 +523,16 @@ mod tests {
     fn test_add_relationships_simple() {
         let mut world = World::default();
         let root = world.spawn_empty().id();
-        let talk_builder = TalkBuilder::default().say("Hello There");
-        let (_, mut build_node_entities) = spawn_dialogue_entities(&talk_builder, &mut world);
+        let builder = TalkBuilder::default().say("Hello There");
+        let (_, mut build_node_entities) = spawn_dialogue_entities(&builder.queue, &mut world);
 
-        let (ent, leaves) = form_graph(root, &talk_builder, &mut build_node_entities, &mut world);
+        let (ent, leaves) = form_graph(
+            root,
+            &builder.queue,
+            builder.connect_parent,
+            &mut build_node_entities,
+            &mut world,
+        );
 
         // Assert that the relationships are built correctly
         assert_ne!(ent, root);
@@ -474,22 +544,67 @@ mod tests {
         let mut world = World::default();
         let root = world.spawn_empty().id();
 
-        let talk_builder = TalkBuilder::default()
+        let builder = TalkBuilder::default()
             .choose(vec![
                 ("Choice Text".to_string(), TalkBuilder::default().say("t")),
                 ("Choice Text 2".to_string(), TalkBuilder::default().say("t")),
             ])
             .say("something");
 
-        let (_, mut build_node_entities) = spawn_dialogue_entities(&talk_builder, &mut world);
+        let (_, mut build_node_entities) = spawn_dialogue_entities(&builder.queue, &mut world);
 
-        form_graph(root, &talk_builder, &mut build_node_entities, &mut world);
+        form_graph(
+            root,
+            &builder.queue,
+            builder.connect_parent,
+            &mut build_node_entities,
+            &mut world,
+        );
 
         // Assert that the relationships are built correctly
         assert_eq!(count::<Relations<FollowedBy>>(&mut world), 5);
         assert_eq!(count::<(Entity, Leaf<FollowedBy>)>(&mut world), 1);
         assert_eq!(count::<(Entity, Branch<FollowedBy>)>(&mut world), 3);
         assert_eq!(count::<(Entity, Root<FollowedBy>)>(&mut world), 1);
+    }
+
+    #[test]
+    fn prepare_node_components_with_choice() {
+        let mut app = talks_minimal_app();
+        let builder = TalkBuilder::default()
+            .say("Hello There")
+            .choose(vec![
+                ("Choice Text".to_string(), TalkBuilder::default().say("a")),
+                ("Choice Text 2".to_string(), TalkBuilder::default().say("b")),
+            ])
+            .say("something");
+
+        let (_, build_node_entities) = spawn_dialogue_entities(&builder.queue, &mut app.world);
+
+        let comps = prepare_node_components(&builder.queue, &build_node_entities, &mut app.world);
+
+        // Assert that the map has all the entities
+        assert_eq!(comps.len(), 5);
+    }
+
+    #[test]
+    fn prepare_node_components_linear_graph() {
+        let mut app = talks_minimal_app();
+
+        let builder = TalkBuilder::default()
+            .say("Hello There")
+            .say("something")
+            .say("something");
+
+        let (_, build_node_entities) = spawn_dialogue_entities(&builder.queue, &mut app.world);
+
+        let comps = prepare_node_components(&builder.queue, &build_node_entities, &mut app.world);
+
+        // Assert that the map has all the entities
+        assert_eq!(comps.len(), 3);
+        for (_, comp) in comps.iter() {
+            assert_eq!(comp.len(), 1);
+        }
     }
 }
 
@@ -499,7 +614,10 @@ mod integration_tests {
     use bevy::prelude::*;
     use rstest::{fixture, rstest};
 
-    use crate::prelude::TextNode;
+    use crate::{
+        prelude::TextNode,
+        tests::{get_comp, talks_minimal_app},
+    };
 
     use super::*;
 
@@ -508,12 +626,18 @@ mod integration_tests {
         TalkBuilder::default()
     }
 
+    #[track_caller]
+    fn build(builder: TalkBuilder) -> World {
+        let mut app = talks_minimal_app();
+        BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
+        app.update();
+        app.world
+    }
+
     #[rstest]
     #[should_panic]
-    fn test_panic_on_wrong_actor(mut talk_builder: TalkBuilder) {
-        let mut world = World::default();
-        talk_builder = talk_builder.actor_say("actor", "Hello");
-        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
+    fn test_panic_on_wrong_actor(talk_builder: TalkBuilder) {
+        build(talk_builder.actor_say("actor", "Hello"));
     }
 
     #[rstest]
@@ -522,25 +646,18 @@ mod integration_tests {
     #[case(vec!["Hi", "Hello", "World!"])]
     #[case(vec!["Hi", "Hello", "World!", "The End"])]
     fn linear_say_graph_creation(mut talk_builder: TalkBuilder, #[case] text_nodes: Vec<&str>) {
-        let mut world = World::default();
         let node_number = text_nodes.len();
-
         for t in text_nodes.iter() {
             talk_builder = talk_builder.say(*t);
         }
-
-        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
-
+        let mut world = build(talk_builder);
         let mut query = world.query::<&TextNode>();
-
         // check number of nodes with the text component
         assert_eq!(query.iter(&world).count(), node_number);
-
         // check texts
         for t in query.iter(&world) {
             assert!(text_nodes.iter().any(|&s| s == t.0));
         }
-
         // need to add 1 cause of the start node
         assert_relationship_nodes(node_number, node_number + 1, 1, &mut world);
     }
@@ -554,28 +671,21 @@ mod integration_tests {
         #[case] choice_node_number: usize,
         #[case] expected_nodes_in_relation: usize,
     ) {
-        let mut world = World::default();
-
         for _ in 0..choice_node_number {
             talk_builder = talk_builder.choose(vec![
                 ("Choice1".to_string(), TalkBuilder::default().say("Hello")),
                 ("Choice2".to_string(), TalkBuilder::default().say("World!")),
             ]);
         }
-
-        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
-
+        let mut world = build(talk_builder);
         let mut query = world.query::<&ChoiceNode>();
-
         // check length
         assert_eq!(query.iter(&world).count(), choice_node_number);
-
         // check texts
         for t in query.iter(&world) {
             assert_eq!(t.0[0].text, "Choice1");
             assert_eq!(t.0[1].text, "Choice2");
         }
-
         assert_relationship_nodes(
             choice_node_number,
             expected_nodes_in_relation,
@@ -595,8 +705,6 @@ mod integration_tests {
         #[case] expected_nodes: usize,
         #[case] expected_leaves: usize,
     ) {
-        let mut world = World::default();
-
         let max_range = if choice_number > say_number {
             choice_number
         } else {
@@ -613,9 +721,7 @@ mod integration_tests {
                 talk_builder = talk_builder.say("Hello");
             }
         }
-
-        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
-
+        let mut world = build(talk_builder);
         assert_relationship_nodes(choice_number, expected_nodes, expected_leaves, &mut world);
     }
 
@@ -640,9 +746,7 @@ mod integration_tests {
             ),
         ]);
 
-        let mut world = World::default();
-        BuildTalkCommand::new(world.spawn_empty().id(), builder).apply(&mut world);
-
+        let mut world = build(builder);
         assert_relationship_nodes(6, 6, 1, &mut world);
     }
 
@@ -671,30 +775,22 @@ mod integration_tests {
             // If we never pass the actual biulder the end node would never be created
             ("Bad Choice".to_string(), end_branch_builder),
         ]);
-        let mut world = World::default();
-        BuildTalkCommand::new(world.spawn_empty().id(), builder).apply(&mut world);
-
+        let mut world = build(builder);
         assert_relationship_nodes(6, 6, 1, &mut world);
     }
 
     #[rstest]
     fn actor_say_creates_node_with_actor_relationship(mut talk_builder: TalkBuilder) {
-        let mut world = World::default();
-
         talk_builder = talk_builder
             .add_actor(Actor::new("actor", "Actor"))
             .actor_say("actor", "Hello");
-        BuildTalkCommand::new(world.spawn_empty().id(), talk_builder).apply(&mut world);
+        let mut world = build(talk_builder);
 
         let mut query = world.query::<Relations<PerformedBy>>();
-
         // check number of nodes in the performed by relationship
         assert_eq!(query.iter(&world).count(), 2);
-
         let mut r_query = world.query::<(&TextNode, Relations<PerformedBy>)>();
-
         let (actor_ent, _) = world.query::<(Entity, With<Actor>)>().single(&world);
-
         // check that the only existing actor is in the relationship
         for (t, edges) in r_query.iter(&world) {
             assert_eq!(t.0, "Hello");
@@ -703,7 +799,6 @@ mod integration_tests {
                 assert_eq!(actor_ent, *e);
             }
         }
-
         // need to add 1 cause of the start node
         assert_relationship_nodes(1, 2, 1, &mut world);
     }
@@ -739,5 +834,28 @@ mod integration_tests {
             .iter(&world)
             .collect();
         assert_eq!(leaf_nodes.len(), expected_leaf_nodes);
+    }
+
+    #[derive(Component, Reflect, Default)]
+    #[reflect(Component)]
+    struct TestComp;
+    #[test]
+    fn node_with_components() {
+        let mut app = talks_minimal_app();
+        app.register_type::<TestComp>();
+        app.update();
+        let builder = TalkBuilder::default()
+            .say("Hello There")
+            .add_component(TestComp);
+
+        BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
+        app.update();
+
+        // check that the start node has a NodeEvents component with the event
+        let (ent, _) = app
+            .world
+            .query::<(Entity, With<TextNode>)>()
+            .single(&app.world);
+        get_comp::<TestComp>(ent, &mut app.world);
     }
 }
