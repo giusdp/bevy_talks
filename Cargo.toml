@@ -68,6 +68,10 @@ path = "examples/full.rs"
 name = "ingame"
 path = "examples/ingame.rs"
 
+[[example]]
+name = "custom_node_event"
+path = "examples/custom_node_event.rs"
+
 [lib]
 name = "bevy_talks"
 path = "src/lib.rs"
