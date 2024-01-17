@@ -95,10 +95,12 @@ fn prepare_node_components<'a>(
                         component,
                         type_reg
                             .get_type_data::<ReflectComponent>((**component).type_id())
-                            .expect(&format!(
+                            .unwrap_or_else(|| {
+                                panic!(
                                 "Component {:?} not registered. Cannot build dialogue graph! :(",
                                 component
-                            ))
+                            )
+                            })
                             .clone(),
                     )
                 })

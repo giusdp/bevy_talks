@@ -302,7 +302,7 @@ impl TalkBuilder {
     /// use bevy_talks::prelude::TalkBuilder;
     /// use bevy::prelude::*;
     ///
-    /// #[derive(Component, Reflect)]
+    /// #[derive(Component, Reflect, Default)]
     /// #[reflect(Component)]
     /// struct MyComp;
     ///
@@ -321,7 +321,7 @@ impl TalkBuilder {
     /// If you add a `NodeEventEmitter` component the node will automatically emit the relative event when reached.
     ///
     /// # Note
-    /// Remember to register the types! For `NodeEventEmitter` components you can use app.register_node_event::<MyComp, MyCompEvent>()
+    /// Remember to register the types! For `NodeEventEmitter` components you can use `app.register_node_event`
     /// to setup everything at once. If it is a normal component, just use `app.world.register_type::<MyComp>()`.
     ///
     /// # Panics
