@@ -46,7 +46,7 @@ bevy = { version = "0.12", default-features = false, features = ["bevy_asset"] }
 bevy-trait-query = "0.4.0"
 aery = "0.5.2"
 
-bevy_talks_macros = { path = "macros" }
+bevy_talks_macros = { path = "macros", version = "0.1" }
 
 [dev-dependencies]
 bevy = { version = "0.12" }
