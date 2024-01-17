@@ -294,6 +294,29 @@ impl TalkBuilder {
         self
     }
 
+    /// Add an empty node to the builder. It will spawn an entity with no components,
+    /// but you can add custom components with `add_component`.
+    ///
+    /// # Example
+    /// ```rust
+    /// use bevy_talks::prelude::TalkBuilder;
+    /// use bevy::prelude::*;
+    ///
+    /// #[derive(Component, Reflect)]
+    /// #[reflect(Component)]
+    /// struct MyComp;
+    ///
+    /// let builder = TalkBuilder::default().empty_node().add_component(MyComp);
+    /// ```
+    pub fn empty_node(mut self) -> Self {
+        let talk_node = BuildNode {
+            id: Uuid::new_v4().to_string(),
+            ..default()
+        };
+        self.queue.push_back(talk_node);
+        self
+    }
+
     /// Add components attached to the latest added node.
     /// If you add a `NodeEventEmitter` component the node will automatically emit the relative event when reached.
     ///
