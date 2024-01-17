@@ -33,6 +33,10 @@ impl Plugin for TalksPlugin {
         app.add_plugins(TalksEventsPlugin)
             .register_asset_loader(TalksLoader)
             .init_asset::<TalkData>()
+            .register_type::<TextNode>()
+            .register_type::<ChoiceNode>()
+            .register_type::<JoinNode>()
+            .register_type::<LeaveNode>()
             .configure_sets(PreUpdate, TalksSet)
             .add_systems(
                 PreUpdate,
@@ -160,8 +164,8 @@ pub(crate) fn emit_events(
             let emitted_event = emitter.make(&actors_in_node);
 
             let event_type_id = emitted_event.type_id();
-            // The #[reflect] attribute we put on our event trait generated a new `ReflectEvent` struct,
-            // which implements TypeData. This was added to MyType's TypeRegistration.
+            // The #[reflect] attribute we put on our event trait generated a new `ReflectEvent` struct
+            // that we can use as the event type.
             let reflect_event = type_registry
                 .get_type_data::<ReflectEvent>(event_type_id)
                 .expect("Event not registered for event type")
@@ -189,6 +193,12 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((AssetPlugin::default(), TalksPlugin));
         app
+    }
+
+    #[inline]
+    #[track_caller]
+    pub fn get_comp<C: Component>(e: Entity, world: &mut World) -> &C {
+        world.entity(e).get::<C>().expect("Component")
     }
 
     #[inline]

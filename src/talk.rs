@@ -47,20 +47,28 @@ pub struct StartNode;
 pub struct EndNode;
 
 /// Component to mark a dialogue node as a text node containing some text.
-#[derive(Component, Default, Debug)]
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
 pub struct TextNode(pub String);
 
 /// Component to mark a dialogue node as a choice node containing some choices.
-#[derive(Component, Default, Debug)]
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
 pub struct ChoiceNode(pub Vec<Choice>);
 
 /// Component to mark a dialogue node as a join node.
-#[derive(Component, Debug)]
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
 pub struct JoinNode;
 
 /// Component to mark a dialogue node as a leave node.
-#[derive(Component, Debug)]
+#[derive(Component, Reflect, Default, Debug)]
+#[reflect(Component)]
 pub struct LeaveNode;
+
+/// Component holding all the events a node will emit.
+#[derive(Component)]
+pub(crate) struct NodeEvents(pub(crate) Vec<Box<dyn Event>>);
 
 /// The text and next entity of a choice.
 #[derive(Debug, Reflect, Clone)]

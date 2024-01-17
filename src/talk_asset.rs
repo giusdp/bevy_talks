@@ -160,7 +160,11 @@ fn prepare_builder(
 
 #[cfg(test)]
 mod tests {
-    use crate::{prelude::*, tests::count, FollowedBy};
+    use crate::{
+        prelude::*,
+        tests::{count, talks_minimal_app},
+        FollowedBy,
+    };
 
     use aery::{edges::Root, operations::utils::Relations, tuple_traits::RelationEntries};
     use bevy::{ecs::system::Command, prelude::*, utils::hashbrown::HashMap};
@@ -168,14 +172,14 @@ mod tests {
     use rstest::rstest;
 
     fn build(talk_data: TalkData) -> World {
-        let mut world = World::default();
+        let mut app = talks_minimal_app();
 
         BuildTalkCommand::new(
-            world.spawn_empty().id(),
+            app.world.spawn_empty().id(),
             talk_data.fill_builder(TalkBuilder::default()),
         )
-        .apply(&mut world);
-        world
+        .apply(&mut app.world);
+        app.world
     }
 
     #[rstest]
