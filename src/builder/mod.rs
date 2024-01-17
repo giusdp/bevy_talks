@@ -306,7 +306,7 @@ impl TalkBuilder {
     /// #[reflect(Component)]
     /// struct MyComp;
     ///
-    /// let builder = TalkBuilder::default().empty_node().add_component(MyComp);
+    /// let builder = TalkBuilder::default().empty_node().with_component(MyComp);
     /// ```
     pub fn empty_node(mut self) -> Self {
         let talk_node = BuildNode {
@@ -317,7 +317,7 @@ impl TalkBuilder {
         self
     }
 
-    /// Add components attached to the latest added node.
+    /// Add a component to the latest added node.
     /// If you add a `NodeEventEmitter` component the node will automatically emit the relative event when reached.
     ///
     /// # Note
@@ -326,7 +326,7 @@ impl TalkBuilder {
     ///
     /// # Panics
     /// If you call this method on an empty builder it will panic.
-    pub fn add_component<C: Component + Reflect>(mut self, comp: C) -> Self {
+    pub fn with_component<C: Component + Reflect>(mut self, comp: C) -> Self {
         match self.queue.back_mut() {
             None => panic!("You can't add a custom component to an empty builder"),
             Some(node) => node.components.push(Box::new(comp)),
@@ -448,7 +448,7 @@ mod tests {
 
     #[rstest]
     fn add_component_on_last_node(talk_builder: TalkBuilder) {
-        let builder = talk_builder.say("hello").add_component(MyComp);
+        let builder = talk_builder.say("hello").with_component(MyComp);
         assert_eq!(builder.queue.len(), 1);
         assert_eq!(builder.queue[0].components.len(), 2);
     }
@@ -456,6 +456,6 @@ mod tests {
     #[rstest]
     #[should_panic]
     fn add_component_on_empty_panics(talk_builder: TalkBuilder) {
-        talk_builder.add_component(MyComp);
+        talk_builder.with_component(MyComp);
     }
 }

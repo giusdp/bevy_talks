@@ -21,23 +21,20 @@ graph LR
 can be built with just a few lines of code:
 
 ```rust,no_run
-let talk_builder = Talk::builder().say("Hello").say(bob, "World");
+let talk_builder = Talk::builder().say("Hello").say("World");
 let talk_commands = commands.talks();
-talk_commands.spawn_talk(talk_builder, ());
+commands.spawn_talk(talk_builder);
 ```
 
-To actually spawn the entities with the relationships, you pass the `TalkBuilder` to the `TalkCommands::spawn_talk` method, which
-will prepare a `Command` to be added to the command queue.
+To actually spawn the entities with the relationships, you pass the `TalkBuilder` to the `Commands::spawn_talk` method, which will prepare a `Command` to be added to the command queue.
 
-The command, when applied, will first spawn the main parent entity of the graph with the `Talk` component. Then add a start node with `NodeKind::Start` which will act as the entry point of the graph and finally spawn entities for each `say`, `choose` etc.
+The command, when applied, will first spawn the main parent entity of the graph with the `Talk` component. Then add a start node with `StartNode` component (the entry point of the graph) and finally spawn entities for each `say`, `choose` etc.
 
-With `say` the builder will connect the entities linearly. In the example above you would have 3 entities each in a relationship with the next one (start -> say -> say), all children of the main `Talk` entity.
+Usually the builder will connect the entities linearly based on the concatenated methods, with the only exception being the `choose` method which is used for branching. In the example above you would have 3 entities each in a relationship with the next one (start -> say -> say), all children of the main `Talk` entity.
 
 You can check out all the methods that the builder provides in the [API docs](https://docs.rs/bevy_talks/latest/bevy_talks/builder/struct.TalkBuilder.html).
 
 ### Build Branching Conversations
-
-The builder normally just chains the nodes one after the other as you call the methods. If, instead, you need to connect a node to multiple other nodes (e.g. a choice node) you'll have to start branching.
 
 The simplest example would be a conversation with just 1 choice node:
 
@@ -54,12 +51,12 @@ let talk_builder = Talk::builder();
 
 talk_builder.say("How are you?")
     .choose(vec![
-        ("I'm fine".to_string(), Talk::builder().say("I'm glad to hear that")), 
-        ("I'm notfine".to_string(), Talk::builder().say("I'm sorry to hear that")), 
+        ("I'm fine", Talk::builder().say("I'm glad to hear that")), 
+        ("I'm not fine", Talk::builder().say("I'm sorry to hear that")), 
     ]);
 ``` 
 
-The `choose` method expects a vector of tuples. The first element is the text field of the choice (to be displayed) and the second is the branch of the conversation, which effectively is another `TalkBuilder` instance.
+The `choose` method expects a vector of tuples. The first element is the text field of the choice (to be displayed) and the second is the branch of the conversation, which is another `TalkBuilder` instance.
 
 ### Multiple Branches
 
@@ -80,23 +77,20 @@ graph LR
 let talk_builder = Talk::builder();
 
 let happy_branch = Talk::builder().say("I'm glad to hear that");
-let sad_branch = Talk::builder().say("Why?")
-                .choose(vec![
-                    ("Jk, I'm fine".to_string(), happy_branch.clone()), 
-                    ("I want an editor!".to_string(), Talk::builder().say("Me too :("))
-                ]);
+let sad_branch = Talk::builder()
+    .say("Why?")
+    .choose(vec![
+        ("Jk, I'm fine", Talk::builder().say("Aight")), 
+        ("I want an editor!", Talk::builder().say("Me too :("))
+    ]);
 
 talk_builder.say("How are you?")
-    .choose(vec![
-        ("I'm fine".to_string(), happy_branch), 
-        ("I'm not fine".to_string, sad_branch),
-    ]);
+    .choose(vec![("I'm fine", happy_branch), ("I'm not fine", sad_branch)]);
 ```
 
-As you can see, it's easy to keep branching the conversation and you can also reuse branches. The problem with this approach is that it can get quite verbose and hard to read. 
+It's easy to keep branching but it can get quite verbose and hard to read. 
 
 It is recommended to use the asset files for more complex conversations, but this can be useful if you want to quickly give some lines of texts to an item, or an NPC, or you are generating the conversation procedurally.
-
 
 ### Connecting Nodes Manually
 
@@ -151,8 +145,8 @@ let convo_start = talk_builder.last_node_id();
 talk_builder = talk_builder
     .say("Hey")
     .choose(vec![
-        ("Good Choice".to_string(), Talk::builder().say("End of the conversation")),
-        ("Wrong Choice".to_string(), Talk::builder().say("Go Back").connect_to(convo_start))
+        ("Good Choice", Talk::builder().say("End of the conversation")),
+        ("Wrong Choice", Talk::builder().say("Go Back").connect_to(convo_start))
     ]);
  ```
 
@@ -181,18 +175,18 @@ let end_node_id = end_branch_builder.last_node_id(); // <- grab the end node
 
 // Create the good path
 let good_branch = Talk::builder().say("something").choose(vec![
-    ("Bad Choice".to_string(), Talk::builder().connect_to(end_node_id.clone())),
+    ("Bad Choice", Talk::builder().connect_to(end_node_id.clone())),
     (
-        "Another Good Choice".to_string(), 
+        "Another Good Choice", 
         Talk::builder().say("Before the end...").connect_to(end_node_id)
     ),
 ]);
 
 let builder = Talk::builder().choose(vec![
-    ("Good Choice".to_string(), good_branch),
+    ("Good Choice", good_branch),
     // NB the builder is passed here. If we never add it and keep using connect_to
     // the end node would never be created
-    ("Bad Choice".to_string(), end_branch_builder) 
+    ("Bad Choice", end_branch_builder) 
 ]);
 ```
 
@@ -214,5 +208,55 @@ talk_builder = talk_builder.actor_say("bob", "Hello")
     .actor_say("alice", "Hi Bob");
 ```
 
-The first argument is the actor slug. If the builder doesn't have an actor with that slug, it will panic when building. 
-So always make sure to add the correct actors first.
+The first argument is the actor slug. If the builder doesn't have an actor with that slug, it will panic when building. So always make sure to add the correct actors first. Also there is a `actors_say` method that takes a vector of actors slug.
+
+Actors can also "join" or "leave" the conversation. For that there are the relative methods `join` and `leave`:
+
+```rust,no_run
+talk_builder = talk_builder.add_actor("bob", "Bob")
+    .join("bob")
+    .actor_say("bob", "Folks, it do be me.");
+```
+
+### Node Event Emitters
+
+The dialogue graph emits events when a node is reached. The way it does that is by using the `NodeEventEmitter` trait for the node components that implement it. 
+
+```rust,no_run
+/// Trait to implement on dialogue node components to make them emit an event when reached.
+#[bevy_trait_query::queryable]
+pub trait NodeEventEmitter {
+    /// Creates an event to be emitted when a node is reached.
+    fn make(&self, actors: &[Actor]) -> Box<dyn Reflect>;
+}
+```
+
+In case of `say`, `choose`, `join` and `leave` the builder will spawn an entity and add the `TextNode`, `ChoiceNode`, `JoinNode` and `LeaveNode` components respectively. Each of these components implement the `NodeEventEmitter` trait.
+
+The idea is that you can create a `Component`, implement the trait so you can create an `Event` (optionally injecting the active actors) and then use that event to trigger some logic in your game.
+
+You can check out the [`custom_node_event`](https://github.com/giusdp/bevy_talks/blob/main/examples/custom_node_event.rs) example to see how to implement custom events. You will see that there is also a macro to help you with that and that you need to register the component (and event) with the `app.register_node_event::<C, T>()`.
+
+### Custom Node Components
+
+Related to the previous section, you can also add any custom components to a node with the `with_component` method:
+
+```rust,no_run
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+struct MyCustomComponent {
+    pub some: bool,
+}
+
+talk_builder = Talk::builder().say("Hello").with_component(MyCustomComponent::default());
+```
+
+This will add the component to the node entity, but remember to register the component type first with `app.register_type::<MyCustomComponent>();`.
+
+Going one step further, you can do a completely customized node by creating one empty first and then adding components to it:
+
+```rust,no_run
+let builder = Talk::builder().empty_node().with_component(MyCustomComponent::default());
+```
+
+You could create any kind of entity graph this way!

@@ -10,7 +10,7 @@
 This plugin is compatible with Bevy 0.12 and is available on crates.io. To install it, add the following line to your `Cargo.toml` file:
 
 ```toml
-bevy_talks = "0.4"
+bevy_talks = "0.5"
 ```
 
 or just run:
@@ -30,7 +30,7 @@ Just go to the next section :(
 
 You have two ways to create a dialogue: via code or via a file.
 
-If you want to do it via code, checkout the next chapter here: [Creating Talks with TalkBuilder](#builder).
+If you want to do it via code and perhaps add custom stuff to your dialogue graphs, checkout the next chapter here: [Creating Talks with TalkBuilder](#builder).
 
 Otherwise, let's create a `talk.ron` file in your `assets` folder, let's call it `hello.talk.ron`:
 
@@ -181,92 +181,95 @@ fn spawn_talk(
 ) {
     let my_talk = talks.get(&talk_handle.0).unwrap();
     let talk_builder = TalkBuilder::default().fill_with_talk_data(my_talk); // create a TalkBuilder with the TalkData
-
-    let mut talk_commands = commands.talks(); // commands is extended with the TalkCommands
-    talk_commands.spawn_talk(talk_builder, ()); // spawn the talk graph
+    commands.spawn_talk(talk_builder, ()); // spawn the graph with a commands extension
 }
 ```
 
 Alright! Now we have just spawned a graph of entities where each action is an entity with their own components. The actions performed by actors are also connected to the actors entities (just Bob in our case). 
 
-The entire graph is a child of a main entity with the `Talk` component. So we can just query for that entity and use the Talk component to get the data we need to display.
+The entire graph is a child of a main entity with the `Talk` component, you can use it to identify the graph in the world.
 
 ## 5. Displaying the talk
 
-The plugin doesn't provide any UI right now, so you can use whatever you want to display the dialogue.
-A quick way is to query for the Talk component and print the current node to the console:
+The plugin doesn't provide any UI system right now, so you can use whatever you want to display the dialogue.
+A dialogue graph sends you events everytime you move to a new node, so you can create small systems that listen
+to the different events.
 
 ```rust
-/// Print the current talk node (if changed) to the console.
-fn print(talk_comps: Query<Ref<Talk>>) { // with Ref<Talk> we get access to change detection
-    for talk in &talk_comps {
-        if !talk.is_changed() || talk.is_added() {
-            continue;
-        }
-
-        let actors = &talk.current_actors;
-
+fn print_text(mut text_events: EventReader<TextNodeEvent>) {
+    for txt_ev in text_events.read() {
         let mut speaker = "Narrator";
-        if !talk.current_actors.is_empty() {
-            speaker = &talk.current_actors[0];
+        if !txt_ev.actors.is_empty() {
+            speaker = &txt_ev.actors[0];
         }
+        println!("{speaker}: {}", txt_ev.text);
+    }
+}
 
-        match talk.current_kind {
-            NodeKind::Talk => println!("{speaker}: {}", talk.current_text),
-            NodeKind::Join => println!("--- {actors:?} enters the scene."),
-            NodeKind::Leave => println!("--- {actors:?} exit the scene."),
-            NodeKind::Choice => {
-                println!("Choices:");
-                for (i, choice) in talk.current_choices.iter().enumerate() {
-                    println!("{}: {}", i + 1, choice.text);
-                }
-            }
-            _ => (),
-        };
+fn print_join(mut join_events: EventReader<JoinNodeEvent>) {
+    for join_event in join_events.read() {
+        println!("--- {:?} enters the scene.", join_event.actors);
+    }
+}
+
+fn print_leave(mut leave_events: EventReader<LeaveNodeEvent>) {
+    for leave_event in leave_events.read() {
+        println!("--- {:?} exit the scene.", leave_event.actors);
+    }
+}
+
+fn print_choice(mut choice_events: EventReader<ChoiceNodeEvent>) {
+    for choice_event in choice_events.read() {
+        println!("Choices:");
+        for (i, choice) in choice_event.choices.iter().enumerate() {
+            println!("{}: {}", i + 1, choice.text);
+        }
     }
 }
 ```
 
-The Talk component has several fields that you can use to get the data of the current node of the dialogue graph.
-
-Here we are using the `current_kind` field to check what kind of node we are in and then print the text, the actors or the choices.
-
-If the current node has no actors (checked with `current_actors`) we default to "Narrator".
+The basics events are the `TextNodeEvent`, `JoinNodeEvent`, `LeaveNodeEvent` and `ChoiceNodeEvent`. They all have the `actors` field to quickly access the actor names. In case of no actors (empty vector) we're defaulting to "Narrator".
 
 ## 6. Interacting with the talk
 
-We spawned and printed the talk, but we can't interact with it to move forward (or pick a choice). 
+We spawned and are listening to the talk events, but we can't interact with it to move forward (or pick a choice). 
 
-To do that, the plugin has a 2 events that you can use: `NextActionRequest` and `ChooseActionRequest`. They both need the entity with the `Talk` component you want to update, and for the `ChooseActionRequest` you also need to provide the entity of the next action to go to.
+To do that, the plugin has another kind of events: the "Request" events that you can send. Here the 2 that we will use: `NextNodeRequest` and `ChooseNodeRequest`. They both need the entity with the `Talk` component you want to update, and for the `ChooseNodeRequest` you also need to provide the entity of the next action to go to.
 
 ```rust
+/// Advance the talk when the space key is pressed and select choices with 1 and 2.
 fn interact(
     input: Res<Input<KeyCode>>,
-    mut next_action_events: EventWriter<NextActionRequest>,
-    mut choose_action_events: EventWriter<ChooseActionRequest>,
-    talks: Query<(Entity, &Talk)>,
+    mut next_action_events: EventWriter<NextNodeRequest>,
+    mut choose_action_events: EventWriter<ChooseNodeRequest>,
+    talks: Query<Entity, With<Talk>>,
+    choices: Query<&ChoiceNode, With<CurrentNode>>,
 ) {
-    let (talk_ent, talk) = talks.single(); // let's grab our talk entity
+    let talk_ent = talks.single();
 
-    if talk.current_kind == NodeKind::Choice { // if it's the choice node, let's check the input
-        if input.just_pressed(KeyCode::Key1) {
-            let next_ent = talk.current_choices[0].next; // choose first choice
-            choose_action_events.send(ChooseActionRequest::new(talk_ent, next_ent));
-        } else if input.just_pressed(KeyCode::Key2) {
-            let next_ent = talk.current_choices[1].next; // choose second choice
-            choose_action_events.send(ChooseActionRequest::new(talk_ent, next_ent));
-        }
+    if input.just_pressed(KeyCode::Space) {
+        next_action_events.send(NextNodeRequest::new(talk_ent));
     }
 
-    if input.just_pressed(KeyCode::Space) { // otherwise just try to move forward
-        next_action_events.send(NextActionRequest(talk_ent));
+    // Note that you CAN have a TextNode component and a ChoiceNode component at the same time.
+    // It would allow you to display some text beside the choices.
+    if choices.iter().count() == 0 {
+        return;
+    }
+
+    let choice_node = choices.single();
+
+    if input.just_pressed(KeyCode::Key1) {
+        choose_action_events.send(ChooseNodeRequest::new(talk_ent, choice_node.0[0].next));
+    } else if input.just_pressed(KeyCode::Key2) {
+        choose_action_events.send(ChooseNodeRequest::new(talk_ent, choice_node.0[1].next));
     }
 }
 ```
 
 To grab the Talk entity for the events is pretty easy, just query for it.
 
-For the ChooseActionRequest event we have access to the current choices in the Talk component. Each choice has a `next` (and a `text` used in the print system) field with the entity of the next action to go to. So we just grab that and send the event.
+For the ChooseNodeRequest event we need access to the possible choices if the current node has the `ChoiceNode` component. To grab them we can do a query on the special `CurrentNode` that is attached only to the current node entity in a graph (note that if you have multiple dialogue graphs you will have multiple `CurrentNode`s and you will have to filter them).
 
 ## That's it!
 

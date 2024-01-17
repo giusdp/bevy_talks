@@ -13,7 +13,7 @@ struct DanceStart {
 fn main() {
     App::new()
         .add_plugins((DefaultPlugins, TalksPlugin))
-        .register_node_event::<DanceStart, DanceStartEvent>()
+        .register_node_event::<DanceStart, DanceStartEvent>() // Register the component and event
         .add_systems(Startup, setup_talk)
         .add_systems(
             Update,
@@ -32,7 +32,7 @@ fn setup_talk(mut commands: Commands) {
     commands.spawn_talk(
         Talk::builder()
             .say("Oh lord he dancing")
-            .add_component(DanceStart {
+            .with_component(DanceStart {
                 moves: vec![
                     "dabs".to_string(),
                     "whips".to_string(),

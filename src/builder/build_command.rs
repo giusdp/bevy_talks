@@ -848,7 +848,7 @@ mod integration_tests {
         app.update();
         let builder = TalkBuilder::default()
             .say("Hello There")
-            .add_component(TestComp);
+            .with_component(TestComp);
 
         BuildTalkCommand::new(app.world.spawn_empty().id(), builder).apply(&mut app.world);
         app.update();
