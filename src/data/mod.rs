@@ -8,8 +8,8 @@ pub mod ids;
 pub mod link;
 
 pub use actor::Actor;
-pub use database::DialogueDatabase;
 pub use conversation::Conversation;
+pub use database::DialogueDatabase;
 pub use entry::DialogueEntry;
-pub use link::Link;
 pub use ids::{ActorId, ConversationId, EntryId};
+pub use link::Link;

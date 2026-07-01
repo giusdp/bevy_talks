@@ -3,10 +3,12 @@
 use bevy::prelude::*;
 
 use data::DialogueDatabase;
+use loader::DialogueDatabaseLoader;
 
 pub mod prelude;
 
 mod data;
+mod loader;
 
 /// The plugin that provides dialogue and conversation handling.
 pub struct TalksPlugin;
@@ -14,6 +16,7 @@ pub struct TalksPlugin;
 impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<DialogueDatabase>()
-            .register_type::<DialogueDatabase>();
+            .register_type::<DialogueDatabase>()
+            .init_asset_loader::<DialogueDatabaseLoader>();
     }
 }
