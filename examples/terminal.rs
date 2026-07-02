@@ -99,7 +99,7 @@ fn handle_input(
                 Phase::Presenting { .. } => {
                     commands.trigger(AdvanceConversation { entity });
                 }
-                Phase::AwaitingChoice { responses } => match line.trim().parse::<usize>() {
+                Phase::AwaitingChoice { responses, .. } => match line.trim().parse::<usize>() {
                     Ok(n) if (1..=responses.len()).contains(&n) => {
                         commands.trigger(ChooseResponse {
                             entity,

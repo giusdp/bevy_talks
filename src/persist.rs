@@ -71,7 +71,9 @@ pub fn save_from_ron(text: &str) -> Result<DialogueSave, ron::error::SpannedErro
 mod tests {
     use super::*;
     use crate::data::{DialogueDatabase, Variable};
+    use rstest::{fixture, rstest};
 
+    #[fixture]
     fn db() -> DialogueDatabase {
         DialogueDatabase {
             variables: vec![
@@ -108,14 +110,17 @@ mod tests {
 
         assert!(restored_variables.truthy("AcceptedJob"));
         assert_eq!(restored_variables.text("PlayerName"), "Feri");
-        assert_eq!(restored_visits.displayed((ConversationId(1), EntryId(2))), 1);
+        assert_eq!(
+            restored_visits.displayed((ConversationId(1), EntryId(2))),
+            1
+        );
         assert_eq!(restored_visits.offered((ConversationId(1), EntryId(3))), 1);
     }
 
-    #[test]
-    fn saved_values_overwrite_seeded_ones() {
+    #[rstest]
+    fn saved_values_overwrite_seeded_ones(db: DialogueDatabase) {
         let mut variables = Variables::default();
-        variables.seed(&db());
+        variables.seed(&db);
         let save = DialogueSave {
             variables: HashMap::from([("Gold".to_owned(), FieldValue::Number(99.0))]),
             visits: HashMap::new(),
@@ -125,15 +130,15 @@ mod tests {
         assert!(!variables.truthy("AcceptedJob"));
     }
 
-    #[test]
-    fn seeding_after_restore_fills_only_missing_variables() {
+    #[rstest]
+    fn seeding_after_restore_fills_only_missing_variables(db: DialogueDatabase) {
         let mut variables = Variables::default();
         let save = DialogueSave {
             variables: HashMap::from([("Gold".to_owned(), FieldValue::Number(99.0))]),
             visits: HashMap::new(),
         };
         save.apply(&mut variables, &mut Visits::default());
-        variables.seed(&db());
+        variables.seed(&db);
         assert_eq!(variables.number("Gold"), 99.0);
         assert!(!variables.truthy("AcceptedJob"));
     }

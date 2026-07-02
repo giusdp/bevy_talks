@@ -75,7 +75,9 @@ pub fn seed_variables(
 mod tests {
     use super::*;
     use crate::data::Variable;
+    use rstest::{fixture, rstest};
 
+    #[fixture]
     fn db() -> DialogueDatabase {
         DialogueDatabase {
             variables: vec![
@@ -94,19 +96,19 @@ mod tests {
         }
     }
 
-    #[test]
-    fn seed_fills_missing_variables() {
+    #[rstest]
+    fn seed_fills_missing_variables(db: DialogueDatabase) {
         let mut vars = Variables::default();
-        vars.seed(&db());
+        vars.seed(&db);
         assert!(!vars.truthy("AcceptedJob"));
         assert_eq!(vars.number("Gold"), 10.0);
     }
 
-    #[test]
-    fn seed_keeps_existing_values() {
+    #[rstest]
+    fn seed_keeps_existing_values(db: DialogueDatabase) {
         let mut vars = Variables::default();
         vars.set("Gold", 99.0);
-        vars.seed(&db());
+        vars.seed(&db);
         assert_eq!(vars.number("Gold"), 99.0);
         assert!(!vars.truthy("AcceptedJob"));
     }
@@ -121,14 +123,14 @@ mod tests {
         assert!(!vars.truthy("Name"));
     }
 
-    #[test]
-    fn loading_a_database_seeds_the_store() {
+    #[rstest]
+    fn loading_a_database_seeds_the_store(db: DialogueDatabase) {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), crate::TalksPlugin));
         let _handle = app
             .world_mut()
             .resource_mut::<Assets<DialogueDatabase>>()
-            .add(db());
+            .add(db);
         // Asset events land after Update; the seeder sees them next frame.
         app.update();
         app.update();

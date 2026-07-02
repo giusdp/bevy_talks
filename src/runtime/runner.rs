@@ -188,7 +188,15 @@ pub fn start_runners(
                         Step::End
                     }
                 };
-                apply_step(step, at, entity, &mut runner, participants, None, &mut commands);
+                apply_step(
+                    step,
+                    at,
+                    entity,
+                    &mut runner,
+                    participants,
+                    None,
+                    &mut commands,
+                );
             }
             _ => {}
         }
