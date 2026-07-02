@@ -6,6 +6,9 @@ The file is a direct serialization of `DialogueDatabase`.
 ```ron
 (
     version: "1",
+    variables: [
+        (name: "AcceptedJob", initial: Boolean(false)),
+    ],
     actors: [
         (
             id: 0,
@@ -46,6 +49,6 @@ The file is a direct serialization of `DialogueDatabase`.
 
 Notes:
 
-- `fields` may be omitted.
+- `fields` and `variables` may be omitted.
 - Field values are tagged enum variants: `Text("…")`, `Number(1.5)`, `Boolean(true)`, `Localization("…")`, `Actor(2)`.
 - Loading is **lenient**: files that parse are accepted even if their content has problems. See [Validation](./validation.md).

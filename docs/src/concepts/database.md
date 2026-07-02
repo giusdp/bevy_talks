@@ -5,6 +5,7 @@ A `DialogueDatabase` is the unit of authored content: one asset holding the cast
 ```mermaid
 graph TD
     DB[DialogueDatabase] --> Actors
+    DB --> Variables
     DB --> Conversations
     Conversations --> Entries[DialogueEntry]
     Entries --> Links[Link]
@@ -22,6 +23,18 @@ pub struct Actor {
 ```
 
 `is_player` matters at runtime: entries spoken by player actors become menu choices, entries spoken by everyone else are presented as lines.
+
+## Variables
+
+```rust,ignore
+pub struct Variable {
+    pub name: String,        // unique within the database
+    pub initial: FieldValue, // what it starts as
+    pub fields: Vec<Field>,  // custom data
+}
+```
+
+Named game-state values and what they start as. At runtime they seed the [`Variables` store](../runtime/variables.md).
 
 ## Conversations
 
