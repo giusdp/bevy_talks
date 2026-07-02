@@ -14,6 +14,7 @@
 pub mod runner;
 pub mod step;
 pub mod variables;
+pub mod visits;
 
 pub use runner::{
     AdvanceConversation, ChooseResponse, ConversationEnded, DialogueRunner, Participants, Phase,
@@ -21,3 +22,4 @@ pub use runner::{
 };
 pub use step::{ConversationRef, Response, Step, Subtitle};
 pub use variables::Variables;
+pub use visits::{VisitCount, Visits};

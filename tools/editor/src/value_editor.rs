@@ -17,18 +17,15 @@ use bevy_talks::prelude::*;
 
 use crate::panels::{SuppressInspectorRebuild, SuppressVariablesRebuild};
 use crate::state::EditorState;
-use crate::widgets::muted_text;
 
 /// Where an edited value lives in the database.
 #[derive(Clone, PartialEq)]
 pub enum ValueSlot {
     /// A named field of an entry.
     EntryField(ConversationId, EntryId, String),
-    /// A named field of an actor. Not built by any panel yet.
-    #[expect(dead_code)]
+    /// A named field of an actor.
     ActorField(ActorId, String),
-    /// A named field of a conversation. Not built by any panel yet.
-    #[expect(dead_code)]
+    /// A named field of a conversation.
     ConversationField(ConversationId, String),
     /// A variable's initial value, by index into the database's variables.
     VariableInitial(usize),
@@ -171,28 +168,7 @@ fn convert(value: &FieldValue, kind: ValueKind, first_actor: ActorId) -> FieldVa
     }
 }
 
-/// A labeled row editing the value in `slot`: type dropdown + value control.
-pub fn value_editor(
-    label: String,
-    slot: ValueSlot,
-    value: &FieldValue,
-    actors: Vec<(ActorId, String)>,
-) -> Box<dyn Scene> {
-    let body: Box<dyn SceneList> = Box::new(vec![
-        Box::new(muted_text(label)) as Box<dyn Scene>,
-        value_controls(slot, value, actors),
-    ]);
-    Box::new(bsn! {
-        Node {
-            display: Display::Flex,
-            flex_direction: FlexDirection::Column,
-            row_gap: px(4),
-        }
-        Children [ {body} ]
-    })
-}
-
-/// The unlabeled controls row: type dropdown + value control.
+/// The controls row: type dropdown + value control.
 pub fn value_controls(
     slot: ValueSlot,
     value: &FieldValue,

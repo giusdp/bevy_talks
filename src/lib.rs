@@ -9,6 +9,7 @@ pub mod prelude;
 
 pub mod data;
 pub mod loader;
+pub mod persist;
 pub mod runtime;
 pub mod saver;
 
@@ -21,6 +22,7 @@ impl Plugin for TalksPlugin {
             .register_type::<DialogueDatabase>()
             .init_asset_loader::<DialogueDatabaseLoader>()
             .init_resource::<runtime::Variables>()
+            .init_resource::<runtime::Visits>()
             .add_systems(
                 Update,
                 (

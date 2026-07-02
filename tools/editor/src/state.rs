@@ -294,6 +294,76 @@ pub fn remove_variable(db: &mut DialogueDatabase, index: usize) -> bool {
     }
 }
 
+/// Which asset's fields bag a field operation targets.
+#[derive(Clone, Copy, PartialEq)]
+pub enum FieldOwner {
+    /// An entry's fields.
+    Entry(ConversationId, EntryId),
+    /// An actor's fields.
+    Actor(ActorId),
+    /// A conversation's fields.
+    Conversation(ConversationId),
+}
+
+impl Default for FieldOwner {
+    fn default() -> Self {
+        Self::Actor(ActorId::default())
+    }
+}
+
+/// The owner's fields bag, mutably.
+fn fields_mut(db: &mut DialogueDatabase, owner: FieldOwner) -> Option<&mut Vec<Field>> {
+    match owner {
+        FieldOwner::Entry(conversation, entry) => db
+            .conversations
+            .iter_mut()
+            .find(|c| c.id == conversation)
+            .and_then(|c| c.entries.iter_mut().find(|e| e.id == entry))
+            .map(|e| &mut e.fields),
+        FieldOwner::Actor(actor) => db
+            .actors
+            .iter_mut()
+            .find(|a| a.id == actor)
+            .map(|a| &mut a.fields),
+        FieldOwner::Conversation(conversation) => db
+            .conversations
+            .iter_mut()
+            .find(|c| c.id == conversation)
+            .map(|c| &mut c.fields),
+    }
+}
+
+/// Adds a custom field, starting as empty text. Refuses empty, `canvas_*`,
+/// and duplicate titles. Returns true if added.
+pub fn add_field(db: &mut DialogueDatabase, owner: FieldOwner, title: &str) -> bool {
+    if title.is_empty() || title.starts_with("canvas_") {
+        warn!("field name {title:?} is reserved or empty");
+        return false;
+    }
+    let Some(fields) = fields_mut(db, owner) else {
+        return false;
+    };
+    if fields.iter().any(|f| f.title == title) {
+        warn!("field {title:?} already exists");
+        return false;
+    }
+    fields.push(Field {
+        title: title.to_owned(),
+        value: FieldValue::Text(String::new()),
+    });
+    true
+}
+
+/// Removes a custom field by title. Returns true if it existed.
+pub fn remove_field(db: &mut DialogueDatabase, owner: FieldOwner, title: &str) -> bool {
+    let Some(fields) = fields_mut(db, owner) else {
+        return false;
+    };
+    let before = fields.len();
+    fields.retain(|f| f.title != title);
+    fields.len() != before
+}
+
 /// Adds a link between two entries of a conversation. Refuses self-links,
 /// duplicates, and missing destinations. Returns true if added.
 pub fn add_link(

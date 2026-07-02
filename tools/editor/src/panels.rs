@@ -16,8 +16,8 @@ use bevy::{
 };
 use bevy_talks::prelude::*;
 
-use crate::state::{self, EditorSelection, EditorState, root_entry_id};
-use crate::value_editor::{ValueSlot, value_controls, value_editor};
+use crate::state::{self, EditorSelection, EditorState, FieldOwner, root_entry_id};
+use crate::value_editor::{ValueSlot, value_controls};
 use crate::widgets::{action_button, labeled_value, muted_text, panel_header};
 
 /// Marker for the actors list body.
@@ -391,6 +391,139 @@ fn variable_row(
     })
 }
 
+/// Marker for a "new field name" text input, tagged with the fields bag the
+/// neighboring Add button targets.
+#[derive(Component, Default, Clone)]
+struct NewFieldName {
+    /// The targeted fields bag.
+    owner: FieldOwner,
+}
+
+/// The value slot of a named field of `owner`.
+fn owner_slot(owner: FieldOwner, title: String) -> ValueSlot {
+    match owner {
+        FieldOwner::Entry(conversation, entry) => ValueSlot::EntryField(conversation, entry, title),
+        FieldOwner::Actor(actor) => ValueSlot::ActorField(actor, title),
+        FieldOwner::Conversation(conversation) => ValueSlot::ConversationField(conversation, title),
+    }
+}
+
+/// The rows of one fields bag: a row per field and the "name + Add" row.
+/// `canvas_*` bookkeeping fields are hidden; the graph canvas owns them.
+fn fields_section(
+    owner: FieldOwner,
+    fields: &[Field],
+    actors: Vec<(ActorId, String)>,
+) -> Vec<Box<dyn Scene>> {
+    let mut rows: Vec<Box<dyn Scene>> = Vec::new();
+    let visible: Vec<&Field> = fields
+        .iter()
+        .filter(|f| !f.title.starts_with("canvas_"))
+        .collect();
+    if visible.is_empty() {
+        rows.push(Box::new(muted_text("(none)")));
+    }
+    for field in visible {
+        rows.push(field_row(owner, field, actors.clone()));
+    }
+    rows.push(add_field_row(owner));
+    rows
+}
+
+/// One custom field: title + remove button, then the value editor.
+fn field_row(owner: FieldOwner, field: &Field, actors: Vec<(ActorId, String)>) -> Box<dyn Scene> {
+    let title = field.title.clone();
+    let remove_title = title.clone();
+    let title_row: Box<dyn SceneList> = Box::new(vec![
+        Box::new(bsn! {
+            Node { flex_grow: 1.0 }
+            Children [ muted_text(title) ]
+        }) as Box<dyn Scene>,
+        Box::new(action_button(
+            "✕",
+            ButtonVariant::Normal,
+            move |_: On<Activate>, mut state: ResMut<EditorState>| {
+                if state::remove_field(
+                    &mut state.bypass_change_detection().db,
+                    owner,
+                    &remove_title,
+                ) {
+                    state.set_changed();
+                }
+            },
+        )),
+    ]);
+    let body: Box<dyn SceneList> = Box::new(vec![
+        Box::new(bsn! {
+            Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                column_gap: px(6),
+                align_items: AlignItems::Center,
+            }
+            Children [ {title_row} ]
+        }) as Box<dyn Scene>,
+        value_controls(owner_slot(owner, field.title.clone()), &field.value, actors),
+    ]);
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [ {body} ]
+    })
+}
+
+/// The "name + Add" row that creates a new custom field on `owner`.
+fn add_field_row(owner: FieldOwner) -> Box<dyn Scene> {
+    let parts: Box<dyn SceneList> = Box::new(vec![
+        Box::new(bsn! {
+            Node {
+                flex_grow: 1.0,
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+            }
+            Children [
+                (
+                    @FeathersTextInputContainer
+                    Children [
+                        (
+                            @FeathersTextInput
+                            EditableText::new("")
+                            NewFieldName { owner: owner }
+                        )
+                    ]
+                )
+            ]
+        }) as Box<dyn Scene>,
+        Box::new(action_button(
+            "Add",
+            ButtonVariant::Normal,
+            move |_: On<Activate>,
+                  names: Query<(&EditableText, &NewFieldName)>,
+                  mut state: ResMut<EditorState>| {
+                let Some((name, _)) = names.iter().find(|(_, tag)| tag.owner == owner) else {
+                    return;
+                };
+                let title = name.value().to_string().trim().to_owned();
+                if state::add_field(&mut state.bypass_change_detection().db, owner, &title) {
+                    state.set_changed();
+                }
+            },
+        )),
+    ]);
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Row,
+            column_gap: px(6),
+            align_items: AlignItems::Center,
+        }
+        Children [ {parts} ]
+    })
+}
+
 /// Adds a new variable to the database.
 pub fn create_variable(_: On<Activate>, state: Option<ResMut<EditorState>>) {
     let Some(mut state) = state else {
@@ -552,7 +685,27 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
     let mut rows: Vec<Box<dyn Scene>> = vec![
         Box::new(panel_header("Conversation")),
         conversation_title_input(conversation.id, conversation.title.clone()),
+        conversation_actor_select(
+            "Default actor",
+            state.actor_name(conversation.actor),
+            actor_options(state),
+            conversation.id,
+            false,
+        ),
+        conversation_actor_select(
+            "Default conversant",
+            state.actor_name(conversation.conversant),
+            actor_options(state),
+            conversation.id,
+            true,
+        ),
+        Box::new(panel_header("Conversation Fields")),
     ];
+    rows.extend(fields_section(
+        FieldOwner::Conversation(conversation.id),
+        &conversation.fields,
+        actor_options(state),
+    ));
     if let Some(actor) = selection
         .actor
         .and_then(|id| state.db.actors.iter().find(|a| a.id == id))
@@ -561,7 +714,13 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
             Box::new(panel_header("Actor")) as Box<dyn Scene>,
             actor_name_input(actor.id, actor.name.clone()),
             actor_player_checkbox(actor.id, actor.is_player),
+            Box::new(panel_header("Actor Fields")),
         ]);
+        rows.extend(fields_section(
+            FieldOwner::Actor(actor.id),
+            &actor.fields,
+            actor_options(state),
+        ));
     }
     let Some(entry) = selection
         .entry
@@ -605,24 +764,11 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
         entry_flag_checkbox("Group node", entry.is_group, target, EntryFlag::Group),
         Box::new(panel_header("Custom Fields")),
     ]);
-    // Canvas positions are editor bookkeeping; the graph writes them, so
-    // exposing them as inputs would fight node dragging.
-    let custom_fields: Vec<&Field> = entry
-        .fields
-        .iter()
-        .filter(|f| !f.title.starts_with("canvas_"))
-        .collect();
-    if custom_fields.is_empty() {
-        rows.push(Box::new(muted_text("(none)")));
-    }
-    for field in custom_fields {
-        rows.push(value_editor(
-            field.title.clone(),
-            ValueSlot::EntryField(conversation.id, entry.id, field.title.clone()),
-            &field.value,
-            actor_options(state),
-        ));
-    }
+    rows.extend(fields_section(
+        FieldOwner::Entry(conversation.id, entry.id),
+        &entry.fields,
+        actor_options(state),
+    ));
     rows.push(Box::new(panel_header("Outgoing Links")));
     if entry.links.is_empty() {
         rows.push(Box::new(muted_text("(none)")));
@@ -879,6 +1025,65 @@ fn actor_select(
                     e.conversant = id;
                 } else {
                     e.actor = id;
+                }
+                state.set_changed();
+            };
+            Box::new(bsn! {
+                @FeathersMenuItem {
+                    @caption: bsn! { Text(name) ThemedText },
+                }
+                on(write)
+            }) as Box<dyn Scene>
+        })
+        .collect();
+    let items: Box<dyn SceneList> = Box::new(items);
+
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text(label),
+            (
+                @FeathersMenu
+                Children [
+                    (
+                        @FeathersMenuButton {
+                            @caption: bsn! { Text(current) ThemedText },
+                        }
+                    ),
+                    (
+                        @FeathersMenuPopup
+                        Children [ {items} ]
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// A labeled dropdown that assigns a conversation's default actor or conversant.
+fn conversation_actor_select(
+    label: &'static str,
+    current: String,
+    actors: Vec<(ActorId, String)>,
+    conversation: ConversationId,
+    conversant: bool,
+) -> Box<dyn Scene> {
+    let items: Vec<Box<dyn Scene>> = actors
+        .into_iter()
+        .map(|(id, name)| {
+            let write = move |_: On<Activate>, mut state: ResMut<EditorState>| {
+                let db = &mut state.bypass_change_detection().db;
+                let Some(c) = db.conversations.iter_mut().find(|c| c.id == conversation) else {
+                    return;
+                };
+                if conversant {
+                    c.conversant = id;
+                } else {
+                    c.actor = id;
                 }
                 state.set_changed();
             };
