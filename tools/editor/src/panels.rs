@@ -58,6 +58,13 @@ pub struct EntryTextTarget {
     pub dialogue: bool,
 }
 
+/// Which conversation a title text input renames.
+#[derive(Component, Clone, Copy, Default)]
+pub struct ConversationTitleTarget {
+    /// The conversation being renamed.
+    pub conversation: ConversationId,
+}
+
 /// The conversation a sidebar list row represents.
 #[derive(Component, Clone, Copy, Default)]
 struct ConversationRow {
@@ -326,15 +333,21 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
     let Some(conversation) = state.conversation(selection.conversation) else {
         return vec![Box::new(muted_text("No conversation selected"))];
     };
+    let mut rows: Vec<Box<dyn Scene>> = vec![
+        Box::new(panel_header("Conversation")),
+        conversation_title_input(conversation.id, conversation.title.clone()),
+    ];
     let Some(entry) = selection
         .entry
         .and_then(|id| conversation.entries.iter().find(|e| e.id == id))
     else {
-        return vec![Box::new(muted_text("No entry selected"))];
+        rows.push(Box::new(muted_text("No entry selected")));
+        return rows;
     };
 
     let target = (conversation.id, entry.id);
-    let mut rows: Vec<Box<dyn Scene>> = vec![
+    rows.extend([
+        Box::new(panel_header("Entry")) as Box<dyn Scene>,
         Box::new(labeled_value("Entry", format!("{}", entry.id.0))),
         Box::new(labeled_value("Actor", state.actor_name(entry.actor))),
         Box::new(labeled_value(
@@ -356,7 +369,7 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
         entry_flag_checkbox("Root entry", entry.is_root, target, EntryFlag::Root),
         entry_flag_checkbox("Group node", entry.is_group, target, EntryFlag::Group),
         Box::new(panel_header("Custom Fields")),
-    ];
+    ]);
     if entry.fields.is_empty() {
         rows.push(Box::new(muted_text("(none)")));
     }
@@ -565,6 +578,58 @@ fn entry_text_input(
                 ]
             )
         ]
+    }
+}
+
+/// A labeled text input that renames a conversation.
+fn conversation_title_input(conversation: ConversationId, value: String) -> Box<dyn Scene> {
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text("Title"),
+            (
+                @FeathersTextInputContainer
+                Children [
+                    (
+                        @FeathersTextInput
+                        EditableText::new(value)
+                        ConversationTitleTarget { conversation: conversation }
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// Writes edited conversation titles back into the database.
+pub fn commit_conversation_title_edits(
+    inputs: Query<(&EditableText, &ConversationTitleTarget), Changed<EditableText>>,
+    mut state: ResMut<EditorState>,
+    mut suppress: ResMut<SuppressInspectorRebuild>,
+) {
+    let mut wrote = false;
+    for (input, target) in &inputs {
+        let value = input.value().to_string();
+        let db = &mut state.bypass_change_detection().db;
+        let Some(conversation) = db
+            .conversations
+            .iter_mut()
+            .find(|c| c.id == target.conversation)
+        else {
+            continue;
+        };
+        if conversation.title != value {
+            conversation.title = value;
+            wrote = true;
+        }
+    }
+    if wrote {
+        state.set_changed();
+        suppress.0 = true;
     }
 }
 

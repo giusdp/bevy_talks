@@ -58,6 +58,7 @@ fn main() {
                 state::finish_database_load.run_if(resource_exists::<PendingLoad>),
                 (
                     panels::commit_entry_text_edits,
+                    panels::commit_conversation_title_edits,
                     panels::rebuild_database_files,
                     panels::rebuild_actors_panel,
                     panels::rebuild_conversations_panel,
