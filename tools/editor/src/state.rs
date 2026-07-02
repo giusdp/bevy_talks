@@ -156,10 +156,15 @@ pub fn save_database(server: AssetServer, db: DialogueDatabase, path: String) {
         .detach();
 }
 
+/// Horizontal offset of a new child entry from its parent.
+const CHILD_OFFSET_X: f32 = 280.0;
+/// Vertical offset between siblings created under the same parent.
+const CHILD_OFFSET_Y: f32 = 132.0;
+
 /// A fresh database with DSU-style defaults: a Player actor and one
 /// conversation holding only its START entry.
 fn default_database() -> DialogueDatabase {
-    DialogueDatabase {
+    let mut db = DialogueDatabase {
         version: "1".to_owned(),
         actors: vec![Actor {
             id: ActorId(0),
@@ -167,16 +172,106 @@ fn default_database() -> DialogueDatabase {
             is_player: true,
             fields: vec![],
         }],
-        conversations: vec![Conversation {
-            id: ConversationId(1),
-            title: "New Conversation".to_owned(),
-            entries: vec![DialogueEntry {
-                id: EntryId(1),
-                is_root: true,
-                ..Default::default()
-            }],
+        conversations: vec![],
+    };
+    add_conversation(&mut db);
+    db
+}
+
+/// Adds a new conversation seeded with its START root entry. Returns its id.
+pub fn add_conversation(db: &mut DialogueDatabase) -> ConversationId {
+    let id = ConversationId(db.conversations.iter().map(|c| c.id.0).max().unwrap_or(0) + 1);
+    let actor = db
+        .actors
+        .iter()
+        .find(|a| a.is_player)
+        .map(|a| a.id)
+        .unwrap_or_default();
+    let conversant = db
+        .actors
+        .iter()
+        .find(|a| !a.is_player)
+        .map(|a| a.id)
+        .unwrap_or_default();
+    db.conversations.push(Conversation {
+        id,
+        title: format!("New Conversation {}", id.0),
+        actor,
+        conversant,
+        entries: vec![DialogueEntry {
+            id: EntryId(1),
+            actor,
+            conversant,
+            is_root: true,
             ..Default::default()
         }],
+        ..Default::default()
+    });
+    id
+}
+
+/// Adds a child entry linked from `parent`, with actor and conversant swapped
+/// (DSU's alternation rule) and a canvas position next to the parent.
+/// Returns the child's id.
+pub fn add_child_entry(
+    db: &mut DialogueDatabase,
+    conversation: ConversationId,
+    parent: EntryId,
+) -> Option<EntryId> {
+    let conv = db.conversations.iter_mut().find(|c| c.id == conversation)?;
+    let child_id = EntryId(conv.entries.iter().map(|e| e.id.0).max().unwrap_or(0) + 1);
+    let parent_entry = conv.entries.iter_mut().find(|e| e.id == parent)?;
+
+    let actor = parent_entry.conversant;
+    let conversant = parent_entry.actor;
+    let siblings = parent_entry
+        .links
+        .iter()
+        .filter(|l| l.dest_conversation == conversation)
+        .count() as f32;
+    let parent_pos = (
+        number_field(parent_entry, "canvas_x"),
+        number_field(parent_entry, "canvas_y"),
+    );
+    parent_entry.links.push(Link {
+        dest_conversation: conversation,
+        dest_entry: child_id,
+    });
+
+    let mut child = DialogueEntry {
+        id: child_id,
+        actor,
+        conversant,
+        ..Default::default()
+    };
+    if let (Some(x), Some(y)) = parent_pos {
+        set_number_field(&mut child, "canvas_x", x + CHILD_OFFSET_X);
+        set_number_field(&mut child, "canvas_y", y + siblings * CHILD_OFFSET_Y);
+    }
+    conv.entries.push(child);
+    Some(child_id)
+}
+
+/// A `Number` field value by title, if present.
+pub fn number_field(entry: &DialogueEntry, title: &str) -> Option<f32> {
+    entry
+        .fields
+        .iter()
+        .find(|f| f.title == title)
+        .and_then(|f| match f.value {
+            FieldValue::Number(n) => Some(n),
+            _ => None,
+        })
+}
+
+/// Writes a `Number` field, adding it if missing.
+pub fn set_number_field(entry: &mut DialogueEntry, title: &str, value: f32) {
+    match entry.fields.iter_mut().find(|f| f.title == title) {
+        Some(field) => field.value = FieldValue::Number(value),
+        None => entry.fields.push(Field {
+            title: title.to_owned(),
+            value: FieldValue::Number(value),
+        }),
     }
 }
 

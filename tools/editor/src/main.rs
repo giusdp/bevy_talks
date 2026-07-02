@@ -226,6 +226,11 @@ fn sidebar() -> impl Scene {
                     ConversationsPanelBody
                     Children [ muted_text("loading…") ]
                 ),
+                action_button(
+                    "New Conversation",
+                    ButtonVariant::Normal,
+                    panels::create_conversation
+                ),
             ]),
         ]
     }

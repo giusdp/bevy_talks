@@ -3,7 +3,7 @@
 use bevy::{
     feathers::{
         controls::{
-            FeathersCheckbox, FeathersListRow, FeathersListView, FeathersTextInput,
+            ButtonVariant, FeathersCheckbox, FeathersListRow, FeathersListView, FeathersTextInput,
             FeathersTextInputContainer,
         },
         theme::ThemedText,
@@ -11,12 +11,12 @@ use bevy::{
     prelude::*,
     text::EditableText,
     ui::{Checked, Selected},
-    ui_widgets::ValueChange,
+    ui_widgets::{Activate, ValueChange},
 };
 use bevy_talks::prelude::*;
 
 use crate::state::{self, EditorSelection, EditorState, root_entry_id};
-use crate::widgets::{feathers_row, labeled_value, muted_text, panel_header};
+use crate::widgets::{action_button, feathers_row, labeled_value, muted_text, panel_header};
 
 /// Marker for the actors list body.
 #[derive(Component, Default, Clone)]
@@ -249,6 +249,21 @@ pub fn rebuild_conversations_panel(
         )]);
 }
 
+/// Adds a new conversation with its START entry and selects it.
+pub fn create_conversation(
+    _: On<Activate>,
+    state: Option<ResMut<EditorState>>,
+    mut selection: ResMut<EditorSelection>,
+) {
+    let Some(mut state) = state else {
+        return;
+    };
+    let id = state::add_conversation(&mut state.bypass_change_detection().db);
+    state.set_changed();
+    selection.conversation = Some(id);
+    selection.entry = state.conversation(Some(id)).and_then(root_entry_id);
+}
+
 /// A selectable conversation row.
 fn conversation_row(label: String, conversation: ConversationId, selected: bool) -> Box<dyn Scene> {
     if selected {
@@ -361,7 +376,32 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
             link.dest_conversation.0, link.dest_entry.0
         ))));
     }
+    rows.push(add_child_button(target));
     rows
+}
+
+/// A button that creates a child entry linked from the given entry.
+fn add_child_button((conversation, entry): (ConversationId, EntryId)) -> Box<dyn Scene> {
+    Box::new(action_button(
+        "Add Child Entry",
+        ButtonVariant::Primary,
+        move |_: On<Activate>,
+              state: Option<ResMut<EditorState>>,
+              mut selection: ResMut<EditorSelection>| {
+            let Some(mut state) = state else {
+                return;
+            };
+            let Some(child) = state::add_child_entry(
+                &mut state.bypass_change_detection().db,
+                conversation,
+                entry,
+            ) else {
+                return;
+            };
+            state.set_changed();
+            selection.entry = Some(child);
+        },
+    ))
 }
 
 /// Which boolean flag of an entry a checkbox edits.

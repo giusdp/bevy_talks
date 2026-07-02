@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use bevy::{feathers::theme::ThemedText, prelude::*};
 use bevy_talks::prelude::*;
 
-use crate::state::{EditorSelection, EditorState};
+use crate::state::{EditorSelection, EditorState, number_field, set_number_field};
 use crate::widgets::muted_text;
 
 /// Width of a graph node.
@@ -192,18 +192,6 @@ fn layout(conversation: &Conversation) -> HashMap<EntryId, Vec2> {
         *row += 1;
     }
     positions
-}
-
-/// A `Number` field value by title, if present.
-fn number_field(entry: &DialogueEntry, title: &str) -> Option<f32> {
-    entry
-        .fields
-        .iter()
-        .find(|f| f.title == title)
-        .and_then(|f| match f.value {
-            FieldValue::Number(n) => Some(n),
-            _ => None,
-        })
 }
 
 /// Appends the three elbow segments of one link.
@@ -435,17 +423,6 @@ fn finish_graph_node_drag(
     set_number_field(entry, "canvas_x", position.x);
     set_number_field(entry, "canvas_y", position.y);
     state.set_changed();
-}
-
-/// Writes a `Number` field, adding it if missing.
-fn set_number_field(entry: &mut DialogueEntry, title: &str, value: f32) {
-    match entry.fields.iter_mut().find(|f| f.title == title) {
-        Some(field) => field.value = FieldValue::Number(value),
-        None => entry.fields.push(Field {
-            title: title.to_owned(),
-            value: FieldValue::Number(value),
-        }),
-    }
 }
 
 /// Syncs [`GraphNodePosition`] into UI node offsets.
