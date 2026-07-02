@@ -6,34 +6,27 @@ mod state;
 mod widgets;
 
 use bevy::{
-    asset::{
-        AssetPath,
-        saver::{SavedAsset, save_using_saver},
-    },
     feathers::{
         FeathersPlugins,
-        controls::FeathersButton,
+        controls::{ButtonVariant, FeathersTextInput, FeathersTextInputContainer},
         dark_theme::create_dark_theme,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens,
     },
     input_focus::tab_navigation::TabGroup,
     prelude::*,
-    tasks::IoTaskPool,
+    text::EditableText,
     ui_widgets::Activate,
 };
-use bevy_talks::prelude::{DialogueDatabaseSaver, TalksPlugin};
+use bevy_talks::prelude::TalksPlugin;
 
 use graph::CanvasBody;
 use panels::{
-    ActorsPanelBody, ConversationTitleText, ConversationsPanelBody, InspectorBody, StatusText,
-    ValidationText,
+    ActorsPanelBody, ConversationTitleText, ConversationsPanelBody, DatabaseFilesBody,
+    FileLabelText, InspectorBody, StatusText, ValidationText,
 };
-use state::{DATABASE_PATH, EditorSelection, EditorState, PendingLoad};
-use widgets::{
-    PANEL_BORDER, feathers_row, header_text, muted_text, panel, panel_header,
-    primary_toolbar_button, toolbar_button,
-};
+use state::{EditorSelection, EditorState, NewDatabaseName, PendingLoad};
+use widgets::{PANEL_BORDER, action_button, header_text, muted_text, panel, panel_header};
 
 fn main() {
     App::new()
@@ -65,9 +58,11 @@ fn main() {
                 state::finish_database_load.run_if(resource_exists::<PendingLoad>),
                 (
                     panels::commit_entry_text_edits,
+                    panels::rebuild_database_files,
                     panels::rebuild_actors_panel,
                     panels::rebuild_conversations_panel,
                     panels::rebuild_inspector,
+                    panels::update_file_label,
                     panels::update_conversation_title,
                     panels::update_status_text,
                     panels::update_validation_text,
@@ -119,7 +114,7 @@ fn editor_root() -> impl Scene {
     }
 }
 
-/// Top toolbar with the file name and (not yet wired) actions.
+/// Top toolbar: title, current file, and Save.
 fn toolbar() -> impl Scene {
     bsn! {
         Node {
@@ -141,54 +136,33 @@ fn toolbar() -> impl Scene {
                 }
                 Children [
                     header_text("bevy_talks editor"),
-                    muted_text(format!("assets/{DATABASE_PATH}")),
+                    (
+                        Text("no database")
+                        ThemedText
+                        TextFont {
+                            font_size: FontSize::Px(12.0),
+                        }
+                        TextColor(Color::srgb(0.62, 0.66, 0.72))
+                        FileLabelText
+                    ),
                 ]
             ),
-            (
-                Node {
-                    display: Display::Flex,
-                    flex_direction: FlexDirection::Row,
-                    column_gap: px(6),
+            action_button(
+                "Save",
+                ButtonVariant::Normal,
+                |_: On<Activate>, state: Option<Res<EditorState>>, assets: Res<AssetServer>| {
+                    let Some(state) = state else {
+                        warn!("nothing to save yet");
+                        return;
+                    };
+                    state::save_database(assets.clone(), state.db.clone(), state.path.clone());
                 }
-                Children [
-                    toolbar_button("Open"),
-                    save_button(),
-                    primary_toolbar_button("Validate"),
-                ]
-            )
+            ),
         ]
     }
 }
 
-/// Toolbar Save: writes the working copy to disk through the `AssetSaver` path.
-fn save_button() -> impl Scene {
-    bsn! {
-        @FeathersButton {
-            @caption: bsn! { Text("Save") ThemedText },
-        }
-        on(|_: On<Activate>, state: Option<Res<EditorState>>, assets: Res<AssetServer>| {
-            let Some(state) = state else {
-                warn!("nothing to save yet");
-                return;
-            };
-            let db = state.db.clone();
-            let server = assets.clone();
-            IoTaskPool::get()
-                .spawn(async move {
-                    let path = AssetPath::from(DATABASE_PATH);
-                    let saved = SavedAsset::from_asset(&db);
-                    match save_using_saver(server, &DialogueDatabaseSaver, &path, saved, &()).await
-                    {
-                        Ok(()) => info!("saved {path}"),
-                        Err(err) => error!("save failed: {err}"),
-                    }
-                })
-                .detach();
-        })
-    }
-}
-
-/// Left sidebar: file, actors, and conversations.
+/// Left sidebar: database creation, actors, and conversations.
 fn sidebar() -> impl Scene {
     bsn! {
         Node {
@@ -199,8 +173,37 @@ fn sidebar() -> impl Scene {
             row_gap: px(8),
         }
         Children [
-            panel("Files", bsn_list![
-                feathers_row(DATABASE_PATH),
+            panel("Database", bsn_list![
+                (
+                    Node {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(2),
+                    }
+                    DatabaseFilesBody
+                    Children [ muted_text("loading…") ]
+                ),
+                (
+                    Node {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(6),
+                    }
+                    Children [
+                        muted_text("New database name"),
+                        (
+                            @FeathersTextInputContainer
+                            Children [
+                                (
+                                    @FeathersTextInput
+                                    EditableText::new("new_database")
+                                    NewDatabaseName
+                                )
+                            ]
+                        ),
+                        action_button("New", ButtonVariant::Primary, state::create_new_database),
+                    ]
+                ),
             ]),
             panel("Actors", bsn_list![
                 (
@@ -228,7 +231,7 @@ fn sidebar() -> impl Scene {
     }
 }
 
-/// Center column: conversation heading, canvas tools, and the graph canvas.
+/// Center column: conversation heading and the graph canvas.
 fn conversation_board() -> impl Scene {
     bsn! {
         Node {
@@ -240,34 +243,12 @@ fn conversation_board() -> impl Scene {
         }
         Children [
             (
-                Node {
-                    display: Display::Flex,
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    justify_content: JustifyContent::SpaceBetween,
+                Text("Loading database…")
+                ThemedText
+                TextFont {
+                    font_size: FontSize::Px(15.0),
                 }
-                Children [
-                    (
-                        Text("Loading database…")
-                        ThemedText
-                        TextFont {
-                            font_size: FontSize::Px(15.0),
-                        }
-                        ConversationTitleText
-                    ),
-                    (
-                        Node {
-                            display: Display::Flex,
-                            flex_direction: FlexDirection::Row,
-                            column_gap: px(6),
-                        }
-                        Children [
-                            toolbar_button("Frame"),
-                            toolbar_button("Group"),
-                            primary_toolbar_button("Add Node"),
-                        ]
-                    )
-                ]
+                ConversationTitleText
             ),
             graph_canvas(),
         ]

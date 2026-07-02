@@ -1,6 +1,7 @@
 //! Shared scene builders for editor chrome: panels, rows, labels, buttons.
 
 use bevy::{
+    ecs::system::IntoObserverSystem,
     feathers::{
         controls::{ButtonVariant, FeathersButton, FeathersListRow},
         theme::ThemedText,
@@ -112,27 +113,21 @@ pub fn labeled_value(label: impl Into<String>, value: impl Into<String>) -> impl
     }
 }
 
-/// A regular toolbar button that only logs for now.
-pub fn toolbar_button(label: &'static str) -> impl Scene {
+/// A feathers button wired to an observer.
+pub fn action_button<F, M>(
+    label: &'static str,
+    variant: ButtonVariant,
+    on_activate: F,
+) -> impl Scene
+where
+    F: IntoObserverSystem<Activate, (), M> + Clone + Send + Sync,
+    M: 'static,
+{
     bsn! {
         @FeathersButton {
             @caption: bsn! { Text(label) ThemedText },
+            @variant: {variant},
         }
-        on(|_: On<Activate>| {
-            info!("editor action not implemented yet");
-        })
-    }
-}
-
-/// A primary (highlighted) toolbar button that only logs for now.
-pub fn primary_toolbar_button(label: &'static str) -> impl Scene {
-    bsn! {
-        @FeathersButton {
-            @caption: bsn! { Text(label) ThemedText },
-            @variant: ButtonVariant::Primary,
-        }
-        on(|_: On<Activate>| {
-            info!("editor action not implemented yet");
-        })
+        on(on_activate)
     }
 }

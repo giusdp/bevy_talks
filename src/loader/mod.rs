@@ -10,6 +10,11 @@ use bevy::reflect::TypePath;
 use crate::data::DialogueDatabase;
 use error::LoadError;
 
+/// Parses a database from `.dialogue.ron` text.
+pub fn from_ron_str(text: &str) -> Result<DialogueDatabase, ron::de::SpannedError> {
+    ron::de::from_str(text)
+}
+
 /// Loads a [`DialogueDatabase`] from a `.dialogue.ron` file.
 #[derive(Default, TypePath)]
 pub struct DialogueDatabaseLoader;

@@ -15,7 +15,7 @@ use bevy::{
 };
 use bevy_talks::prelude::*;
 
-use crate::state::{EditorSelection, EditorState, root_entry_id};
+use crate::state::{self, EditorSelection, EditorState, root_entry_id};
 use crate::widgets::{feathers_row, labeled_value, muted_text, panel_header};
 
 /// Marker for the actors list body.
@@ -42,6 +42,10 @@ pub struct StatusText;
 #[derive(Component, Default, Clone)]
 pub struct ValidationText;
 
+/// Marker for the current file name in the toolbar.
+#[derive(Component, Default, Clone)]
+pub struct FileLabelText;
+
 /// Which entry text a text input edits. Inputs carry their exact target so a
 /// pending edit can never leak into a newly selected entry.
 #[derive(Component, Clone, Copy, Default, PartialEq)]
@@ -61,10 +65,109 @@ struct ConversationRow {
     conversation: ConversationId,
 }
 
+/// Marker for the database files list body.
+#[derive(Component, Default, Clone)]
+pub struct DatabaseFilesBody;
+
+/// The database file a list row represents.
+#[derive(Component, Clone, Default)]
+struct DatabaseFileRow {
+    /// Asset path of the file.
+    path: String,
+}
+
 /// Set when an inspector edit wrote to the state, so the write-through
 /// doesn't rebuild the inspector under the user's cursor.
 #[derive(Resource, Default)]
 pub struct SuppressInspectorRebuild(pub bool);
+
+/// Rebuilds the database files list when the edited database changes.
+pub fn rebuild_database_files(
+    mut commands: Commands,
+    state: Res<EditorState>,
+    body: Single<Entity, With<DatabaseFilesBody>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    let rows: Vec<Box<dyn Scene>> = state::database_files()
+        .into_iter()
+        .map(|file| {
+            let selected = file == state.path;
+            database_file_row(file, selected)
+        })
+        .collect();
+    let rows: Box<dyn SceneList> = Box::new(rows);
+
+    commands.entity(*body).despawn_related::<Children>();
+    commands
+        .entity(*body)
+        .queue_spawn_related_scenes::<Children>(bsn_list![(
+            @FeathersListView {
+                @rows: {rows},
+            }
+            on(open_selected_database)
+        )]);
+}
+
+/// Opens the database file behind an activated row.
+fn open_selected_database(
+    change: On<ValueChange<Entity>>,
+    rows: Query<&DatabaseFileRow>,
+    mut commands: Commands,
+    mut selection: ResMut<EditorSelection>,
+) {
+    let Ok(row) = rows.get(change.value) else {
+        return;
+    };
+    match state::read_database(&row.path) {
+        Ok(db) => {
+            let first = db.conversations.first();
+            selection.conversation = first.map(|c| c.id);
+            selection.entry = first.and_then(root_entry_id);
+            commands.insert_resource(EditorState {
+                db,
+                path: row.path.clone(),
+            });
+        }
+        Err(err) => error!("failed to open {}: {err}", row.path),
+    }
+}
+
+/// A selectable database file row.
+fn database_file_row(path: String, selected: bool) -> Box<dyn Scene> {
+    let label = path.clone();
+    if selected {
+        Box::new(bsn! {
+            @FeathersListRow
+            Selected
+            DatabaseFileRow { path: path }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersListRow
+            DatabaseFileRow { path: path }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    }
+}
 
 /// Rebuilds the actors list when the database changes.
 pub fn rebuild_actors_panel(
@@ -390,6 +493,17 @@ fn field_value_text(value: &FieldValue) -> String {
         FieldValue::Boolean(boolean) => boolean.to_string(),
         FieldValue::Actor(id) => format!("actor {}", id.0),
     }
+}
+
+/// Keeps the toolbar file name in sync with the edited database.
+pub fn update_file_label(
+    state: Res<EditorState>,
+    mut text: Single<&mut Text, With<FileLabelText>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    text.0 = format!("assets/{}", state.path);
 }
 
 /// Keeps the canvas heading in sync with the selected conversation.
