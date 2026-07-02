@@ -377,7 +377,31 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
         ))));
     }
     rows.push(add_child_button(target));
+    if !entry.is_root {
+        rows.push(delete_entry_button(target));
+    }
     rows
+}
+
+/// A button that deletes the given entry and its incoming links.
+fn delete_entry_button((conversation, entry): (ConversationId, EntryId)) -> Box<dyn Scene> {
+    Box::new(action_button(
+        "Delete Entry",
+        ButtonVariant::Normal,
+        move |_: On<Activate>,
+              state: Option<ResMut<EditorState>>,
+              mut selection: ResMut<EditorSelection>| {
+            let Some(mut state) = state else {
+                return;
+            };
+            if state::delete_entry(&mut state.bypass_change_detection().db, conversation, entry) {
+                state.set_changed();
+                selection.entry = state
+                    .conversation(Some(conversation))
+                    .and_then(root_entry_id);
+            }
+        },
+    ))
 }
 
 /// A button that creates a child entry linked from the given entry.

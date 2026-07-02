@@ -252,6 +252,33 @@ pub fn add_child_entry(
     Some(child_id)
 }
 
+/// Deletes an entry and every link pointing at it, in any conversation.
+/// Root entries can't be deleted. Returns true if something was removed.
+pub fn delete_entry(
+    db: &mut DialogueDatabase,
+    conversation: ConversationId,
+    entry: EntryId,
+) -> bool {
+    let Some(conv) = db.conversations.iter_mut().find(|c| c.id == conversation) else {
+        return false;
+    };
+    let Some(index) = conv.entries.iter().position(|e| e.id == entry) else {
+        return false;
+    };
+    if conv.entries[index].is_root {
+        warn!("the START entry cannot be deleted");
+        return false;
+    }
+    conv.entries.remove(index);
+    for conv in &mut db.conversations {
+        for e in &mut conv.entries {
+            e.links
+                .retain(|l| !(l.dest_conversation == conversation && l.dest_entry == entry));
+        }
+    }
+    true
+}
+
 /// A `Number` field value by title, if present.
 pub fn number_field(entry: &DialogueEntry, title: &str) -> Option<f32> {
     entry
