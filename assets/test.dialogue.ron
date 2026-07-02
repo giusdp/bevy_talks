@@ -1,19 +1,86 @@
 (
     version: "1",
-    actors: [],
+    actors: [
+        (
+            id: 0,
+            name: "Player",
+            is_player: true,
+        ),
+        (
+            id: 1,
+            name: "Feri",
+            is_player: false,
+        ),
+    ],
     conversations: [
         (
             id: 1,
             title: "Test",
             actor: 0,
-            conversant: 0,
+            conversant: 1,
             entries: [
                 (
                     id: 1,
-                    actor: 0,
+                    actor: 1,
                     conversant: 0,
                     menu_text: "",
                     dialogue_text: "Hello",
+                    is_root: true,
+                    is_group: false,
+                    links: [
+                        (dest_conversation: 1, dest_entry: 2),
+                        (dest_conversation: 1, dest_entry: 3),
+                    ],
+                ),
+                (
+                    id: 2,
+                    actor: 0,
+                    conversant: 1,
+                    menu_text: "Ask about Bevy",
+                    dialogue_text: "What is this dialogue system?",
+                    is_root: false,
+                    is_group: false,
+                    links: [
+                        (dest_conversation: 1, dest_entry: 4),
+                    ],
+                ),
+                (
+                    id: 3,
+                    actor: 0,
+                    conversant: 1,
+                    menu_text: "Say goodbye",
+                    dialogue_text: "I have to go. Bye!",
+                    is_root: false,
+                    is_group: false,
+                    links: [],
+                ),
+                (
+                    id: 4,
+                    actor: 1,
+                    conversant: 0,
+                    menu_text: "",
+                    dialogue_text: "It is the Dialogue System for Unity, but for Bevy.",
+                    is_root: false,
+                    is_group: false,
+                    links: [],
+                    fields: [
+                        (title: "mood", value: Text("cheerful")),
+                    ],
+                ),
+            ],
+        ),
+        (
+            id: 2,
+            title: "Greeting",
+            actor: 0,
+            conversant: 1,
+            entries: [
+                (
+                    id: 1,
+                    actor: 1,
+                    conversant: 0,
+                    menu_text: "",
+                    dialogue_text: "Welcome back.",
                     is_root: true,
                     is_group: false,
                     links: [],
