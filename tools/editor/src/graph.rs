@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 
-use bevy::{feathers::theme::ThemedText, prelude::*};
+use bevy::{feathers::theme::ThemedText, picking::pointer::PointerButton, prelude::*};
 use bevy_talks::prelude::*;
 
 use crate::state::{EditorSelection, EditorState, number_field, set_number_field};
@@ -304,9 +304,27 @@ fn entry_node(
         GraphNodePosition { x: x, y: y }
         GraphEntryNode { entry: id, base_border: base_border }
         GlobalZIndex(1)
-        on(move |mut click: On<Pointer<Click>>, mut selection: ResMut<EditorSelection>| {
-            selection.entry = Some(id);
+        on(move |mut click: On<Pointer<Click>>,
+                 mut selection: ResMut<EditorSelection>,
+                 state: Option<ResMut<EditorState>>| {
             click.propagate(false);
+            if click.button == PointerButton::Secondary {
+                // Right-click: link from the selected entry to this node.
+                if let Some(mut state) = state
+                    && let Some(conversation) = selection.conversation
+                    && let Some(from) = selection.entry
+                    && crate::state::add_link(
+                        &mut state.bypass_change_detection().db,
+                        conversation,
+                        from,
+                        id,
+                    )
+                {
+                    state.set_changed();
+                }
+            } else {
+                selection.entry = Some(id);
+            }
         })
         on(start_graph_node_drag)
         on(drag_graph_node)

@@ -369,18 +369,80 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
     rows.push(Box::new(panel_header("Outgoing Links")));
     if entry.links.is_empty() {
         rows.push(Box::new(muted_text("(none)")));
-    }
-    for link in &entry.links {
-        rows.push(Box::new(feathers_row(format!(
-            "→ conversation {} entry {}",
-            link.dest_conversation.0, link.dest_entry.0
-        ))));
+    } else {
+        rows.push(Box::new(muted_text("click a link to remove it")));
+        let link_rows: Vec<Box<dyn Scene>> = entry
+            .links
+            .iter()
+            .map(|&link| link_row(conversation.id, entry.id, link))
+            .collect();
+        let link_rows: Box<dyn SceneList> = Box::new(link_rows);
+        rows.push(Box::new(bsn! {
+            @FeathersListView {
+                @rows: {link_rows},
+            }
+            on(remove_selected_link)
+        }));
     }
     rows.push(add_child_button(target));
     if !entry.is_root {
         rows.push(delete_entry_button(target));
     }
     rows
+}
+
+/// The outgoing link a list row represents.
+#[derive(Component, Clone, Copy, Default)]
+struct LinkRow {
+    /// Conversation of the source entry.
+    conversation: ConversationId,
+    /// The source entry.
+    from: EntryId,
+    /// The represented link.
+    link: Link,
+}
+
+/// A removable outgoing-link row.
+fn link_row(conversation: ConversationId, from: EntryId, link: Link) -> Box<dyn Scene> {
+    let label = format!(
+        "→ conversation {} entry {}",
+        link.dest_conversation.0, link.dest_entry.0
+    );
+    Box::new(bsn! {
+        @FeathersListRow
+        LinkRow { conversation: conversation, from: from, link: link }
+        Children [
+            (
+                Text(label)
+                ThemedText
+                TextFont {
+                    font_size: FontSize::Px(12.0),
+                }
+            )
+        ]
+    })
+}
+
+/// Removes the link behind an activated row.
+fn remove_selected_link(
+    change: On<ValueChange<Entity>>,
+    rows: Query<&LinkRow>,
+    state: Option<ResMut<EditorState>>,
+) {
+    let Ok(row) = rows.get(change.value) else {
+        return;
+    };
+    let Some(mut state) = state else {
+        return;
+    };
+    if state::remove_link(
+        &mut state.bypass_change_detection().db,
+        row.conversation,
+        row.from,
+        row.link,
+    ) {
+        state.set_changed();
+    }
 }
 
 /// A button that deletes the given entry and its incoming links.

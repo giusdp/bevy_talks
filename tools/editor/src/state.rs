@@ -252,6 +252,57 @@ pub fn add_child_entry(
     Some(child_id)
 }
 
+/// Adds a link between two entries of a conversation. Refuses self-links,
+/// duplicates, and missing destinations. Returns true if added.
+pub fn add_link(
+    db: &mut DialogueDatabase,
+    conversation: ConversationId,
+    from: EntryId,
+    to: EntryId,
+) -> bool {
+    if from == to {
+        return false;
+    }
+    let Some(conv) = db.conversations.iter_mut().find(|c| c.id == conversation) else {
+        return false;
+    };
+    if !conv.entries.iter().any(|e| e.id == to) {
+        return false;
+    }
+    let Some(source) = conv.entries.iter_mut().find(|e| e.id == from) else {
+        return false;
+    };
+    let link = Link {
+        dest_conversation: conversation,
+        dest_entry: to,
+    };
+    if source.links.contains(&link) {
+        return false;
+    }
+    source.links.push(link);
+    true
+}
+
+/// Removes one outgoing link from an entry. Returns true if it was present.
+pub fn remove_link(
+    db: &mut DialogueDatabase,
+    conversation: ConversationId,
+    from: EntryId,
+    link: Link,
+) -> bool {
+    let Some(source) = db
+        .conversations
+        .iter_mut()
+        .find(|c| c.id == conversation)
+        .and_then(|c| c.entries.iter_mut().find(|e| e.id == from))
+    else {
+        return false;
+    };
+    let before = source.links.len();
+    source.links.retain(|l| *l != link);
+    source.links.len() != before
+}
+
 /// Deletes an entry and every link pointing at it, in any conversation.
 /// Root entries can't be deleted. Returns true if something was removed.
 pub fn delete_entry(

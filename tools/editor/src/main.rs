@@ -298,6 +298,7 @@ fn graph_canvas() -> impl Scene {
                 Children [
                     muted_text("Click node: inspect"),
                     muted_text("Drag node: move"),
+                    muted_text("Right-click node: link from selected"),
                 ]
             )
         ]
