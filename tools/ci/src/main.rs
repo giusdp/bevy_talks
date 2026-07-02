@@ -1,6 +1,6 @@
 //! Modified from [Bevy's CI runner](https://github.com/bevyengine/bevy/tree/main/tools/ci/src)
 
-use xshell::{cmd, Shell};
+use xshell::{Shell, cmd};
 
 use bitflags::bitflags;
 
@@ -68,11 +68,12 @@ fn main() {
 
     if what_to_run.contains(Check::CLIPPY) {
         // See if clippy has any complaints.
-        // --all-targets --all-features was removed because Emergence currently has no special
-        // targets or features; please add them back as necessary
-        cmd!(sh, "cargo clippy --workspace -- {CLIPPY_FLAGS...}")
-            .run()
-            .expect("Please fix clippy errors in output above.");
+        cmd!(
+            sh,
+            "cargo clippy --workspace --all-targets -- {CLIPPY_FLAGS...}"
+        )
+        .run()
+        .expect("Please fix clippy errors in output above.");
     }
 
     if what_to_run.contains(Check::TEST) {
@@ -90,18 +91,18 @@ fn main() {
     }
 
     if what_to_run.contains(Check::DOC_CHECK) {
-        // Check that building docs work and does not emit warnings
-        std::env::set_var("RUSTDOCFLAGS", "-D warnings");
+        // Check that building docs works and does not emit warnings
         cmd!(
             sh,
             "cargo doc --workspace --all-features --no-deps --document-private-items"
         )
+        .env("RUSTDOCFLAGS", "-D warnings")
         .run()
         .expect("Please fix doc warnings in output above.");
     }
 
     if what_to_run.contains(Check::COMPILE_CHECK) {
-        cmd!(sh, "cargo check --workspace")
+        cmd!(sh, "cargo check --workspace --all-targets")
             .run()
             .expect("Please fix compiler errors in above output.");
     }

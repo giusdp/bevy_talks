@@ -352,7 +352,7 @@ mod tests {
                 "line: Hello",
                 "menu: Ask",
                 "line: What is this?",
-                "line: The dialogue system for Bevy",
+                "line: It's Bevy Talks!",
                 "ended",
             ]
         );

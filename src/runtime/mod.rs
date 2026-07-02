@@ -1,7 +1,8 @@
 //! Playing conversations at runtime.
 //!
-//! Spawn a [`DialogueRunner`] pointing at a loaded [`DialogueDatabase`]
-//! (see [`crate::data`]) and observe the entity events it emits:
+//! Spawn a [`DialogueRunner`] pointing at a loaded
+//! [`DialogueDatabase`](crate::data::DialogueDatabase) and observe the
+//! entity events it emits:
 //!
 //! - [`SubtitleStarted`] : present a line, then trigger [`AdvanceConversation`].
 //! - [`ResponseMenuOpened`] : present choices, then trigger [`ChooseResponse`].
