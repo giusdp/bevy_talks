@@ -163,8 +163,7 @@ const CHILD_OFFSET_X: f32 = 280.0;
 /// Vertical offset between siblings created under the same parent.
 const CHILD_OFFSET_Y: f32 = 132.0;
 
-/// A fresh database with DSU-style defaults: a Player actor and one
-/// conversation holding only its START entry.
+/// A fresh database with defaults: a Player actor and one conversation holding only its START entry.
 fn default_database() -> DialogueDatabase {
     let mut db = DialogueDatabase {
         version: "1".to_owned(),
@@ -213,7 +212,7 @@ pub fn add_conversation(db: &mut DialogueDatabase) -> ConversationId {
 }
 
 /// Adds a child entry linked from `parent`, with actor and conversant swapped
-/// (DSU's alternation rule) and a canvas position next to the parent.
+/// and a canvas position next to the parent.
 /// Returns the child's id.
 pub fn add_child_entry(
     db: &mut DialogueDatabase,

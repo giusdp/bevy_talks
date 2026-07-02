@@ -41,7 +41,10 @@ serde = { version = "1", features = ["derive"] }
 ron = "0.12"
 
 # Bevy Dependencies
-bevy = { version = "0.19", default-features = false, features = ["bevy_asset"] }
+bevy = { version = "0.19", default-features = false, features = [
+    "bevy_asset",
+    "bevy_log",
+] }
 
 [dev-dependencies]
 bevy = { version = "0.19" }

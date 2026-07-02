@@ -100,7 +100,7 @@
                     actor: 1,
                     conversant: 0,
                     menu_text: "",
-                    dialogue_text: "It is the Dialogue System for Unity, but for Bevy.",
+                    dialogue_text: "It is Bevy Talks!",
                     is_root: false,
                     is_group: false,
                     links: [],
@@ -111,11 +111,11 @@
                         ),
                         (
                             title: "canvas_x",
-                            value: Number(693.77734),
+                            value: Number(569.5547),
                         ),
                         (
                             title: "canvas_y",
-                            value: Number(527.33984),
+                            value: Number(346.78516),
                         ),
                     ],
                 ),
