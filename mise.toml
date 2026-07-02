@@ -1,0 +1,12 @@
+[tools]
+mdbook = "latest"
+"cargo:mdbook-toc" = "latest"
+"cargo:mdbook-mermaid" = "latest"
+
+[tasks.docs]
+description = "Serve the mdbook with live reload"
+run = "mdbook serve docs --open"
+
+[tasks.docs-build]
+description = "Build the mdbook"
+run = "mdbook build docs"

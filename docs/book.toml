@@ -1,7 +1,6 @@
 [book]
 authors = ["Giuseppe De Palma"]
 language = "en"
-multilingual = false
 src = "src"
 title = "Bevy Talks Documentation"
 
