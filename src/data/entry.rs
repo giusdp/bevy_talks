@@ -8,7 +8,7 @@ use super::ids::{ActorId, EntryId};
 use super::link::Link;
 
 /// A single node in a conversation: a spoken line, a menu choice, or a group.
-#[derive(Component, Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
+#[derive(Component, Debug, Clone, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct DialogueEntry {
     /// Unique id within the owning conversation.
     pub id: EntryId,

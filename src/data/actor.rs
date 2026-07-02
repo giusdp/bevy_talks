@@ -7,7 +7,7 @@ use super::field::Field;
 use super::ids::ActorId;
 
 /// A character that can participate in conversations.
-#[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct Actor {
     /// Unique id within the database.
     pub id: ActorId,

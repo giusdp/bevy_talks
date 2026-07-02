@@ -7,8 +7,8 @@ use loader::DialogueDatabaseLoader;
 
 pub mod prelude;
 
-mod data;
-mod loader;
+pub mod data;
+pub mod loader;
 
 /// The plugin that provides dialogue and conversation handling.
 pub struct TalksPlugin;

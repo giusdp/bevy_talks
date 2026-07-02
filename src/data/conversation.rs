@@ -8,7 +8,7 @@ use super::field::Field;
 use super::ids::{ActorId, ConversationId};
 
 /// A single conversation and its dialogue entries.
-#[derive(Debug, Clone, PartialEq, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct Conversation {
     /// Unique id within the database.
     pub id: ConversationId,

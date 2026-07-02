@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::ids::{ConversationId, EntryId};
 
 /// A directed edge to a destination entry (which may be in another conversation).
-#[derive(Debug, Clone, Copy, PartialEq, Reflect, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Reflect, Serialize, Deserialize)]
 pub struct Link {
     /// The conversation the destination entry lives in.
     pub dest_conversation: ConversationId,
