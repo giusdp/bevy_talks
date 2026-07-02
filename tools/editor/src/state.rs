@@ -266,6 +266,34 @@ pub fn add_actor(db: &mut DialogueDatabase) -> ActorId {
     id
 }
 
+/// Adds a new variable with a unique placeholder name. Returns its index.
+pub fn add_variable(db: &mut DialogueDatabase) -> usize {
+    let mut n = db.variables.len() + 1;
+    while db
+        .variables
+        .iter()
+        .any(|v| v.name == format!("Variable {n}"))
+    {
+        n += 1;
+    }
+    db.variables.push(Variable {
+        name: format!("Variable {n}"),
+        initial: FieldValue::Text(String::new()),
+        fields: vec![],
+    });
+    db.variables.len() - 1
+}
+
+/// Removes the variable at `index`. Returns true if it existed.
+pub fn remove_variable(db: &mut DialogueDatabase, index: usize) -> bool {
+    if index < db.variables.len() {
+        db.variables.remove(index);
+        true
+    } else {
+        false
+    }
+}
+
 /// Adds a link between two entries of a conversation. Refuses self-links,
 /// duplicates, and missing destinations. Returns true if added.
 pub fn add_link(

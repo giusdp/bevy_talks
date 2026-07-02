@@ -17,6 +17,7 @@ use bevy::{
 use bevy_talks::prelude::*;
 
 use crate::state::{self, EditorSelection, EditorState, root_entry_id};
+use crate::value_editor::{ValueSlot, value_controls, value_editor};
 use crate::widgets::{action_button, labeled_value, muted_text, panel_header};
 
 /// Marker for the actors list body.
@@ -102,6 +103,22 @@ struct DatabaseFileRow {
 /// doesn't rebuild the inspector under the user's cursor.
 #[derive(Resource, Default)]
 pub struct SuppressInspectorRebuild(pub bool);
+
+/// Marker for the variables list body.
+#[derive(Component, Default, Clone)]
+pub struct VariablesPanelBody;
+
+/// Which variable a name input renames, by index into the database's variables.
+#[derive(Component, Clone, Copy, Default)]
+pub struct VariableNameTarget {
+    /// Index of the renamed variable.
+    pub index: usize,
+}
+
+/// Set when a variables-panel edit wrote to the state, so the write-through
+/// doesn't rebuild the panel under the user's cursor.
+#[derive(Resource, Default)]
+pub struct SuppressVariablesRebuild(pub bool);
 
 /// Rebuilds the database files list when the edited database changes.
 pub fn rebuild_database_files(
@@ -281,6 +298,130 @@ pub fn create_actor(
     let id = state::add_actor(&mut state.bypass_change_detection().db);
     state.set_changed();
     selection.actor = Some(id);
+}
+
+/// Rebuilds the variables list when the database changes.
+pub fn rebuild_variables_panel(
+    mut commands: Commands,
+    state: Res<EditorState>,
+    mut suppress: ResMut<SuppressVariablesRebuild>,
+    body: Single<Entity, With<VariablesPanelBody>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    if suppress.0 {
+        suppress.0 = false;
+        return;
+    }
+    let rows: Vec<Box<dyn Scene>> = if state.db.variables.is_empty() {
+        vec![Box::new(muted_text("(none)"))]
+    } else {
+        state
+            .db
+            .variables
+            .iter()
+            .enumerate()
+            .map(|(index, variable)| variable_row(index, variable, actor_options(&state)))
+            .collect()
+    };
+    commands.entity(*body).despawn_related::<Children>();
+    commands
+        .entity(*body)
+        .queue_spawn_related_scenes::<Children>(rows);
+}
+
+/// One variable: name input + remove button, then the value editor.
+fn variable_row(
+    index: usize,
+    variable: &Variable,
+    actors: Vec<(ActorId, String)>,
+) -> Box<dyn Scene> {
+    let name = variable.name.clone();
+    let name_row: Box<dyn SceneList> = Box::new(vec![
+        Box::new(bsn! {
+            Node {
+                flex_grow: 1.0,
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+            }
+            Children [
+                (
+                    @FeathersTextInputContainer
+                    Children [
+                        (
+                            @FeathersTextInput
+                            EditableText::new(name)
+                            VariableNameTarget { index: index }
+                        )
+                    ]
+                )
+            ]
+        }) as Box<dyn Scene>,
+        Box::new(action_button(
+            "✕",
+            ButtonVariant::Normal,
+            move |_: On<Activate>, mut state: ResMut<EditorState>| {
+                if state::remove_variable(&mut state.bypass_change_detection().db, index) {
+                    state.set_changed();
+                }
+            },
+        )),
+    ]);
+    let body: Box<dyn SceneList> = Box::new(vec![
+        Box::new(bsn! {
+            Node {
+                display: Display::Flex,
+                flex_direction: FlexDirection::Row,
+                column_gap: px(6),
+                align_items: AlignItems::Center,
+            }
+            Children [ {name_row} ]
+        }) as Box<dyn Scene>,
+        value_controls(ValueSlot::VariableInitial(index), &variable.initial, actors),
+    ]);
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+            padding: {px(2).bottom()},
+        }
+        Children [ {body} ]
+    })
+}
+
+/// Adds a new variable to the database.
+pub fn create_variable(_: On<Activate>, state: Option<ResMut<EditorState>>) {
+    let Some(mut state) = state else {
+        return;
+    };
+    state::add_variable(&mut state.bypass_change_detection().db);
+    state.set_changed();
+}
+
+/// Writes edited variable names back into the database.
+pub fn commit_variable_name_edits(
+    inputs: Query<(&EditableText, &VariableNameTarget), Changed<EditableText>>,
+    mut state: ResMut<EditorState>,
+    mut suppress: ResMut<SuppressVariablesRebuild>,
+) {
+    let mut wrote = false;
+    for (input, target) in &inputs {
+        let value = input.value().to_string();
+        let db = &mut state.bypass_change_detection().db;
+        let Some(variable) = db.variables.get_mut(target.index) else {
+            continue;
+        };
+        if variable.name != value {
+            variable.name = value;
+            wrote = true;
+        }
+    }
+    if wrote {
+        state.set_changed();
+        suppress.0 = true;
+    }
 }
 
 /// Rebuilds the conversations list when the database or selection changes.
@@ -464,14 +605,23 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
         entry_flag_checkbox("Group node", entry.is_group, target, EntryFlag::Group),
         Box::new(panel_header("Custom Fields")),
     ]);
-    if entry.fields.is_empty() {
+    // Canvas positions are editor bookkeeping; the graph writes them, so
+    // exposing them as inputs would fight node dragging.
+    let custom_fields: Vec<&Field> = entry
+        .fields
+        .iter()
+        .filter(|f| !f.title.starts_with("canvas_"))
+        .collect();
+    if custom_fields.is_empty() {
         rows.push(Box::new(muted_text("(none)")));
     }
-    for field in &entry.fields {
-        rows.push(Box::new(labeled_value(
+    for field in custom_fields {
+        rows.push(value_editor(
             field.title.clone(),
-            field_value_text(&field.value),
-        )));
+            ValueSlot::EntryField(conversation.id, entry.id, field.title.clone()),
+            &field.value,
+            actor_options(state),
+        ));
     }
     rows.push(Box::new(panel_header("Outgoing Links")));
     if entry.links.is_empty() {
@@ -913,16 +1063,6 @@ fn entry_mut(
         .entries
         .iter_mut()
         .find(|e| e.id == entry)
-}
-
-/// Displays a field value as text.
-fn field_value_text(value: &FieldValue) -> String {
-    match value {
-        FieldValue::Text(text) | FieldValue::Localization(text) => text.clone(),
-        FieldValue::Number(number) => number.to_string(),
-        FieldValue::Boolean(boolean) => boolean.to_string(),
-        FieldValue::Actor(id) => format!("actor {}", id.0),
-    }
 }
 
 /// Keeps the toolbar file name in sync with the edited database.

@@ -3,6 +3,7 @@
 mod graph;
 mod panels;
 mod state;
+mod value_editor;
 mod widgets;
 
 use bevy::{
@@ -23,7 +24,7 @@ use bevy_talks::prelude::TalksPlugin;
 use graph::CanvasBody;
 use panels::{
     ActorsPanelBody, ConversationTitleText, ConversationsPanelBody, DatabaseFilesBody,
-    FileLabelText, InspectorBody, StatusText, ValidationText,
+    FileLabelText, InspectorBody, StatusText, ValidationText, VariablesPanelBody,
 };
 use state::{EditorSelection, EditorState, NewDatabaseName, PendingLoad};
 use widgets::{PANEL_BORDER, action_button, header_text, muted_text, panel, panel_header};
@@ -51,6 +52,7 @@ fn main() {
         .insert_resource(UiTheme(create_dark_theme()))
         .init_resource::<EditorSelection>()
         .init_resource::<panels::SuppressInspectorRebuild>()
+        .init_resource::<panels::SuppressVariablesRebuild>()
         .add_systems(Startup, (editor_scene.spawn(), state::start_database_load))
         .add_systems(
             Update,
@@ -60,9 +62,12 @@ fn main() {
                     panels::commit_entry_text_edits,
                     panels::commit_conversation_title_edits,
                     panels::commit_actor_name_edits,
+                    panels::commit_variable_name_edits,
+                    value_editor::commit_value_text_edits,
                     panels::rebuild_database_files,
                     panels::rebuild_actors_panel,
                     panels::rebuild_conversations_panel,
+                    panels::rebuild_variables_panel,
                     panels::rebuild_inspector,
                     panels::update_file_label,
                     panels::update_conversation_title,
@@ -233,6 +238,22 @@ fn sidebar() -> impl Scene {
                     "New Conversation",
                     ButtonVariant::Normal,
                     panels::create_conversation
+                ),
+            ]),
+            panel("Variables", bsn_list![
+                (
+                    Node {
+                        display: Display::Flex,
+                        flex_direction: FlexDirection::Column,
+                        row_gap: px(6),
+                    }
+                    VariablesPanelBody
+                    Children [ muted_text("loading…") ]
+                ),
+                action_button(
+                    "New Variable",
+                    ButtonVariant::Normal,
+                    panels::create_variable
                 ),
             ]),
         ]
