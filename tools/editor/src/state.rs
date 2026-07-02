@@ -167,6 +167,7 @@ const CHILD_OFFSET_Y: f32 = 132.0;
 fn default_database() -> DialogueDatabase {
     let mut db = DialogueDatabase {
         version: "1".to_owned(),
+        variables: vec![],
         actors: vec![Actor {
             id: ActorId(0),
             name: "Player".to_owned(),

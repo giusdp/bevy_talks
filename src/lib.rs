@@ -20,7 +20,15 @@ impl Plugin for TalksPlugin {
         app.init_asset::<DialogueDatabase>()
             .register_type::<DialogueDatabase>()
             .init_asset_loader::<DialogueDatabaseLoader>()
-            .add_systems(Update, runtime::runner::start_runners)
+            .init_resource::<runtime::Variables>()
+            .add_systems(
+                Update,
+                (
+                    runtime::variables::seed_variables,
+                    runtime::runner::start_runners,
+                )
+                    .chain(),
+            )
             .add_observer(runtime::runner::on_advance)
             .add_observer(runtime::runner::on_choose);
     }

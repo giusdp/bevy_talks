@@ -117,6 +117,7 @@ mod tests {
     fn database() -> DialogueDatabase {
         DialogueDatabase {
             version: String::new(),
+            variables: vec![],
             actors: vec![],
             conversations: vec![Conversation {
                 id: ConversationId(1),

@@ -259,6 +259,7 @@ mod tests {
         };
         DialogueDatabase {
             version: "1".to_owned(),
+            variables: vec![],
             actors: vec![
                 Actor {
                     id: ActorId(0),

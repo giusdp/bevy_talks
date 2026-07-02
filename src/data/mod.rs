@@ -7,6 +7,7 @@ pub mod entry;
 pub mod field;
 pub mod ids;
 pub mod link;
+pub mod variable;
 
 pub use actor::Actor;
 pub use conversation::Conversation;
@@ -15,3 +16,4 @@ pub use entry::DialogueEntry;
 pub use field::{Field, FieldValue};
 pub use ids::{ActorId, ConversationId, EntryId};
 pub use link::Link;
+pub use variable::Variable;

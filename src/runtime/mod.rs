@@ -13,9 +13,11 @@
 
 pub mod runner;
 pub mod step;
+pub mod variables;
 
 pub use runner::{
     AdvanceConversation, ChooseResponse, ConversationEnded, DialogueRunner, Participants, Phase,
     ResponseMenuOpened, SubtitleStarted,
 };
 pub use step::{ConversationRef, Response, Step, Subtitle};
+pub use variables::Variables;

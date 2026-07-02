@@ -28,3 +28,27 @@ pub enum FieldValue {
     /// A reference to an actor.
     Actor(ActorId),
 }
+
+impl From<bool> for FieldValue {
+    fn from(value: bool) -> Self {
+        Self::Boolean(value)
+    }
+}
+
+impl From<f32> for FieldValue {
+    fn from(value: f32) -> Self {
+        Self::Number(value)
+    }
+}
+
+impl From<&str> for FieldValue {
+    fn from(value: &str) -> Self {
+        Self::Text(value.to_owned())
+    }
+}
+
+impl From<String> for FieldValue {
+    fn from(value: String) -> Self {
+        Self::Text(value)
+    }
+}

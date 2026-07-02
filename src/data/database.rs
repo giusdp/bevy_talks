@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use super::actor::Actor;
 use super::conversation::Conversation;
+use super::variable::Variable;
 
 /// A unit of authored dialogue content.
 #[derive(Asset, Debug, Clone, Default, PartialEq, Reflect, Serialize, Deserialize)]
@@ -13,6 +14,9 @@ pub struct DialogueDatabase {
     pub version: String,
     /// All actors in the database.
     pub actors: Vec<Actor>,
+    /// All variables in the database, with their initial values.
+    #[serde(default)]
+    pub variables: Vec<Variable>,
     /// All conversations in the database.
     pub conversations: Vec<Conversation>,
 }

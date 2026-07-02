@@ -66,6 +66,7 @@ mod tests {
     fn ron_roundtrip() {
         let db = DialogueDatabase {
             version: "1".to_owned(),
+            variables: vec![],
             actors: vec![Actor {
                 id: ActorId(0),
                 name: "Player".to_owned(),
