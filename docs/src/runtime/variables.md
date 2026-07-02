@@ -71,3 +71,5 @@ A missing variable or a type mismatch returns the type's default instead of pani
 | `truthy(name)` | `bool` | `false` |
 | `number(name)` | `f32` | `0.0` |
 | `text(name)` | `&str` | `""` |
+
+Variables reset when the game closes. To keep them across sessions, see [Saving and Loading](./persistence.md).
