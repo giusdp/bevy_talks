@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
 use super::entry::DialogueEntry;
+use super::field::Field;
 use super::ids::{ActorId, ConversationId};
 
 /// A single conversation and its dialogue entries.
@@ -19,4 +20,7 @@ pub struct Conversation {
     pub conversant: ActorId,
     /// The entries (graph nodes) that make up this conversation.
     pub entries: Vec<DialogueEntry>,
+    /// Custom fields.
+    #[serde(default)]
+    pub fields: Vec<Field>,
 }

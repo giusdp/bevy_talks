@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use super::field::Field;
 use super::ids::{ActorId, EntryId};
 use super::link::Link;
 
@@ -25,4 +26,7 @@ pub struct DialogueEntry {
     pub is_group: bool,
     /// Outgoing links to other entries.
     pub links: Vec<Link>,
+    /// Custom fields.
+    #[serde(default)]
+    pub fields: Vec<Field>,
 }

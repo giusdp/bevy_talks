@@ -3,6 +3,7 @@
 use bevy::prelude::*;
 use serde::{Deserialize, Serialize};
 
+use super::field::Field;
 use super::ids::ActorId;
 
 /// A character that can participate in conversations.
@@ -14,4 +15,7 @@ pub struct Actor {
     pub name: String,
     /// Whether this actor is a player character.
     pub is_player: bool,
+    /// Custom fields.
+    #[serde(default)]
+    pub fields: Vec<Field>,
 }

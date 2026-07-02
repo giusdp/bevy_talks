@@ -132,7 +132,9 @@ mod tests {
                     is_root: true,
                     is_group: false,
                     links: vec![],
+                    fields: vec![],
                 }],
+                fields: vec![],
             }],
         }
     }
