@@ -9,6 +9,7 @@ pub mod prelude;
 
 pub mod data;
 pub mod loader;
+pub mod runtime;
 pub mod saver;
 
 /// The plugin that provides dialogue and conversation handling.
@@ -18,6 +19,9 @@ impl Plugin for TalksPlugin {
     fn build(&self, app: &mut App) {
         app.init_asset::<DialogueDatabase>()
             .register_type::<DialogueDatabase>()
-            .init_asset_loader::<DialogueDatabaseLoader>();
+            .init_asset_loader::<DialogueDatabaseLoader>()
+            .add_systems(Update, runtime::runner::start_runners)
+            .add_observer(runtime::runner::on_advance)
+            .add_observer(runtime::runner::on_choose);
     }
 }
