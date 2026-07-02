@@ -3,7 +3,7 @@
 use bevy::{
     ecs::system::IntoObserverSystem,
     feathers::{
-        controls::{ButtonVariant, FeathersButton, FeathersListRow},
+        controls::{ButtonVariant, FeathersButton},
         theme::ThemedText,
     },
     prelude::*,
@@ -68,23 +68,6 @@ pub fn muted_text(text: impl Into<String>) -> impl Scene {
             font_size: FontSize::Px(12.0),
         }
         TextColor(Color::srgb(0.62, 0.66, 0.72))
-    }
-}
-
-/// A feathers list row with plain text content.
-pub fn feathers_row(text: impl Into<String>) -> impl Scene {
-    let text: String = text.into();
-    bsn! {
-        @FeathersListRow
-        Children [
-            (
-                Text(text)
-                ThemedText
-                TextFont {
-                    font_size: FontSize::Px(12.0),
-                }
-            )
-        ]
     }
 }
 

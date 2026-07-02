@@ -50,6 +50,8 @@ pub struct EditorSelection {
     pub conversation: Option<ConversationId>,
     /// The entry shown in the inspector.
     pub entry: Option<EntryId>,
+    /// The actor shown in the inspector.
+    pub actor: Option<ActorId>,
 }
 
 /// Handle of a database load in flight.
@@ -250,6 +252,18 @@ pub fn add_child_entry(
     }
     conv.entries.push(child);
     Some(child_id)
+}
+
+/// Adds a new actor to the database. Returns its id.
+pub fn add_actor(db: &mut DialogueDatabase) -> ActorId {
+    let id = ActorId(db.actors.iter().map(|a| a.id.0).max().unwrap_or(-1) + 1);
+    db.actors.push(Actor {
+        id,
+        name: format!("New Actor {}", id.0),
+        is_player: false,
+        fields: vec![],
+    });
+    id
 }
 
 /// Adds a link between two entries of a conversation. Refuses self-links,

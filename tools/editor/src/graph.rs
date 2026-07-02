@@ -324,6 +324,7 @@ fn entry_node(
                 }
             } else {
                 selection.entry = Some(id);
+                selection.actor = None;
             }
         })
         on(start_graph_node_drag)

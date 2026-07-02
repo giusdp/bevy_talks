@@ -3,7 +3,8 @@
 use bevy::{
     feathers::{
         controls::{
-            ButtonVariant, FeathersCheckbox, FeathersListRow, FeathersListView, FeathersTextInput,
+            ButtonVariant, FeathersCheckbox, FeathersListRow, FeathersListView, FeathersMenu,
+            FeathersMenuButton, FeathersMenuItem, FeathersMenuPopup, FeathersTextInput,
             FeathersTextInputContainer,
         },
         theme::ThemedText,
@@ -16,7 +17,7 @@ use bevy::{
 use bevy_talks::prelude::*;
 
 use crate::state::{self, EditorSelection, EditorState, root_entry_id};
-use crate::widgets::{action_button, feathers_row, labeled_value, muted_text, panel_header};
+use crate::widgets::{action_button, labeled_value, muted_text, panel_header};
 
 /// Marker for the actors list body.
 #[derive(Component, Default, Clone)]
@@ -63,6 +64,20 @@ pub struct EntryTextTarget {
 pub struct ConversationTitleTarget {
     /// The conversation being renamed.
     pub conversation: ConversationId,
+}
+
+/// Which actor a name text input renames.
+#[derive(Component, Clone, Copy, Default)]
+pub struct ActorNameTarget {
+    /// The actor being renamed.
+    pub actor: ActorId,
+}
+
+/// The actor a sidebar list row represents.
+#[derive(Component, Clone, Copy, Default)]
+struct ActorRow {
+    /// The represented actor.
+    actor: ActorId,
 }
 
 /// The conversation a sidebar list row represents.
@@ -176,13 +191,14 @@ fn database_file_row(path: String, selected: bool) -> Box<dyn Scene> {
     }
 }
 
-/// Rebuilds the actors list when the database changes.
+/// Rebuilds the actors list when the database or selection changes.
 pub fn rebuild_actors_panel(
     mut commands: Commands,
     state: Res<EditorState>,
+    selection: Res<EditorSelection>,
     body: Single<Entity, With<ActorsPanelBody>>,
 ) {
-    if !state.is_changed() {
+    if !state.is_changed() && !selection.is_changed() {
         return;
     }
     let rows: Vec<Box<dyn Scene>> = state
@@ -191,10 +207,11 @@ pub fn rebuild_actors_panel(
         .iter()
         .map(|actor| {
             let player = if actor.is_player { " (player)" } else { "" };
-            Box::new(feathers_row(format!(
-                "{}  {}{}",
-                actor.id.0, actor.name, player
-            ))) as Box<dyn Scene>
+            actor_row(
+                format!("{}  {}{}", actor.id.0, actor.name, player),
+                actor.id,
+                selection.actor == Some(actor.id),
+            )
         })
         .collect();
     let rows: Box<dyn SceneList> = Box::new(rows);
@@ -206,7 +223,64 @@ pub fn rebuild_actors_panel(
             @FeathersListView {
                 @rows: {rows},
             }
+            on(
+                |change: On<ValueChange<Entity>>,
+                 rows: Query<&ActorRow>,
+                 mut selection: ResMut<EditorSelection>| {
+                    if let Ok(row) = rows.get(change.value) {
+                        selection.actor = Some(row.actor);
+                    }
+                }
+            )
         )]);
+}
+
+/// A selectable actor row.
+fn actor_row(label: String, actor: ActorId, selected: bool) -> Box<dyn Scene> {
+    if selected {
+        Box::new(bsn! {
+            @FeathersListRow
+            Selected
+            ActorRow { actor: actor }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersListRow
+            ActorRow { actor: actor }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    }
+}
+
+/// Adds a new actor and selects it.
+pub fn create_actor(
+    _: On<Activate>,
+    state: Option<ResMut<EditorState>>,
+    mut selection: ResMut<EditorSelection>,
+) {
+    let Some(mut state) = state else {
+        return;
+    };
+    let id = state::add_actor(&mut state.bypass_change_detection().db);
+    state.set_changed();
+    selection.actor = Some(id);
 }
 
 /// Rebuilds the conversations list when the database or selection changes.
@@ -251,6 +325,7 @@ pub fn rebuild_conversations_panel(
                     selection.conversation = Some(row.conversation);
                     selection.entry =
                         state.conversation(Some(row.conversation)).and_then(root_entry_id);
+                    selection.actor = None;
                 }
             )
         )]);
@@ -337,6 +412,16 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
         Box::new(panel_header("Conversation")),
         conversation_title_input(conversation.id, conversation.title.clone()),
     ];
+    if let Some(actor) = selection
+        .actor
+        .and_then(|id| state.db.actors.iter().find(|a| a.id == id))
+    {
+        rows.extend([
+            Box::new(panel_header("Actor")) as Box<dyn Scene>,
+            actor_name_input(actor.id, actor.name.clone()),
+            actor_player_checkbox(actor.id, actor.is_player),
+        ]);
+    }
     let Some(entry) = selection
         .entry
         .and_then(|id| conversation.entries.iter().find(|e| e.id == id))
@@ -349,11 +434,20 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
     rows.extend([
         Box::new(panel_header("Entry")) as Box<dyn Scene>,
         Box::new(labeled_value("Entry", format!("{}", entry.id.0))),
-        Box::new(labeled_value("Actor", state.actor_name(entry.actor))),
-        Box::new(labeled_value(
+        actor_select(
+            "Actor",
+            state.actor_name(entry.actor),
+            actor_options(state),
+            target,
+            false,
+        ),
+        actor_select(
             "Conversant",
             state.actor_name(entry.conversant),
-        )),
+            actor_options(state),
+            target,
+            true,
+        ),
         Box::new(entry_text_input(
             "Menu text",
             entry.menu_text.clone(),
@@ -603,6 +697,151 @@ fn conversation_title_input(conversation: ConversationId, value: String) -> Box<
             )
         ]
     })
+}
+
+/// All actors as dropdown options.
+fn actor_options(state: &EditorState) -> Vec<(ActorId, String)> {
+    state
+        .db
+        .actors
+        .iter()
+        .map(|a| (a.id, a.name.clone()))
+        .collect()
+}
+
+/// A labeled dropdown that assigns an entry's actor or conversant.
+fn actor_select(
+    label: &'static str,
+    current: String,
+    actors: Vec<(ActorId, String)>,
+    (conversation, entry): (ConversationId, EntryId),
+    conversant: bool,
+) -> Box<dyn Scene> {
+    let items: Vec<Box<dyn Scene>> = actors
+        .into_iter()
+        .map(|(id, name)| {
+            let write = move |_: On<Activate>, mut state: ResMut<EditorState>| {
+                let db = &mut state.bypass_change_detection().db;
+                let Some(e) = entry_mut(db, conversation, entry) else {
+                    return;
+                };
+                if conversant {
+                    e.conversant = id;
+                } else {
+                    e.actor = id;
+                }
+                state.set_changed();
+            };
+            Box::new(bsn! {
+                @FeathersMenuItem {
+                    @caption: bsn! { Text(name) ThemedText },
+                }
+                on(write)
+            }) as Box<dyn Scene>
+        })
+        .collect();
+    let items: Box<dyn SceneList> = Box::new(items);
+
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text(label),
+            (
+                @FeathersMenu
+                Children [
+                    (
+                        @FeathersMenuButton {
+                            @caption: bsn! { Text(current) ThemedText },
+                        }
+                    ),
+                    (
+                        @FeathersMenuPopup
+                        Children [ {items} ]
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// A labeled text input that renames an actor.
+fn actor_name_input(actor: ActorId, value: String) -> Box<dyn Scene> {
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text("Name"),
+            (
+                @FeathersTextInputContainer
+                Children [
+                    (
+                        @FeathersTextInput
+                        EditableText::new(value)
+                        ActorNameTarget { actor: actor }
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// A checkbox editing an actor's `is_player` flag.
+fn actor_player_checkbox(actor: ActorId, checked: bool) -> Box<dyn Scene> {
+    let write = move |change: On<ValueChange<bool>>, mut state: ResMut<EditorState>| {
+        let db = &mut state.bypass_change_detection().db;
+        let Some(a) = db.actors.iter_mut().find(|a| a.id == actor) else {
+            return;
+        };
+        a.is_player = change.value;
+        state.set_changed();
+    };
+    if checked {
+        Box::new(bsn! {
+            @FeathersCheckbox {
+                @caption: bsn! { Text("Player character") ThemedText },
+            }
+            Checked
+            on(write)
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersCheckbox {
+                @caption: bsn! { Text("Player character") ThemedText },
+            }
+            on(write)
+        })
+    }
+}
+
+/// Writes edited actor names back into the database.
+pub fn commit_actor_name_edits(
+    inputs: Query<(&EditableText, &ActorNameTarget), Changed<EditableText>>,
+    mut state: ResMut<EditorState>,
+    mut suppress: ResMut<SuppressInspectorRebuild>,
+) {
+    let mut wrote = false;
+    for (input, target) in &inputs {
+        let value = input.value().to_string();
+        let db = &mut state.bypass_change_detection().db;
+        let Some(actor) = db.actors.iter_mut().find(|a| a.id == target.actor) else {
+            continue;
+        };
+        if actor.name != value {
+            actor.name = value;
+            wrote = true;
+        }
+    }
+    if wrote {
+        state.set_changed();
+        suppress.0 = true;
+    }
 }
 
 /// Writes edited conversation titles back into the database.

@@ -59,6 +59,7 @@ fn main() {
                 (
                     panels::commit_entry_text_edits,
                     panels::commit_conversation_title_edits,
+                    panels::commit_actor_name_edits,
                     panels::rebuild_database_files,
                     panels::rebuild_actors_panel,
                     panels::rebuild_conversations_panel,
@@ -216,6 +217,7 @@ fn sidebar() -> impl Scene {
                     ActorsPanelBody
                     Children [ muted_text("loading…") ]
                 ),
+                action_button("New Actor", ButtonVariant::Normal, panels::create_actor),
             ]),
             panel("Conversations", bsn_list![
                 (
