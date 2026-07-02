@@ -5,11 +5,13 @@
             id: 0,
             name: "Player",
             is_player: true,
+            fields: [],
         ),
         (
             id: 1,
             name: "Feri",
             is_player: false,
+            fields: [],
         ),
     ],
     conversations: [
@@ -28,8 +30,24 @@
                     is_root: true,
                     is_group: false,
                     links: [
-                        (dest_conversation: 1, dest_entry: 2),
-                        (dest_conversation: 1, dest_entry: 3),
+                        (
+                            dest_conversation: 1,
+                            dest_entry: 2,
+                        ),
+                        (
+                            dest_conversation: 1,
+                            dest_entry: 3,
+                        ),
+                    ],
+                    fields: [
+                        (
+                            title: "canvas_x",
+                            value: Number(25.445313),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(83.88672),
+                        ),
                     ],
                 ),
                 (
@@ -41,7 +59,20 @@
                     is_root: false,
                     is_group: false,
                     links: [
-                        (dest_conversation: 1, dest_entry: 4),
+                        (
+                            dest_conversation: 1,
+                            dest_entry: 4,
+                        ),
+                    ],
+                    fields: [
+                        (
+                            title: "canvas_x",
+                            value: Number(382.0),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(95.44141),
+                        ),
                     ],
                 ),
                 (
@@ -53,6 +84,16 @@
                     is_root: false,
                     is_group: false,
                     links: [],
+                    fields: [
+                        (
+                            title: "canvas_x",
+                            value: Number(185.55469),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(368.44922),
+                        ),
+                    ],
                 ),
                 (
                     id: 4,
@@ -64,10 +105,22 @@
                     is_group: false,
                     links: [],
                     fields: [
-                        (title: "mood", value: Text("cheerful")),
+                        (
+                            title: "mood",
+                            value: Text("cheerful"),
+                        ),
+                        (
+                            title: "canvas_x",
+                            value: Number(693.77734),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(527.33984),
+                        ),
                     ],
                 ),
             ],
+            fields: [],
         ),
         (
             id: 2,
@@ -84,8 +137,10 @@
                     is_root: true,
                     is_group: false,
                     links: [],
+                    fields: [],
                 ),
             ],
+            fields: [],
         ),
     ],
 )

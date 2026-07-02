@@ -9,6 +9,7 @@ pub mod prelude;
 
 pub mod data;
 pub mod loader;
+pub mod saver;
 
 /// The plugin that provides dialogue and conversation handling.
 pub struct TalksPlugin;

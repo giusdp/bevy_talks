@@ -47,17 +47,23 @@ mod tests {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TalksPlugin));
 
-        let handle: Handle<DialogueDatabase> = app
-            .world()
-            .resource::<AssetServer>()
-            .load("test.dialogue.ron");
+        let server = app.world().resource::<AssetServer>().clone();
+        let handle: Handle<DialogueDatabase> = server.load("test.dialogue.ron");
 
-        app.update();
+        for _ in 0..1000 {
+            app.update();
+            match server.load_state(handle.id()) {
+                bevy::asset::LoadState::Loaded => break,
+                bevy::asset::LoadState::Failed(err) => panic!("load failed: {err}"),
+                _ => std::thread::sleep(std::time::Duration::from_millis(1)),
+            }
+        }
+
         let db = app
             .world()
             .resource::<Assets<DialogueDatabase>>()
             .get(&handle)
-            .unwrap();
+            .expect("database never finished loading");
 
         assert_eq!(db.conversations[0].entries[0].dialogue_text, "Hello");
     }
