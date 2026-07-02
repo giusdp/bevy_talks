@@ -1,0 +1,146 @@
+(
+    version: "1",
+    actors: [
+        (
+            id: 0,
+            name: "Player",
+            is_player: true,
+            fields: [],
+        ),
+        (
+            id: 1,
+            name: "Feri",
+            is_player: false,
+            fields: [],
+        ),
+    ],
+    conversations: [
+        (
+            id: 1,
+            title: "Test",
+            actor: 0,
+            conversant: 1,
+            entries: [
+                (
+                    id: 1,
+                    actor: 1,
+                    conversant: 0,
+                    menu_text: "",
+                    dialogue_text: "Hello",
+                    is_root: true,
+                    is_group: false,
+                    links: [
+                        (
+                            dest_conversation: 1,
+                            dest_entry: 2,
+                        ),
+                        (
+                            dest_conversation: 1,
+                            dest_entry: 3,
+                        ),
+                    ],
+                    fields: [
+                        (
+                            title: "canvas_x",
+                            value: Number(25.445313),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(83.88672),
+                        ),
+                    ],
+                ),
+                (
+                    id: 2,
+                    actor: 0,
+                    conversant: 1,
+                    menu_text: "Ask about Bevy",
+                    dialogue_text: "What is this dialogue system?",
+                    is_root: false,
+                    is_group: false,
+                    links: [
+                        (
+                            dest_conversation: 1,
+                            dest_entry: 4,
+                        ),
+                    ],
+                    fields: [
+                        (
+                            title: "canvas_x",
+                            value: Number(382.0),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(95.44141),
+                        ),
+                    ],
+                ),
+                (
+                    id: 3,
+                    actor: 0,
+                    conversant: 1,
+                    menu_text: "Say goodbye",
+                    dialogue_text: "I have to go. Bye!",
+                    is_root: false,
+                    is_group: false,
+                    links: [],
+                    fields: [
+                        (
+                            title: "canvas_x",
+                            value: Number(185.55469),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(368.44922),
+                        ),
+                    ],
+                ),
+                (
+                    id: 4,
+                    actor: 1,
+                    conversant: 0,
+                    menu_text: "",
+                    dialogue_text: "It is Bevy Talks!",
+                    is_root: false,
+                    is_group: false,
+                    links: [],
+                    fields: [
+                        (
+                            title: "mood",
+                            value: Text("cheerful"),
+                        ),
+                        (
+                            title: "canvas_x",
+                            value: Number(569.5547),
+                        ),
+                        (
+                            title: "canvas_y",
+                            value: Number(346.78516),
+                        ),
+                    ],
+                ),
+            ],
+            fields: [],
+        ),
+        (
+            id: 2,
+            title: "Greeting",
+            actor: 0,
+            conversant: 1,
+            entries: [
+                (
+                    id: 1,
+                    actor: 1,
+                    conversant: 0,
+                    menu_text: "",
+                    dialogue_text: "Welcome back.",
+                    is_root: true,
+                    is_group: false,
+                    links: [],
+                    fields: [],
+                ),
+            ],
+            fields: [],
+        ),
+    ],
+)

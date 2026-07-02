@@ -6,43 +6,35 @@ on:
       - main
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  mdbook:
-    runs-on: ubuntu-20.04
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
-        with:
-          mdbook-version: "latest"
-
-      - run: mdbook build docs
-
-  deploy:
+  book:
     runs-on: ubuntu-latest
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.ref }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check for missing pages in SUMMARY.md
         working-directory: ./docs
         run: ./verify_summary.sh
 
-      - name: Setup mdBook
-        uses: peaceiris/actions-mdbook@v1
+      # Lets mise install the cargo-backed tools (mdbook-toc, mdbook-mermaid)
+      # from prebuilt binaries instead of compiling them
+      - name: Install cargo-binstall
+        uses: taiki-e/install-action@v2
         with:
-          mdbook-version: "latest"
+          tool: cargo-binstall
+
+      - name: Install mdbook and preprocessors
+        uses: jdx/mise-action@v2
 
       - name: Build
-        working-directory: ./docs
-        run: mdbook build
+        run: mise run docs-build
 
       - name: Deploy
-        uses: peaceiris/actions-gh-pages@v3
+        uses: peaceiris/actions-gh-pages@v4
         # Only deploy if pushed to the main branch
         if: ${{ github.ref == 'refs/heads/main' }}
         with:

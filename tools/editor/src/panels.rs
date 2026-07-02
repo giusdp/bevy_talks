@@ -1,0 +1,988 @@
+//! Data-driven side panels: actor/conversation lists, inspector, status bar.
+
+use bevy::{
+    feathers::{
+        controls::{
+            ButtonVariant, FeathersCheckbox, FeathersListRow, FeathersListView, FeathersMenu,
+            FeathersMenuButton, FeathersMenuItem, FeathersMenuPopup, FeathersTextInput,
+            FeathersTextInputContainer,
+        },
+        theme::ThemedText,
+    },
+    prelude::*,
+    text::EditableText,
+    ui::{Checked, Selected},
+    ui_widgets::{Activate, ValueChange},
+};
+use bevy_talks::prelude::*;
+
+use crate::state::{self, EditorSelection, EditorState, root_entry_id};
+use crate::widgets::{action_button, labeled_value, muted_text, panel_header};
+
+/// Marker for the actors list body.
+#[derive(Component, Default, Clone)]
+pub struct ActorsPanelBody;
+
+/// Marker for the conversations list body.
+#[derive(Component, Default, Clone)]
+pub struct ConversationsPanelBody;
+
+/// Marker for the inspector content box.
+#[derive(Component, Default, Clone)]
+pub struct InspectorBody;
+
+/// Marker for the "Conversation: …" heading above the canvas.
+#[derive(Component, Default, Clone)]
+pub struct ConversationTitleText;
+
+/// Marker for the database summary text in the status bar.
+#[derive(Component, Default, Clone)]
+pub struct StatusText;
+
+/// Marker for the validation result text in the status bar.
+#[derive(Component, Default, Clone)]
+pub struct ValidationText;
+
+/// Marker for the current file name in the toolbar.
+#[derive(Component, Default, Clone)]
+pub struct FileLabelText;
+
+/// Which entry text a text input edits. Inputs carry their exact target so a
+/// pending edit can never leak into a newly selected entry.
+#[derive(Component, Clone, Copy, Default, PartialEq)]
+pub struct EntryTextTarget {
+    /// Conversation of the target entry.
+    pub conversation: ConversationId,
+    /// The target entry.
+    pub entry: EntryId,
+    /// Edits `dialogue_text` when true, `menu_text` otherwise.
+    pub dialogue: bool,
+}
+
+/// Which conversation a title text input renames.
+#[derive(Component, Clone, Copy, Default)]
+pub struct ConversationTitleTarget {
+    /// The conversation being renamed.
+    pub conversation: ConversationId,
+}
+
+/// Which actor a name text input renames.
+#[derive(Component, Clone, Copy, Default)]
+pub struct ActorNameTarget {
+    /// The actor being renamed.
+    pub actor: ActorId,
+}
+
+/// The actor a sidebar list row represents.
+#[derive(Component, Clone, Copy, Default)]
+struct ActorRow {
+    /// The represented actor.
+    actor: ActorId,
+}
+
+/// The conversation a sidebar list row represents.
+#[derive(Component, Clone, Copy, Default)]
+struct ConversationRow {
+    /// The represented conversation.
+    conversation: ConversationId,
+}
+
+/// Marker for the database files list body.
+#[derive(Component, Default, Clone)]
+pub struct DatabaseFilesBody;
+
+/// The database file a list row represents.
+#[derive(Component, Clone, Default)]
+struct DatabaseFileRow {
+    /// Asset path of the file.
+    path: String,
+}
+
+/// Set when an inspector edit wrote to the state, so the write-through
+/// doesn't rebuild the inspector under the user's cursor.
+#[derive(Resource, Default)]
+pub struct SuppressInspectorRebuild(pub bool);
+
+/// Rebuilds the database files list when the edited database changes.
+pub fn rebuild_database_files(
+    mut commands: Commands,
+    state: Res<EditorState>,
+    body: Single<Entity, With<DatabaseFilesBody>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    let rows: Vec<Box<dyn Scene>> = state::database_files()
+        .into_iter()
+        .map(|file| {
+            let selected = file == state.path;
+            database_file_row(file, selected)
+        })
+        .collect();
+    let rows: Box<dyn SceneList> = Box::new(rows);
+
+    commands.entity(*body).despawn_related::<Children>();
+    commands
+        .entity(*body)
+        .queue_spawn_related_scenes::<Children>(bsn_list![(
+            @FeathersListView {
+                @rows: {rows},
+            }
+            on(open_selected_database)
+        )]);
+}
+
+/// Opens the database file behind an activated row.
+fn open_selected_database(
+    change: On<ValueChange<Entity>>,
+    rows: Query<&DatabaseFileRow>,
+    mut commands: Commands,
+    mut selection: ResMut<EditorSelection>,
+) {
+    let Ok(row) = rows.get(change.value) else {
+        return;
+    };
+    match state::read_database(&row.path) {
+        Ok(db) => {
+            let first = db.conversations.first();
+            selection.conversation = first.map(|c| c.id);
+            selection.entry = first.and_then(root_entry_id);
+            commands.insert_resource(EditorState {
+                db,
+                path: row.path.clone(),
+            });
+        }
+        Err(err) => error!("failed to open {}: {err}", row.path),
+    }
+}
+
+/// A selectable database file row.
+fn database_file_row(path: String, selected: bool) -> Box<dyn Scene> {
+    let label = path.clone();
+    if selected {
+        Box::new(bsn! {
+            @FeathersListRow
+            Selected
+            DatabaseFileRow { path: path }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersListRow
+            DatabaseFileRow { path: path }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    }
+}
+
+/// Rebuilds the actors list when the database or selection changes.
+pub fn rebuild_actors_panel(
+    mut commands: Commands,
+    state: Res<EditorState>,
+    selection: Res<EditorSelection>,
+    body: Single<Entity, With<ActorsPanelBody>>,
+) {
+    if !state.is_changed() && !selection.is_changed() {
+        return;
+    }
+    let rows: Vec<Box<dyn Scene>> = state
+        .db
+        .actors
+        .iter()
+        .map(|actor| {
+            let player = if actor.is_player { " (player)" } else { "" };
+            actor_row(
+                format!("{}  {}{}", actor.id.0, actor.name, player),
+                actor.id,
+                selection.actor == Some(actor.id),
+            )
+        })
+        .collect();
+    let rows: Box<dyn SceneList> = Box::new(rows);
+
+    commands.entity(*body).despawn_related::<Children>();
+    commands
+        .entity(*body)
+        .queue_spawn_related_scenes::<Children>(bsn_list![(
+            @FeathersListView {
+                @rows: {rows},
+            }
+            on(
+                |change: On<ValueChange<Entity>>,
+                 rows: Query<&ActorRow>,
+                 mut selection: ResMut<EditorSelection>| {
+                    if let Ok(row) = rows.get(change.value) {
+                        selection.actor = Some(row.actor);
+                    }
+                }
+            )
+        )]);
+}
+
+/// A selectable actor row.
+fn actor_row(label: String, actor: ActorId, selected: bool) -> Box<dyn Scene> {
+    if selected {
+        Box::new(bsn! {
+            @FeathersListRow
+            Selected
+            ActorRow { actor: actor }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersListRow
+            ActorRow { actor: actor }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    }
+}
+
+/// Adds a new actor and selects it.
+pub fn create_actor(
+    _: On<Activate>,
+    state: Option<ResMut<EditorState>>,
+    mut selection: ResMut<EditorSelection>,
+) {
+    let Some(mut state) = state else {
+        return;
+    };
+    let id = state::add_actor(&mut state.bypass_change_detection().db);
+    state.set_changed();
+    selection.actor = Some(id);
+}
+
+/// Rebuilds the conversations list when the database or selection changes.
+pub fn rebuild_conversations_panel(
+    mut commands: Commands,
+    state: Res<EditorState>,
+    selection: Res<EditorSelection>,
+    body: Single<Entity, With<ConversationsPanelBody>>,
+) {
+    if !state.is_changed() && !selection.is_changed() {
+        return;
+    }
+    let rows: Vec<Box<dyn Scene>> = state
+        .db
+        .conversations
+        .iter()
+        .map(|conversation| {
+            conversation_row(
+                format!("{}  {}", conversation.id.0, conversation.title),
+                conversation.id,
+                selection.conversation == Some(conversation.id),
+            )
+        })
+        .collect();
+    let rows: Box<dyn SceneList> = Box::new(rows);
+
+    commands.entity(*body).despawn_related::<Children>();
+    commands
+        .entity(*body)
+        .queue_spawn_related_scenes::<Children>(bsn_list![(
+            @FeathersListView {
+                @rows: {rows},
+            }
+            on(
+                |change: On<ValueChange<Entity>>,
+                 rows: Query<&ConversationRow>,
+                 mut selection: ResMut<EditorSelection>,
+                 state: Res<EditorState>| {
+                    let Ok(row) = rows.get(change.value) else {
+                        return;
+                    };
+                    selection.conversation = Some(row.conversation);
+                    selection.entry =
+                        state.conversation(Some(row.conversation)).and_then(root_entry_id);
+                    selection.actor = None;
+                }
+            )
+        )]);
+}
+
+/// Adds a new conversation with its START entry and selects it.
+pub fn create_conversation(
+    _: On<Activate>,
+    state: Option<ResMut<EditorState>>,
+    mut selection: ResMut<EditorSelection>,
+) {
+    let Some(mut state) = state else {
+        return;
+    };
+    let id = state::add_conversation(&mut state.bypass_change_detection().db);
+    state.set_changed();
+    selection.conversation = Some(id);
+    selection.entry = state.conversation(Some(id)).and_then(root_entry_id);
+}
+
+/// A selectable conversation row.
+fn conversation_row(label: String, conversation: ConversationId, selected: bool) -> Box<dyn Scene> {
+    if selected {
+        Box::new(bsn! {
+            @FeathersListRow
+            Selected
+            ConversationRow { conversation: conversation }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersListRow
+            ConversationRow { conversation: conversation }
+            Children [
+                (
+                    Text(label)
+                    ThemedText
+                    TextFont {
+                        font_size: FontSize::Px(12.0),
+                    }
+                )
+            ]
+        })
+    }
+}
+
+/// Rebuilds the inspector when the database or selection changes.
+pub fn rebuild_inspector(
+    mut commands: Commands,
+    state: Res<EditorState>,
+    selection: Res<EditorSelection>,
+    mut suppress: ResMut<SuppressInspectorRebuild>,
+    body: Single<Entity, With<InspectorBody>>,
+) {
+    if selection.is_changed() {
+        suppress.0 = false;
+    } else if state.is_changed() && suppress.0 {
+        suppress.0 = false;
+        return;
+    }
+    if !state.is_changed() && !selection.is_changed() {
+        return;
+    }
+    commands.entity(*body).despawn_related::<Children>();
+    commands
+        .entity(*body)
+        .queue_spawn_related_scenes::<Children>(inspector_content(&state, &selection));
+}
+
+/// The inspector rows for the current selection.
+fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Box<dyn Scene>> {
+    let Some(conversation) = state.conversation(selection.conversation) else {
+        return vec![Box::new(muted_text("No conversation selected"))];
+    };
+    let mut rows: Vec<Box<dyn Scene>> = vec![
+        Box::new(panel_header("Conversation")),
+        conversation_title_input(conversation.id, conversation.title.clone()),
+    ];
+    if let Some(actor) = selection
+        .actor
+        .and_then(|id| state.db.actors.iter().find(|a| a.id == id))
+    {
+        rows.extend([
+            Box::new(panel_header("Actor")) as Box<dyn Scene>,
+            actor_name_input(actor.id, actor.name.clone()),
+            actor_player_checkbox(actor.id, actor.is_player),
+        ]);
+    }
+    let Some(entry) = selection
+        .entry
+        .and_then(|id| conversation.entries.iter().find(|e| e.id == id))
+    else {
+        rows.push(Box::new(muted_text("No entry selected")));
+        return rows;
+    };
+
+    let target = (conversation.id, entry.id);
+    rows.extend([
+        Box::new(panel_header("Entry")) as Box<dyn Scene>,
+        Box::new(labeled_value("Entry", format!("{}", entry.id.0))),
+        actor_select(
+            "Actor",
+            state.actor_name(entry.actor),
+            actor_options(state),
+            target,
+            false,
+        ),
+        actor_select(
+            "Conversant",
+            state.actor_name(entry.conversant),
+            actor_options(state),
+            target,
+            true,
+        ),
+        Box::new(entry_text_input(
+            "Menu text",
+            entry.menu_text.clone(),
+            target,
+            false,
+        )),
+        Box::new(entry_text_input(
+            "Dialogue text",
+            entry.dialogue_text.clone(),
+            target,
+            true,
+        )),
+        entry_flag_checkbox("Root entry", entry.is_root, target, EntryFlag::Root),
+        entry_flag_checkbox("Group node", entry.is_group, target, EntryFlag::Group),
+        Box::new(panel_header("Custom Fields")),
+    ]);
+    if entry.fields.is_empty() {
+        rows.push(Box::new(muted_text("(none)")));
+    }
+    for field in &entry.fields {
+        rows.push(Box::new(labeled_value(
+            field.title.clone(),
+            field_value_text(&field.value),
+        )));
+    }
+    rows.push(Box::new(panel_header("Outgoing Links")));
+    if entry.links.is_empty() {
+        rows.push(Box::new(muted_text("(none)")));
+    } else {
+        rows.push(Box::new(muted_text("click a link to remove it")));
+        let link_rows: Vec<Box<dyn Scene>> = entry
+            .links
+            .iter()
+            .map(|&link| link_row(conversation.id, entry.id, link))
+            .collect();
+        let link_rows: Box<dyn SceneList> = Box::new(link_rows);
+        rows.push(Box::new(bsn! {
+            @FeathersListView {
+                @rows: {link_rows},
+            }
+            on(remove_selected_link)
+        }));
+    }
+    rows.push(add_child_button(target));
+    if !entry.is_root {
+        rows.push(delete_entry_button(target));
+    }
+    rows
+}
+
+/// The outgoing link a list row represents.
+#[derive(Component, Clone, Copy, Default)]
+struct LinkRow {
+    /// Conversation of the source entry.
+    conversation: ConversationId,
+    /// The source entry.
+    from: EntryId,
+    /// The represented link.
+    link: Link,
+}
+
+/// A removable outgoing-link row.
+fn link_row(conversation: ConversationId, from: EntryId, link: Link) -> Box<dyn Scene> {
+    let label = format!(
+        "→ conversation {} entry {}",
+        link.dest_conversation.0, link.dest_entry.0
+    );
+    Box::new(bsn! {
+        @FeathersListRow
+        LinkRow { conversation: conversation, from: from, link: link }
+        Children [
+            (
+                Text(label)
+                ThemedText
+                TextFont {
+                    font_size: FontSize::Px(12.0),
+                }
+            )
+        ]
+    })
+}
+
+/// Removes the link behind an activated row.
+fn remove_selected_link(
+    change: On<ValueChange<Entity>>,
+    rows: Query<&LinkRow>,
+    state: Option<ResMut<EditorState>>,
+) {
+    let Ok(row) = rows.get(change.value) else {
+        return;
+    };
+    let Some(mut state) = state else {
+        return;
+    };
+    if state::remove_link(
+        &mut state.bypass_change_detection().db,
+        row.conversation,
+        row.from,
+        row.link,
+    ) {
+        state.set_changed();
+    }
+}
+
+/// A button that deletes the given entry and its incoming links.
+fn delete_entry_button((conversation, entry): (ConversationId, EntryId)) -> Box<dyn Scene> {
+    Box::new(action_button(
+        "Delete Entry",
+        ButtonVariant::Normal,
+        move |_: On<Activate>,
+              state: Option<ResMut<EditorState>>,
+              mut selection: ResMut<EditorSelection>| {
+            let Some(mut state) = state else {
+                return;
+            };
+            if state::delete_entry(&mut state.bypass_change_detection().db, conversation, entry) {
+                state.set_changed();
+                selection.entry = state
+                    .conversation(Some(conversation))
+                    .and_then(root_entry_id);
+            }
+        },
+    ))
+}
+
+/// A button that creates a child entry linked from the given entry.
+fn add_child_button((conversation, entry): (ConversationId, EntryId)) -> Box<dyn Scene> {
+    Box::new(action_button(
+        "Add Child Entry",
+        ButtonVariant::Primary,
+        move |_: On<Activate>,
+              state: Option<ResMut<EditorState>>,
+              mut selection: ResMut<EditorSelection>| {
+            let Some(mut state) = state else {
+                return;
+            };
+            let Some(child) = state::add_child_entry(
+                &mut state.bypass_change_detection().db,
+                conversation,
+                entry,
+            ) else {
+                return;
+            };
+            state.set_changed();
+            selection.entry = Some(child);
+        },
+    ))
+}
+
+/// Which boolean flag of an entry a checkbox edits.
+#[derive(Clone, Copy)]
+enum EntryFlag {
+    /// `is_root`.
+    Root,
+    /// `is_group`.
+    Group,
+}
+
+/// A checkbox editing one boolean flag of an entry.
+fn entry_flag_checkbox(
+    label: &'static str,
+    checked: bool,
+    (conversation, entry): (ConversationId, EntryId),
+    flag: EntryFlag,
+) -> Box<dyn Scene> {
+    let write = move |change: On<ValueChange<bool>>, mut state: ResMut<EditorState>| {
+        let db = &mut state.bypass_change_detection().db;
+        let Some(entry) = entry_mut(db, conversation, entry) else {
+            return;
+        };
+        match flag {
+            EntryFlag::Root => entry.is_root = change.value,
+            EntryFlag::Group => entry.is_group = change.value,
+        }
+        state.set_changed();
+    };
+    if checked {
+        Box::new(bsn! {
+            @FeathersCheckbox {
+                @caption: bsn! { Text(label) ThemedText },
+            }
+            Checked
+            on(write)
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersCheckbox {
+                @caption: bsn! { Text(label) ThemedText },
+            }
+            on(write)
+        })
+    }
+}
+
+/// A labeled text input that edits one text of a specific entry.
+fn entry_text_input(
+    label: &'static str,
+    value: String,
+    (conversation, entry): (ConversationId, EntryId),
+    dialogue: bool,
+) -> impl Scene {
+    bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text(label),
+            (
+                @FeathersTextInputContainer
+                Children [
+                    (
+                        @FeathersTextInput
+                        EditableText::new(value)
+                        EntryTextTarget {
+                            conversation: conversation,
+                            entry: entry,
+                            dialogue: dialogue,
+                        }
+                    )
+                ]
+            )
+        ]
+    }
+}
+
+/// A labeled text input that renames a conversation.
+fn conversation_title_input(conversation: ConversationId, value: String) -> Box<dyn Scene> {
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text("Title"),
+            (
+                @FeathersTextInputContainer
+                Children [
+                    (
+                        @FeathersTextInput
+                        EditableText::new(value)
+                        ConversationTitleTarget { conversation: conversation }
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// All actors as dropdown options.
+fn actor_options(state: &EditorState) -> Vec<(ActorId, String)> {
+    state
+        .db
+        .actors
+        .iter()
+        .map(|a| (a.id, a.name.clone()))
+        .collect()
+}
+
+/// A labeled dropdown that assigns an entry's actor or conversant.
+fn actor_select(
+    label: &'static str,
+    current: String,
+    actors: Vec<(ActorId, String)>,
+    (conversation, entry): (ConversationId, EntryId),
+    conversant: bool,
+) -> Box<dyn Scene> {
+    let items: Vec<Box<dyn Scene>> = actors
+        .into_iter()
+        .map(|(id, name)| {
+            let write = move |_: On<Activate>, mut state: ResMut<EditorState>| {
+                let db = &mut state.bypass_change_detection().db;
+                let Some(e) = entry_mut(db, conversation, entry) else {
+                    return;
+                };
+                if conversant {
+                    e.conversant = id;
+                } else {
+                    e.actor = id;
+                }
+                state.set_changed();
+            };
+            Box::new(bsn! {
+                @FeathersMenuItem {
+                    @caption: bsn! { Text(name) ThemedText },
+                }
+                on(write)
+            }) as Box<dyn Scene>
+        })
+        .collect();
+    let items: Box<dyn SceneList> = Box::new(items);
+
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text(label),
+            (
+                @FeathersMenu
+                Children [
+                    (
+                        @FeathersMenuButton {
+                            @caption: bsn! { Text(current) ThemedText },
+                        }
+                    ),
+                    (
+                        @FeathersMenuPopup
+                        Children [ {items} ]
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// A labeled text input that renames an actor.
+fn actor_name_input(actor: ActorId, value: String) -> Box<dyn Scene> {
+    Box::new(bsn! {
+        Node {
+            display: Display::Flex,
+            flex_direction: FlexDirection::Column,
+            row_gap: px(4),
+        }
+        Children [
+            muted_text("Name"),
+            (
+                @FeathersTextInputContainer
+                Children [
+                    (
+                        @FeathersTextInput
+                        EditableText::new(value)
+                        ActorNameTarget { actor: actor }
+                    )
+                ]
+            )
+        ]
+    })
+}
+
+/// A checkbox editing an actor's `is_player` flag.
+fn actor_player_checkbox(actor: ActorId, checked: bool) -> Box<dyn Scene> {
+    let write = move |change: On<ValueChange<bool>>, mut state: ResMut<EditorState>| {
+        let db = &mut state.bypass_change_detection().db;
+        let Some(a) = db.actors.iter_mut().find(|a| a.id == actor) else {
+            return;
+        };
+        a.is_player = change.value;
+        state.set_changed();
+    };
+    if checked {
+        Box::new(bsn! {
+            @FeathersCheckbox {
+                @caption: bsn! { Text("Player character") ThemedText },
+            }
+            Checked
+            on(write)
+        })
+    } else {
+        Box::new(bsn! {
+            @FeathersCheckbox {
+                @caption: bsn! { Text("Player character") ThemedText },
+            }
+            on(write)
+        })
+    }
+}
+
+/// Writes edited actor names back into the database.
+pub fn commit_actor_name_edits(
+    inputs: Query<(&EditableText, &ActorNameTarget), Changed<EditableText>>,
+    mut state: ResMut<EditorState>,
+    mut suppress: ResMut<SuppressInspectorRebuild>,
+) {
+    let mut wrote = false;
+    for (input, target) in &inputs {
+        let value = input.value().to_string();
+        let db = &mut state.bypass_change_detection().db;
+        let Some(actor) = db.actors.iter_mut().find(|a| a.id == target.actor) else {
+            continue;
+        };
+        if actor.name != value {
+            actor.name = value;
+            wrote = true;
+        }
+    }
+    if wrote {
+        state.set_changed();
+        suppress.0 = true;
+    }
+}
+
+/// Writes edited conversation titles back into the database.
+pub fn commit_conversation_title_edits(
+    inputs: Query<(&EditableText, &ConversationTitleTarget), Changed<EditableText>>,
+    mut state: ResMut<EditorState>,
+    mut suppress: ResMut<SuppressInspectorRebuild>,
+) {
+    let mut wrote = false;
+    for (input, target) in &inputs {
+        let value = input.value().to_string();
+        let db = &mut state.bypass_change_detection().db;
+        let Some(conversation) = db
+            .conversations
+            .iter_mut()
+            .find(|c| c.id == target.conversation)
+        else {
+            continue;
+        };
+        if conversation.title != value {
+            conversation.title = value;
+            wrote = true;
+        }
+    }
+    if wrote {
+        state.set_changed();
+        suppress.0 = true;
+    }
+}
+
+/// Writes edited inspector text back into the entry each input targets.
+pub fn commit_entry_text_edits(
+    inputs: Query<(&EditableText, &EntryTextTarget), Changed<EditableText>>,
+    mut state: ResMut<EditorState>,
+    mut suppress: ResMut<SuppressInspectorRebuild>,
+) {
+    let mut wrote = false;
+    for (input, target) in &inputs {
+        let value = input.value().to_string();
+        let db = &mut state.bypass_change_detection().db;
+        let Some(entry) = entry_mut(db, target.conversation, target.entry) else {
+            continue;
+        };
+        let current = if target.dialogue {
+            &mut entry.dialogue_text
+        } else {
+            &mut entry.menu_text
+        };
+        if *current != value {
+            *current = value;
+            wrote = true;
+        }
+    }
+    if wrote {
+        state.set_changed();
+        suppress.0 = true;
+    }
+}
+
+/// An entry looked up by conversation and entry id, mutably.
+fn entry_mut(
+    db: &mut DialogueDatabase,
+    conversation: ConversationId,
+    entry: EntryId,
+) -> Option<&mut DialogueEntry> {
+    db.conversations
+        .iter_mut()
+        .find(|c| c.id == conversation)?
+        .entries
+        .iter_mut()
+        .find(|e| e.id == entry)
+}
+
+/// Displays a field value as text.
+fn field_value_text(value: &FieldValue) -> String {
+    match value {
+        FieldValue::Text(text) | FieldValue::Localization(text) => text.clone(),
+        FieldValue::Number(number) => number.to_string(),
+        FieldValue::Boolean(boolean) => boolean.to_string(),
+        FieldValue::Actor(id) => format!("actor {}", id.0),
+    }
+}
+
+/// Keeps the toolbar file name in sync with the edited database.
+pub fn update_file_label(
+    state: Res<EditorState>,
+    mut text: Single<&mut Text, With<FileLabelText>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    text.0 = format!("assets/{}", state.path);
+}
+
+/// Keeps the canvas heading in sync with the selected conversation.
+pub fn update_conversation_title(
+    state: Res<EditorState>,
+    selection: Res<EditorSelection>,
+    mut text: Single<&mut Text, With<ConversationTitleText>>,
+) {
+    if !state.is_changed() && !selection.is_changed() {
+        return;
+    }
+    text.0 = match state.conversation(selection.conversation) {
+        Some(conversation) => format!("Conversation: {}", conversation.title),
+        None => "No conversation selected".to_owned(),
+    };
+}
+
+/// Keeps the database summary in the status bar in sync.
+pub fn update_status_text(state: Res<EditorState>, mut text: Single<&mut Text, With<StatusText>>) {
+    if !state.is_changed() {
+        return;
+    }
+    let entries: usize = state.db.conversations.iter().map(|c| c.entries.len()).sum();
+    text.0 = format!(
+        "{} actors, {} conversations, {} entries",
+        state.db.actors.len(),
+        state.db.conversations.len(),
+        entries
+    );
+}
+
+/// Runs validation on the working copy and reports it in the status bar.
+pub fn update_validation_text(
+    state: Res<EditorState>,
+    mut text: Single<(&mut Text, &mut TextColor), With<ValidationText>>,
+) {
+    if !state.is_changed() {
+        return;
+    }
+    let issues = validate(&state.db);
+    let (text, color) = &mut *text;
+    if issues.is_empty() {
+        text.0 = "Validation clean".to_owned();
+        color.0 = Color::srgb(0.48, 0.80, 0.52);
+    } else {
+        for issue in &issues {
+            warn!("validation: {issue}");
+        }
+        text.0 = format!("{} validation issues", issues.len());
+        color.0 = Color::srgb(0.92, 0.68, 0.25);
+    }
+}

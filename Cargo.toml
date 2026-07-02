@@ -1,9 +1,9 @@
 [package]
 name = "bevy_talks"
-version = "0.5.0"
-edition = "2021"
+version = "0.6.0"
+edition = "2024"
 authors = ["Giuseppe De Palma"]
-description = "A Bevy plugin to write dialogues for your characters to say and do things, together with player choices."
+description = "A Bevy plugin to write dialogues for your characters to say and do things. The Dialogue System for Bevy."
 repository = "https://github.com/giusdp/bevy_talks"
 homepage = "https://github.com/giusdp/bevy_talks"
 readme = "README.md"
@@ -22,7 +22,7 @@ exclude = [
 opt-level = 3
 
 [workspace]
-members = ["./", "tools/ci", "macros"]
+members = ["./", "tools/ci", "tools/editor"]
 
 [lints]
 [lints.rust]
@@ -36,41 +36,19 @@ type_complexity = "allow"
 too_many_arguments = "allow"
 
 [dependencies]
-thiserror = "1.0"
-serde = { version = "1" }
-serde_ron = { version = "0.8", package = "ron" }
-indexmap = "2.1.0"
+thiserror = "2"
+serde = { version = "1", features = ["derive"] }
+ron = "0.12"
 
 # Bevy Dependencies
-bevy = { version = "0.12", default-features = false, features = ["bevy_asset"] }
-bevy-trait-query = "0.4.0"
-aery = "0.5.2"
-
-bevy_talks_macros = { path = "macros", version = "0.1" }
+bevy = { version = "0.19", default-features = false, features = [
+    "bevy_asset",
+    "bevy_log",
+] }
 
 [dev-dependencies]
-bevy = { version = "0.12" }
-rstest = "0.18.2"
-
-[[example]]
-name = "simple"
-path = "examples/simple.rs"
-
-[[example]]
-name = "choices"
-path = "examples/choices.rs"
-
-[[example]]
-name = "full"
-path = "examples/full.rs"
-
-[[example]]
-name = "ingame"
-path = "examples/ingame.rs"
-
-[[example]]
-name = "custom_node_event"
-path = "examples/custom_node_event.rs"
+bevy = { version = "0.19" }
+rstest = "0.26"
 
 [lib]
 name = "bevy_talks"
