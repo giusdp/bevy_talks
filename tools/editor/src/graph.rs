@@ -102,7 +102,12 @@ pub fn rebuild_canvas(
     }
     for entry in &conversation.entries {
         let selected = selection.entry == Some(entry.id);
-        scenes.push(Box::new(entry_node(state.as_ref(), entry, positions[&entry.id], selected)));
+        scenes.push(Box::new(entry_node(
+            state.as_ref(),
+            entry,
+            positions[&entry.id],
+            selected,
+        )));
     }
 
     commands
@@ -191,10 +196,14 @@ fn layout(conversation: &Conversation) -> HashMap<EntryId, Vec2> {
 
 /// A `Number` field value by title, if present.
 fn number_field(entry: &DialogueEntry, title: &str) -> Option<f32> {
-    entry.fields.iter().find(|f| f.title == title).and_then(|f| match f.value {
-        FieldValue::Number(n) => Some(n),
-        _ => None,
-    })
+    entry
+        .fields
+        .iter()
+        .find(|f| f.title == title)
+        .and_then(|f| match f.value {
+            FieldValue::Number(n) => Some(n),
+            _ => None,
+        })
 }
 
 /// Appends the three elbow segments of one link.
@@ -276,7 +285,11 @@ fn entry_node(
     } else {
         LINE_BORDER
     };
-    let border = if selected { SELECTED_BORDER } else { base_border };
+    let border = if selected {
+        SELECTED_BORDER
+    } else {
+        base_border
+    };
     let header_color = if entry.is_root {
         Color::srgb(0.58, 0.30, 0.08)
     } else {
@@ -394,17 +407,44 @@ fn drag_graph_node(mut drag: On<Pointer<Drag>>, mut nodes: Query<&mut GraphNodeP
     }
 }
 
-/// Restores the dropped node's stacking order.
+/// Restores the dropped node's stacking order and persists its position
+/// into the entry's `canvas_x`/`canvas_y` fields.
 fn finish_graph_node_drag(
     drag: On<Pointer<DragEnd>>,
     mut commands: Commands,
-    mut nodes: Query<&mut GlobalZIndex, With<GraphNodePosition>>,
+    mut nodes: Query<(&GraphNodePosition, &GraphEntryNode, &mut GlobalZIndex)>,
+    mut state: ResMut<EditorState>,
+    selection: Res<EditorSelection>,
 ) {
-    if let Ok(mut z_index) = nodes.get_mut(drag.event_target()) {
-        z_index.0 = 1;
-        commands
-            .entity(drag.event_target())
-            .remove::<DraggingGraphNode>();
+    let Ok((position, node, mut z_index)) = nodes.get_mut(drag.event_target()) else {
+        return;
+    };
+    z_index.0 = 1;
+    commands
+        .entity(drag.event_target())
+        .remove::<DraggingGraphNode>();
+
+    let db = &mut state.bypass_change_detection().db;
+    let Some(entry) = selection
+        .conversation
+        .and_then(|id| db.conversations.iter_mut().find(|c| c.id == id))
+        .and_then(|c| c.entries.iter_mut().find(|e| e.id == node.entry))
+    else {
+        return;
+    };
+    set_number_field(entry, "canvas_x", position.x);
+    set_number_field(entry, "canvas_y", position.y);
+    state.set_changed();
+}
+
+/// Writes a `Number` field, adding it if missing.
+fn set_number_field(entry: &mut DialogueEntry, title: &str, value: f32) {
+    match entry.fields.iter_mut().find(|f| f.title == title) {
+        Some(field) => field.value = FieldValue::Number(value),
+        None => entry.fields.push(Field {
+            title: title.to_owned(),
+            value: FieldValue::Number(value),
+        }),
     }
 }
 

@@ -6,16 +6,23 @@ mod state;
 mod widgets;
 
 use bevy::{
+    asset::{
+        AssetPath,
+        saver::{SavedAsset, save_using_saver},
+    },
     feathers::{
         FeathersPlugins,
+        controls::FeathersButton,
         dark_theme::create_dark_theme,
         theme::{ThemeBackgroundColor, ThemedText, UiTheme},
         tokens,
     },
     input_focus::tab_navigation::TabGroup,
     prelude::*,
+    tasks::IoTaskPool,
+    ui_widgets::Activate,
 };
-use bevy_talks::prelude::TalksPlugin;
+use bevy_talks::prelude::{DialogueDatabaseSaver, TalksPlugin};
 
 use graph::CanvasBody;
 use panels::{
@@ -24,8 +31,8 @@ use panels::{
 };
 use state::{DATABASE_PATH, EditorSelection, EditorState, PendingLoad};
 use widgets::{
-    PANEL_BORDER, header_text, list_row, muted_text, panel, panel_header, primary_toolbar_button,
-    toolbar_button,
+    PANEL_BORDER, feathers_row, header_text, muted_text, panel, panel_header,
+    primary_toolbar_button, toolbar_button,
 };
 
 fn main() {
@@ -50,12 +57,14 @@ fn main() {
         ))
         .insert_resource(UiTheme(create_dark_theme()))
         .init_resource::<EditorSelection>()
+        .init_resource::<panels::SuppressInspectorRebuild>()
         .add_systems(Startup, (editor_scene.spawn(), state::start_database_load))
         .add_systems(
             Update,
             (
                 state::finish_database_load.run_if(resource_exists::<PendingLoad>),
                 (
+                    panels::commit_entry_text_edits,
                     panels::rebuild_actors_panel,
                     panels::rebuild_conversations_panel,
                     panels::rebuild_inspector,
@@ -65,6 +74,7 @@ fn main() {
                     graph::rebuild_canvas,
                     graph::apply_entry_selection,
                 )
+                    .chain()
                     .run_if(resource_exists::<EditorState>),
                 graph::apply_graph_node_positions,
             ),
@@ -142,11 +152,39 @@ fn toolbar() -> impl Scene {
                 }
                 Children [
                     toolbar_button("Open"),
-                    toolbar_button("Save"),
+                    save_button(),
                     primary_toolbar_button("Validate"),
                 ]
             )
         ]
+    }
+}
+
+/// Toolbar Save: writes the working copy to disk through the `AssetSaver` path.
+fn save_button() -> impl Scene {
+    bsn! {
+        @FeathersButton {
+            @caption: bsn! { Text("Save") ThemedText },
+        }
+        on(|_: On<Activate>, state: Option<Res<EditorState>>, assets: Res<AssetServer>| {
+            let Some(state) = state else {
+                warn!("nothing to save yet");
+                return;
+            };
+            let db = state.db.clone();
+            let server = assets.clone();
+            IoTaskPool::get()
+                .spawn(async move {
+                    let path = AssetPath::from(DATABASE_PATH);
+                    let saved = SavedAsset::from_asset(&db);
+                    match save_using_saver(server, &DialogueDatabaseSaver, &path, saved, &()).await
+                    {
+                        Ok(()) => info!("saved {path}"),
+                        Err(err) => error!("save failed: {err}"),
+                    }
+                })
+                .detach();
+        })
     }
 }
 
@@ -162,7 +200,7 @@ fn sidebar() -> impl Scene {
         }
         Children [
             panel("Files", bsn_list![
-                list_row(DATABASE_PATH),
+                feathers_row(DATABASE_PATH),
             ]),
             panel("Actors", bsn_list![
                 (
@@ -294,7 +332,11 @@ fn grid_lines() -> Vec<Box<dyn Scene>> {
 
 /// One canvas grid line.
 fn grid_line(offset: f32, vertical: bool) -> impl Scene {
-    let (left, top) = if vertical { (offset, 0.0) } else { (0.0, offset) };
+    let (left, top) = if vertical {
+        (offset, 0.0)
+    } else {
+        (0.0, offset)
+    };
     let (width, height) = if vertical {
         (px(1), percent(100))
     } else {
