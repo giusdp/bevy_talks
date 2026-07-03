@@ -72,6 +72,8 @@ pub enum EntryText {
     Condition,
     /// The Rhai script run when the entry is presented.
     Script,
+    /// The Rhai sequence scheduling cues when the entry is presented.
+    Sequence,
 }
 
 /// Which conversation a title text input renames.
@@ -789,6 +791,12 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
             target,
             EntryText::Script,
         )),
+        Box::new(entry_text_input(
+            "Sequence (Rhai cues, empty = default)",
+            entry.sequence.clone(),
+            target,
+            EntryText::Sequence,
+        )),
         Box::new(panel_header("Custom Fields")),
     ]);
     rows.extend(fields_section(
@@ -1272,6 +1280,7 @@ pub fn commit_entry_text_edits(
             EntryText::Dialogue => &mut entry.dialogue_text,
             EntryText::Condition => &mut entry.condition,
             EntryText::Script => &mut entry.script,
+            EntryText::Sequence => &mut entry.sequence,
         };
         if *current != value {
             *current = value;
