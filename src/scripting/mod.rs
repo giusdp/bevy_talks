@@ -1,6 +1,6 @@
 //! Rhai scripting: the engine behind entry conditions and scripts.
 //!
-//! Conditions and scripts authored on [`DialogueEntry`](crate::data::DialogueEntry)
+//! Conditions and scripts authored on [`DialogueEntry`]
 //! are Rhai code. Both see the variable store as `vars` and can call any
 //! system the game registered with
 //! [`add_dialogue_system`](AddDialogueSystem::add_dialogue_system):
@@ -27,7 +27,7 @@ pub mod functions;
 
 pub use functions::{AddDialogueSystem, DialogueSystems, ScriptArg, ScriptArgs, ScriptReturn};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use bevy::prelude::*;
@@ -79,18 +79,42 @@ struct CompiledLogic {
 
 /// Compiled conditions and scripts of every loaded database, by entry.
 #[derive(Resource, Default)]
-pub struct CompiledScripts(HashMap<(ConversationId, EntryId), CompiledLogic>);
+pub struct CompiledScripts {
+    /// Compiled logic by entry.
+    logic: HashMap<(ConversationId, EntryId), CompiledLogic>,
+    /// The databases the logic came from.
+    sources: HashSet<AssetId<DialogueDatabase>>,
+}
 
 impl CompiledScripts {
     /// The compiled condition of `key`'s entry, if it has one.
     pub fn condition(&self, key: (ConversationId, EntryId)) -> Option<Arc<AST>> {
-        self.0.get(&key)?.condition.clone()
+        self.logic.get(&key)?.condition.clone()
     }
 
     /// The compiled script of `key`'s entry, if it has one.
     pub fn script(&self, key: (ConversationId, EntryId)) -> Option<Arc<AST>> {
-        self.0.get(&key)?.script.clone()
+        self.logic.get(&key)?.script.clone()
     }
+}
+
+/// Compiles `db` now unless it already has been.
+///
+/// The runner calls this when a conversation starts: asset events reach
+/// [`compile_scripts`] one frame after the asset exists, and a condition on
+/// the first line must not race that frame.
+pub(crate) fn ensure_compiled(
+    world: &mut World,
+    id: AssetId<DialogueDatabase>,
+    db: &DialogueDatabase,
+) {
+    let engine = world.resource::<ScriptEngine>().0.clone();
+    let mut compiled = world.resource_mut::<CompiledScripts>();
+    if !compiled.sources.insert(id) {
+        return;
+    }
+    let logic: Vec<_> = compile_database(&engine, db).collect();
+    compiled.logic.extend(logic);
 }
 
 /// Compiles conditions and scripts from every database as it loads.
@@ -114,17 +138,27 @@ pub fn compile_scripts(
         return;
     }
 
-    compiled.0 = databases
+    compiled.sources = databases.iter().map(|(id, _)| id).collect();
+    compiled.logic = databases
         .iter()
-        .flat_map(|(_, db)| &db.conversations)
+        .flat_map(|(_, db)| compile_database(&engine.0, db))
+        .collect();
+}
+
+/// Compiles every entry of one database that has logic.
+fn compile_database<'a>(
+    engine: &'a Engine,
+    db: &'a DialogueDatabase,
+) -> impl Iterator<Item = ((ConversationId, EntryId), CompiledLogic)> + 'a {
+    db.conversations
+        .iter()
         .flat_map(|conversation| {
             conversation
                 .entries
                 .iter()
                 .map(|entry| ((conversation.id, entry.id), entry))
         })
-        .filter_map(|(key, entry)| Some((key, compile_entry(&engine.0, key, entry)?)))
-        .collect();
+        .filter_map(move |(key, entry)| Some((key, compile_entry(engine, key, entry)?)))
 }
 
 /// Compiles one entry's logic; `None` when the entry has none.

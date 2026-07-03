@@ -32,9 +32,11 @@ impl Plugin for TalksPlugin {
                 (
                     scripting::rebuild_engine
                         .run_if(resource_changed::<scripting::DialogueSystems>),
-                    runtime::variables::seed_variables,
-                    scripting::compile_scripts,
-                    runtime::runner::start_runners,
+                    runtime::variables::seed_variables
+                        .run_if(on_message::<AssetEvent<DialogueDatabase>>),
+                    scripting::compile_scripts.run_if(on_message::<AssetEvent<DialogueDatabase>>),
+                    runtime::runner::drive_runners
+                        .run_if(any_with_component::<runtime::DialogueRunner>),
                 )
                     .chain(),
             )

@@ -99,10 +99,20 @@ pub fn subtitle_at(db: &DialogueDatabase, at: (ConversationId, EntryId)) -> Opti
     })
 }
 
+/// Decides whether a link destination may be offered or followed.
+///
+/// The runner gates on entry conditions; tests pass `&mut |_| true`.
+pub type Gate<'a> = &'a mut dyn FnMut((ConversationId, EntryId)) -> bool;
+
 /// All destinations reachable from an entry's links, in link order, with
-/// group entries flattened (their links are followed transitively).
-pub fn responses(db: &DialogueDatabase, from: (ConversationId, EntryId)) -> Vec<Response> {
-    collect_responses(db, from, 0, &mut HashSet::new())
+/// group entries flattened (their links are followed transitively) and
+/// destinations that fail `gate` dropped, subtrees included.
+pub fn responses(
+    db: &DialogueDatabase,
+    from: (ConversationId, EntryId),
+    gate: Gate<'_>,
+) -> Vec<Response> {
+    collect_responses(db, from, 0, &mut HashSet::new(), gate)
 }
 
 /// The responses behind every link of the entry at `from`.
@@ -111,6 +121,7 @@ fn collect_responses(
     from: (ConversationId, EntryId),
     depth: usize,
     visited: &mut HashSet<(ConversationId, EntryId)>,
+    gate: Gate<'_>,
 ) -> Vec<Response> {
     if depth > MAX_EVALUATE_DEPTH {
         return Vec::new();
@@ -119,23 +130,25 @@ fn collect_responses(
         .into_iter()
         .flat_map(|entry| &entry.links)
         .map(|link| (link.dest_conversation, link.dest_entry))
-        .flat_map(|dest| destination_responses(db, dest, depth, visited))
+        .flat_map(|dest| destination_responses(db, dest, depth, visited, gate))
         .collect()
 }
 
-/// The responses one link destination contributes: none if already visited or
-/// missing, its own transitive responses if it is a group, itself otherwise.
+/// The responses one link destination contributes: none if already visited,
+/// missing, or gated out; its own transitive responses if it is a group;
+/// itself otherwise.
 fn destination_responses(
     db: &DialogueDatabase,
     dest: (ConversationId, EntryId),
     depth: usize,
     visited: &mut HashSet<(ConversationId, EntryId)>,
+    gate: Gate<'_>,
 ) -> Vec<Response> {
-    if !visited.insert(dest) {
+    if !visited.insert(dest) || !gate(dest) {
         return Vec::new();
     }
     match entry_at(db, dest) {
-        Some(entry) if entry.is_group => collect_responses(db, dest, depth + 1, visited),
+        Some(entry) if entry.is_group => collect_responses(db, dest, depth + 1, visited, gate),
         Some(entry) => vec![response(db, dest, entry)],
         None => Vec::new(),
     }
@@ -172,8 +185,8 @@ fn actor_is_player(db: &DialogueDatabase, actor: ActorId) -> bool {
 /// the first NPC response wins and is auto-followed;
 /// otherwise player responses become a menu;
 /// otherwise the conversation ends.
-pub fn step_from(db: &DialogueDatabase, at: (ConversationId, EntryId)) -> Step {
-    let responses = responses(db, at);
+pub fn step_from(db: &DialogueDatabase, at: (ConversationId, EntryId), gate: Gate<'_>) -> Step {
+    let responses = responses(db, at, gate);
     if let Some(npc) = responses.iter().find(|r| !r.is_player) {
         match subtitle_at(db, (npc.conversation, npc.entry)) {
             Some(subtitle) => Step::Line(subtitle),
@@ -261,7 +274,7 @@ mod tests {
 
     #[rstest]
     fn start_skips_root_and_presents_first_npc_line(db: DialogueDatabase) {
-        let step = step_from(&db, (ConversationId(1), EntryId(1)));
+        let step = step_from(&db, (ConversationId(1), EntryId(1)), &mut |_| true);
         let Step::Line(subtitle) = step else {
             panic!("expected a line, got {step:?}");
         };
@@ -271,7 +284,7 @@ mod tests {
 
     #[rstest]
     fn player_responses_become_a_menu_with_menu_text_labels(db: DialogueDatabase) {
-        let step = step_from(&db, (ConversationId(1), EntryId(2)));
+        let step = step_from(&db, (ConversationId(1), EntryId(2)), &mut |_| true);
         let Step::Menu(responses) = step else {
             panic!("expected a menu, got {step:?}");
         };
@@ -284,7 +297,7 @@ mod tests {
     #[rstest]
     fn groups_are_flattened(db: DialogueDatabase) {
         // entry 3 links to group 5, which links to npc 6.
-        let step = step_from(&db, (ConversationId(1), EntryId(3)));
+        let step = step_from(&db, (ConversationId(1), EntryId(3)), &mut |_| true);
         let Step::Line(subtitle) = step else {
             panic!("expected a line, got {step:?}");
         };
@@ -293,22 +306,54 @@ mod tests {
 
     #[rstest]
     fn dead_end_ends_the_conversation(db: DialogueDatabase) {
-        assert_eq!(step_from(&db, (ConversationId(1), EntryId(4))), Step::End);
+        assert_eq!(
+            step_from(&db, (ConversationId(1), EntryId(4)), &mut |_| true),
+            Step::End
+        );
     }
 
     #[rstest]
     fn cycles_terminate(db: DialogueDatabase) {
         // 6 links back to 2; evaluation must not hang.
-        let step = step_from(&db, (ConversationId(1), EntryId(6)));
+        let step = step_from(&db, (ConversationId(1), EntryId(6)), &mut |_| true);
         assert!(matches!(step, Step::Line(_)));
     }
 
     #[rstest]
     fn menu_label_falls_back_to_dialogue_text(mut db: DialogueDatabase) {
         db.conversations[0].entries[2].menu_text.clear();
-        let Step::Menu(responses) = step_from(&db, (ConversationId(1), EntryId(2))) else {
+        let Step::Menu(responses) = step_from(&db, (ConversationId(1), EntryId(2)), &mut |_| true)
+        else {
             panic!("expected a menu");
         };
         assert_eq!(responses[0].text, "What is this?");
+    }
+
+    #[rstest]
+    fn gated_destinations_are_dropped(db: DialogueDatabase) {
+        // Gate out response 4: only "Ask" remains.
+        let step = step_from(&db, (ConversationId(1), EntryId(2)), &mut |key| {
+            key.1 != EntryId(4)
+        });
+        let Step::Menu(responses) = step else {
+            panic!("expected a menu, got {step:?}");
+        };
+        assert_eq!(responses.len(), 1);
+        assert_eq!(responses[0].text, "Ask");
+
+        // Gate out both responses: the conversation ends.
+        let step = step_from(&db, (ConversationId(1), EntryId(2)), &mut |key| {
+            key.1 != EntryId(3) && key.1 != EntryId(4)
+        });
+        assert_eq!(step, Step::End);
+    }
+
+    #[rstest]
+    fn gating_a_group_drops_its_subtree(db: DialogueDatabase) {
+        // Entry 3 leads to npc 6 only through group 5.
+        let step = step_from(&db, (ConversationId(1), EntryId(3)), &mut |key| {
+            key.1 != EntryId(5)
+        });
+        assert_eq!(step, Step::End);
     }
 }
