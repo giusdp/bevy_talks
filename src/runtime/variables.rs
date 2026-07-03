@@ -11,7 +11,7 @@ use crate::data::{DialogueDatabase, FieldValue};
 
 /// Current variable values, keyed by name.
 ///
-/// Also available to conditions and scripts as `var`, see [`crate::scripting`].
+/// Also available to conditions and scripts as `vars`, see [`crate::scripting`].
 /// Clone exists because the store moves in and out of script scopes; it is
 /// not meant for keeping copies around.
 #[derive(Resource, Debug, Default, Clone)]

@@ -12,6 +12,7 @@ pub mod loader;
 pub mod persist;
 pub mod runtime;
 pub mod saver;
+pub mod scripting;
 
 /// The plugin that provides dialogue and conversation handling.
 pub struct TalksPlugin;
@@ -23,10 +24,13 @@ impl Plugin for TalksPlugin {
             .init_asset_loader::<DialogueDatabaseLoader>()
             .init_resource::<runtime::Variables>()
             .init_resource::<runtime::Visits>()
+            .init_resource::<scripting::ScriptEngine>()
+            .init_resource::<scripting::CompiledScripts>()
             .add_systems(
                 Update,
                 (
                     runtime::variables::seed_variables,
+                    scripting::compile_scripts,
                     runtime::runner::start_runners,
                 )
                     .chain(),
