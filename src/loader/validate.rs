@@ -136,6 +136,7 @@ mod tests {
                     fields: vec![],
                     condition: String::new(),
                     script: String::new(),
+                    sequence: String::new(),
                 }],
                 fields: vec![],
             }],

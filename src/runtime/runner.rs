@@ -374,6 +374,7 @@ mod tests {
             fields: vec![],
             condition: String::new(),
             script: String::new(),
+            sequence: String::new(),
         };
         DialogueDatabase {
             version: "1".to_owned(),

@@ -35,4 +35,7 @@ pub struct DialogueEntry {
     /// Rhai code run when this entry is presented. Empty means nothing to run.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub script: String,
+    /// Rhai code scheduling cues when this entry is presented. Empty means the default sequence.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub sequence: String,
 }
