@@ -24,6 +24,7 @@ impl Plugin for TalksPlugin {
             .init_asset_loader::<DialogueDatabaseLoader>()
             .init_resource::<runtime::Variables>()
             .init_resource::<runtime::Visits>()
+            .init_resource::<runtime::SequencerSettings>()
             .init_resource::<scripting::DialogueSystems>()
             .init_resource::<scripting::SequencerCommands>()
             .init_resource::<scripting::ScriptEngine>()
@@ -41,10 +42,13 @@ impl Plugin for TalksPlugin {
                     scripting::compile_scripts.run_if(on_message::<AssetEvent<DialogueDatabase>>),
                     runtime::runner::drive_runners
                         .run_if(any_with_component::<runtime::DialogueRunner>),
+                    runtime::sequencer::drive_sequences
+                        .run_if(any_with_component::<runtime::PlayingSequence>),
                 )
                     .chain(),
             )
             .add_observer(runtime::runner::on_advance)
-            .add_observer(runtime::runner::on_choose);
+            .add_observer(runtime::runner::on_choose)
+            .add_observer(runtime::sequencer::on_finish_cue);
     }
 }

@@ -8,9 +8,9 @@ pub use super::loader::from_ron_str;
 pub use super::loader::validate::{Issue, validate};
 pub use super::persist::{DialogueSave, save_from_ron, save_to_ron};
 pub use super::runtime::{
-    AdvanceConversation, ChooseResponse, ConversationEnded, ConversationRef, DialogueRunner,
-    Participants, Phase, Response, ResponseMenuOpened, Step, Subtitle, SubtitleStarted, Variables,
-    VisitCount, Visits,
+    AdvanceConversation, ChooseResponse, ConversationEnded, ConversationRef, Cue, DialogueRunner,
+    FinishCue, LineFinished, Participants, Phase, PlayingSequence, Response, ResponseMenuOpened,
+    SequencerSettings, Step, Subtitle, SubtitleStarted, Variables, VisitCount, Visits,
 };
 pub use super::saver::{DialogueDatabaseSaver, SaveError, to_ron_string};
 pub use super::scripting::{
