@@ -27,6 +27,7 @@ impl Plugin for TalksPlugin {
             .init_resource::<scripting::DialogueSystems>()
             .init_resource::<scripting::ScriptEngine>()
             .init_resource::<scripting::CompiledScripts>()
+            .init_resource::<scripting::cues::PendingCues>()
             .add_systems(
                 Update,
                 (

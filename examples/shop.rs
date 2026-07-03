@@ -110,7 +110,10 @@ fn print_subtitle(
 
 /// Prints the response menu, the purse, and prompts for a number.
 fn print_menu(menu: On<ResponseMenuOpened>, purse: Res<Purse>, inventory: Res<Inventory>) {
-    println!("\nYour reply ({} gold, carrying: {:?}):", purse.0, inventory.0);
+    println!(
+        "\nYour reply ({} gold, carrying: {:?}):",
+        purse.0, inventory.0
+    );
     for (i, response) in menu.responses.iter().enumerate() {
         println!("  {}) {}", i + 1, response.text);
     }

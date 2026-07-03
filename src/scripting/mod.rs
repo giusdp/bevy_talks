@@ -23,6 +23,7 @@
 //! errors at runtime passes (with a warning), a failing script is reported
 //! and skipped.
 
+pub mod cues;
 pub mod functions;
 
 pub use functions::{AddDialogueSystem, DialogueSystems, ScriptArg, ScriptArgs, ScriptReturn};
@@ -65,6 +66,7 @@ fn build_engine(systems: &DialogueSystems) -> Engine {
         .register_indexer_get(get_variable)
         .register_indexer_set(set_variable)
         .register_fn("has", has_variable);
+    cues::install(&mut engine);
     systems.install_into(&mut engine);
     engine
 }
@@ -75,6 +77,8 @@ struct CompiledLogic {
     condition: Option<Arc<AST>>,
     /// The entry's script, if it has one.
     script: Option<Arc<AST>>,
+    /// The entry's sequence, if it has one.
+    sequence: Option<Arc<AST>>,
 }
 
 /// Compiled conditions and scripts of every loaded database, by entry.
@@ -95,6 +99,11 @@ impl CompiledScripts {
     /// The compiled script of `key`'s entry, if it has one.
     pub fn script(&self, key: (ConversationId, EntryId)) -> Option<Arc<AST>> {
         self.logic.get(&key)?.script.clone()
+    }
+
+    /// The compiled sequence of `key`'s entry, if it has one.
+    pub fn sequence(&self, key: (ConversationId, EntryId)) -> Option<Arc<AST>> {
+        self.logic.get(&key)?.sequence.clone()
     }
 }
 
@@ -171,7 +180,14 @@ fn compile_entry(
         engine.compile_expression(text)
     });
     let script = compile_snippet(&entry.script, key, "script", |text| engine.compile(text));
-    (condition.is_some() || script.is_some()).then_some(CompiledLogic { condition, script })
+    let sequence = compile_snippet(&entry.sequence, key, "sequence", |text| {
+        engine.compile(text)
+    });
+    (condition.is_some() || script.is_some() || sequence.is_some()).then_some(CompiledLogic {
+        condition,
+        script,
+        sequence,
+    })
 }
 
 /// Compiles one authored snippet, reporting failures. Empty text is no logic.
@@ -228,8 +244,16 @@ pub fn run_script(world: &mut World, key: (ConversationId, EntryId)) {
 
 /// Evaluates a compiled AST with `vars` bound and the world reachable.
 fn eval_ast(world: &mut World, ast: &AST) -> Result<Dynamic, Box<EvalAltResult>> {
+    eval_ast_in(world, ast, Scope::new())
+}
+
+/// Like [`eval_ast`], with extra bindings already in scope.
+pub(crate) fn eval_ast_in(
+    world: &mut World,
+    ast: &AST,
+    mut scope: Scope<'static>,
+) -> Result<Dynamic, Box<EvalAltResult>> {
     let engine = world.resource::<ScriptEngine>().0.clone();
-    let mut scope = Scope::new();
     scope.push("vars", VarStore);
     WORLD.set(world, || {
         engine.eval_ast_with_scope::<Dynamic>(&mut scope, ast)
@@ -398,7 +422,9 @@ mod tests {
     }
 
     #[rstest]
-    fn loading_a_database_compiles_its_logic(db: DialogueDatabase) {
+    fn loading_a_database_compiles_its_logic(mut db: DialogueDatabase) {
+        db.conversations[0].entries[4].sequence = "wait(1)".to_owned();
+        db.conversations[0].entries[5].sequence = "wait(".to_owned();
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), crate::TalksPlugin));
         let _handle = app
@@ -423,6 +449,11 @@ mod tests {
             "statements don't compile as conditions"
         );
         assert!(compiled.script(key(5)).is_none());
+        assert!(compiled.sequence(key(5)).is_some());
+        assert!(
+            compiled.sequence(key(6)).is_none(),
+            "a broken sequence is reported and skipped"
+        );
     }
 
     #[rstest]
