@@ -56,8 +56,22 @@ pub struct EntryTextTarget {
     pub conversation: ConversationId,
     /// The target entry.
     pub entry: EntryId,
-    /// Edits `dialogue_text` when true, `menu_text` otherwise.
-    pub dialogue: bool,
+    /// Which of the entry's texts is edited.
+    pub text: EntryText,
+}
+
+/// The editable texts of an entry.
+#[derive(Clone, Copy, Default, PartialEq)]
+pub enum EntryText {
+    /// The menu label.
+    #[default]
+    Menu,
+    /// The spoken line.
+    Dialogue,
+    /// The Rhai condition gating the entry.
+    Condition,
+    /// The Rhai script run when the entry is presented.
+    Script,
 }
 
 /// Which conversation a title text input renames.
@@ -752,16 +766,29 @@ fn inspector_content(state: &EditorState, selection: &EditorSelection) -> Vec<Bo
             "Menu text",
             entry.menu_text.clone(),
             target,
-            false,
+            EntryText::Menu,
         )),
         Box::new(entry_text_input(
             "Dialogue text",
             entry.dialogue_text.clone(),
             target,
-            true,
+            EntryText::Dialogue,
         )),
         entry_flag_checkbox("Root entry", entry.is_root, target, EntryFlag::Root),
         entry_flag_checkbox("Group node", entry.is_group, target, EntryFlag::Group),
+        Box::new(panel_header("Logic")),
+        Box::new(entry_text_input(
+            "Condition (Rhai, empty = always)",
+            entry.condition.clone(),
+            target,
+            EntryText::Condition,
+        )),
+        Box::new(entry_text_input(
+            "Script (Rhai, runs when presented)",
+            entry.script.clone(),
+            target,
+            EntryText::Script,
+        )),
         Box::new(panel_header("Custom Fields")),
     ]);
     rows.extend(fields_section(
@@ -943,7 +970,7 @@ fn entry_text_input(
     label: &'static str,
     value: String,
     (conversation, entry): (ConversationId, EntryId),
-    dialogue: bool,
+    text: EntryText,
 ) -> impl Scene {
     bsn! {
         Node {
@@ -962,7 +989,7 @@ fn entry_text_input(
                         EntryTextTarget {
                             conversation: conversation,
                             entry: entry,
-                            dialogue: dialogue,
+                            text: text,
                         }
                     )
                 ]
@@ -1240,10 +1267,11 @@ pub fn commit_entry_text_edits(
         let Some(entry) = entry_mut(db, target.conversation, target.entry) else {
             continue;
         };
-        let current = if target.dialogue {
-            &mut entry.dialogue_text
-        } else {
-            &mut entry.menu_text
+        let current = match target.text {
+            EntryText::Menu => &mut entry.menu_text,
+            EntryText::Dialogue => &mut entry.dialogue_text,
+            EntryText::Condition => &mut entry.condition,
+            EntryText::Script => &mut entry.script,
         };
         if *current != value {
             *current = value;

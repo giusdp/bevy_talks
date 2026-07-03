@@ -29,10 +29,10 @@ pub struct DialogueEntry {
     /// Custom fields.
     #[serde(default)]
     pub fields: Vec<Field>,
-    /// Rune expression gating whether this entry can be reached. Empty means always.
+    /// Rhai expression gating whether this entry can be reached. Empty means always.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub condition: String,
-    /// Rune code run when this entry is presented. Empty means nothing to run.
+    /// Rhai code run when this entry is presented. Empty means nothing to run.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub script: String,
 }

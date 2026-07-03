@@ -1,6 +1,6 @@
 # Variables
 
-Variables are the game state that dialogue reads and writes: has the player accepted the job, how much gold do they carry, what name did they pick. Later they will also drive conditions on links and effects on lines.
+Variables are the game state that dialogue reads and writes: has the player accepted the job, how much gold do they carry, what name did they pick. They also drive [conditions and scripts](./scripting.md) on entries.
 
 There are two halves: definitions in the database, and a live store at runtime.
 
