@@ -14,5 +14,6 @@ pub use super::runtime::{
 };
 pub use super::saver::{DialogueDatabaseSaver, SaveError, to_ron_string};
 pub use super::scripting::{
-    AddDialogueSystem, DialogueSystems, ScriptArg, ScriptArgs, ScriptReturn,
+    AddDialogueSystem, AddSequencerCommand, CueLife, DialogueSystems, ScriptArg, ScriptArgs,
+    ScriptReturn, SequencerCommands,
 };

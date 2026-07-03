@@ -26,6 +26,7 @@
 pub mod cues;
 pub mod functions;
 
+pub use cues::{AddSequencerCommand, CueLife, SequencerCommands};
 pub use functions::{AddDialogueSystem, DialogueSystems, ScriptArg, ScriptArgs, ScriptReturn};
 
 use std::collections::{HashMap, HashSet};
@@ -46,20 +47,29 @@ pub struct ScriptEngine(pub Arc<Engine>);
 
 impl Default for ScriptEngine {
     fn default() -> Self {
-        Self(Arc::new(build_engine(&DialogueSystems::default())))
+        Self(Arc::new(build_engine(
+            &DialogueSystems::default(),
+            &SequencerCommands::default(),
+        )))
     }
 }
 
-/// Rebuilds the engine from the registered dialogue systems.
+/// Rebuilds the engine from the registered dialogue systems and sequencer
+/// commands.
 ///
-/// Runs when [`DialogueSystems`] changes; compiled ASTs stay valid because
-/// Rhai resolves function calls at evaluation time.
-pub fn rebuild_engine(systems: Res<DialogueSystems>, mut engine: ResMut<ScriptEngine>) {
-    engine.0 = Arc::new(build_engine(&systems));
+/// Runs when either registry changes; compiled ASTs stay valid because Rhai
+/// resolves function calls at evaluation time.
+pub fn rebuild_engine(
+    systems: Res<DialogueSystems>,
+    commands: Res<SequencerCommands>,
+    mut engine: ResMut<ScriptEngine>,
+) {
+    engine.0 = Arc::new(build_engine(&systems, &commands));
 }
 
-/// Builds an engine with the store bindings and the game's dialogue systems.
-fn build_engine(systems: &DialogueSystems) -> Engine {
+/// Builds an engine with the store bindings, the game's dialogue systems,
+/// and its sequencer commands.
+fn build_engine(systems: &DialogueSystems, commands: &SequencerCommands) -> Engine {
     let mut engine = Engine::new();
     engine
         .register_type_with_name::<VarStore>("Variables")
@@ -68,6 +78,7 @@ fn build_engine(systems: &DialogueSystems) -> Engine {
         .register_fn("has", has_variable);
     cues::install(&mut engine);
     systems.install_into(&mut engine);
+    commands.install_into(&mut engine);
     engine
 }
 

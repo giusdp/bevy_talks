@@ -25,14 +25,17 @@ impl Plugin for TalksPlugin {
             .init_resource::<runtime::Variables>()
             .init_resource::<runtime::Visits>()
             .init_resource::<scripting::DialogueSystems>()
+            .init_resource::<scripting::SequencerCommands>()
             .init_resource::<scripting::ScriptEngine>()
             .init_resource::<scripting::CompiledScripts>()
             .init_resource::<scripting::cues::PendingCues>()
             .add_systems(
                 Update,
                 (
-                    scripting::rebuild_engine
-                        .run_if(resource_changed::<scripting::DialogueSystems>),
+                    scripting::rebuild_engine.run_if(
+                        resource_changed::<scripting::DialogueSystems>
+                            .or_eager(resource_changed::<scripting::SequencerCommands>),
+                    ),
                     runtime::variables::seed_variables
                         .run_if(on_message::<AssetEvent<DialogueDatabase>>),
                     scripting::compile_scripts.run_if(on_message::<AssetEvent<DialogueDatabase>>),
