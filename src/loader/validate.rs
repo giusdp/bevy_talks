@@ -134,6 +134,8 @@ mod tests {
                     is_group: false,
                     links: vec![],
                     fields: vec![],
+                    condition: String::new(),
+                    script: String::new(),
                 }],
                 fields: vec![],
             }],

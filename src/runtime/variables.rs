@@ -10,7 +10,11 @@ use bevy::prelude::*;
 use crate::data::{DialogueDatabase, FieldValue};
 
 /// Current variable values, keyed by name.
-#[derive(Resource, Debug, Default)]
+///
+/// Also available to conditions and scripts as `var`, see [`crate::scripting`].
+/// Clone exists because the store moves in and out of script scopes; it is
+/// not meant for keeping copies around.
+#[derive(Resource, Debug, Default, Clone)]
 pub struct Variables(pub HashMap<String, FieldValue>);
 
 impl Variables {

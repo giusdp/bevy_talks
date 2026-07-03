@@ -349,6 +349,8 @@ mod tests {
                 })
                 .collect(),
             fields: vec![],
+            condition: String::new(),
+            script: String::new(),
         };
         DialogueDatabase {
             version: "1".to_owned(),

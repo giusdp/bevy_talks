@@ -213,6 +213,8 @@ mod tests {
                     })
                     .collect(),
                 fields: vec![],
+                condition: String::new(),
+                script: String::new(),
             }
         };
         DialogueDatabase {
