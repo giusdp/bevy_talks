@@ -1,6 +1,6 @@
 # Conditions and Scripts
 
-Entries can carry logic. A **condition** decides whether the entry can be reached, a **script** runs when the entry is presented. Both are written in [Rhai](https://rhai.rs/book/), a small scripting language embedded in the library, and both are optional.
+Entries can carry logic. A **condition** decides whether the entry can be reached, a **script** runs when the entry is presented. Both are written in [Rhai](https://rhai.rs/book/), a small scripting language embedded in the library, and both are optional. A third kind of entry logic, the sequence, schedules what happens on screen while the line plays; it has [its own page](./cues.md).
 
 ```ron
 (

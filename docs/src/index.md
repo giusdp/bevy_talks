@@ -10,6 +10,7 @@ your game:
 - **A runtime that plays them**: spawn a `DialogueRunner`, observe the events it emits, and render them however your game wants.
 - **A variable store**: a `Variables` resource seeded from the database, the shared game state that dialogue and gameplay read and write.
 - **Conditions and scripts**: entries carry [Rhai](https://rhai.rs) logic that gates branches and runs effects, with your own Bevy systems callable from dialogue.
+- **Sequences and cutscenes**: entries stage what happens while a line plays, with timed cues that call into your game: camera moves, animations, pauses.
 - **A visual editor**: a Bevy app for authoring databases: a node canvas for the conversation graph, an inspector for entries and actors, and save/load.
 
 ## The shape of a conversation
