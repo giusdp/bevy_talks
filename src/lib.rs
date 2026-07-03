@@ -24,11 +24,14 @@ impl Plugin for TalksPlugin {
             .init_asset_loader::<DialogueDatabaseLoader>()
             .init_resource::<runtime::Variables>()
             .init_resource::<runtime::Visits>()
+            .init_resource::<scripting::DialogueSystems>()
             .init_resource::<scripting::ScriptEngine>()
             .init_resource::<scripting::CompiledScripts>()
             .add_systems(
                 Update,
                 (
+                    scripting::rebuild_engine
+                        .run_if(resource_changed::<scripting::DialogueSystems>),
                     runtime::variables::seed_variables,
                     scripting::compile_scripts,
                     runtime::runner::start_runners,

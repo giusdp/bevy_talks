@@ -41,6 +41,7 @@ serde = { version = "1", features = ["derive"] }
 ron = "0.12"
 # sync: Engine and ASTs live in Bevy resources, which must be Send + Sync.
 rhai = { version = "1", features = ["sync"] }
+scoped-tls-hkt = "0.1"
 
 # Bevy Dependencies
 bevy = { version = "0.19", default-features = false, features = [

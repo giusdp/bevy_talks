@@ -13,3 +13,6 @@ pub use super::runtime::{
     VisitCount, Visits,
 };
 pub use super::saver::{DialogueDatabaseSaver, SaveError, to_ron_string};
+pub use super::scripting::{
+    AddDialogueSystem, DialogueSystems, ScriptArg, ScriptArgs, ScriptReturn,
+};
