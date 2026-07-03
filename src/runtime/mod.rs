@@ -21,7 +21,9 @@ pub use runner::{
     AdvanceConversation, ChooseResponse, ConversationEnded, DialogueRunner, Participants, Phase,
     ResponseMenuOpened, SubtitleStarted,
 };
-pub use sequencer::{Cue, FinishCue, LineFinished, PlayingSequence, SequencerSettings};
+pub use sequencer::{
+    Cue, CueSkipped, FinishCue, LineFinished, PlayingSequence, SequencerSettings, SkipLine, Skipped,
+};
 pub use step::{ConversationRef, Response, Step, Subtitle};
 pub use variables::Variables;
 pub use visits::{VisitCount, Visits};

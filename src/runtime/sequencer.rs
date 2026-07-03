@@ -89,9 +89,39 @@ pub struct LineFinished {
     pub entity: Entity,
 }
 
+/// Trigger this on a runner to fast-forward its line's sequence: pending
+/// required cues still run, active cues get [`CueSkipped`], and
+/// [`LineFinished`] fires.
+#[derive(EntityEvent, Debug, Clone, Copy)]
+pub struct SkipLine {
+    /// The runner whose line to skip.
+    pub entity: Entity,
+}
+
+/// Fired on an active cue when its sequence is skipped, right before the cue
+/// entity despawns: snap the cue's effects to their end state.
+#[derive(EntityEvent, Debug, Clone, Copy)]
+pub struct CueSkipped {
+    /// The skipped cue.
+    pub entity: Entity,
+}
+
+/// Marks a required cue that started during a skip, so its handler can apply end state instantly.
+#[derive(Component)]
+pub struct Skipped;
+
+/// Skip intent recorded for the driver.
+#[derive(Component)]
+struct SkipRequested;
+
 /// Records the [`FinishCue`] intent for the driver.
 pub(crate) fn on_finish_cue(finish: On<FinishCue>, mut commands: Commands) {
     commands.entity(finish.entity).insert(CueDone);
+}
+
+/// Records the [`SkipLine`] intent for the driver.
+pub(crate) fn on_skip_line(skip: On<SkipLine>, mut commands: Commands) {
+    commands.entity(skip.entity).insert(SkipRequested);
 }
 
 /// Builds the cue list for presenting an entry's line: its authored
@@ -160,15 +190,69 @@ pub fn begin_sequence(world: &mut World, runner: Entity, cues: Vec<CueRecord>) {
     ));
 }
 
-/// Advances every playing sequence by this frame's time.
+/// Advances every playing sequence by this frame's time, fast-forwarding the ones whose runner asked to skip.
 pub fn drive_sequences(world: &mut World) {
     let delta = world.resource::<Time>().delta();
-    let sequences: Vec<Entity> = world
-        .query_filtered::<Entity, With<PlayingSequence>>()
+    let sequences: Vec<(Entity, Entity)> = world
+        .query::<(Entity, &PlayingSequence)>()
         .iter(world)
+        .map(|(sequence, playing)| (sequence, playing.runner))
+        .collect();
+    for (sequence, runner) in sequences {
+        if world.get::<SkipRequested>(runner).is_some() {
+            world.entity_mut(runner).remove::<SkipRequested>();
+            stop_sequence(world, sequence, true);
+        } else {
+            drive_sequence(world, sequence, delta);
+        }
+    }
+}
+
+/// Stops `runner`'s playing sequences with the skip convergence and without
+/// reporting [`LineFinished`]. The runner calls this when a new step replaces
+/// the presented line.
+pub fn stop_sequences(world: &mut World, runner: Entity) {
+    if world.get::<SkipRequested>(runner).is_some() {
+        world.entity_mut(runner).remove::<SkipRequested>();
+    }
+    let sequences: Vec<Entity> = world
+        .query::<(Entity, &PlayingSequence)>()
+        .iter(world)
+        .filter(|(_, playing)| playing.runner == runner)
+        .map(|(sequence, _)| sequence)
         .collect();
     for sequence in sequences {
-        drive_sequence(world, sequence, delta);
+        stop_sequence(world, sequence, false);
+    }
+}
+
+/// Ends one sequence now, converging on the state it would have reached:
+/// pending `required` cues still run (marked [`Skipped`]), active cues get
+/// [`CueSkipped`] and finish. `report` says whether [`LineFinished`] fires.
+fn stop_sequence(world: &mut World, sequence: Entity, report: bool) {
+    let Some(mut playing) = world.get_mut::<PlayingSequence>(sequence) else {
+        return;
+    };
+    let runner = playing.runner;
+    let required: Vec<CueRecord> = playing
+        .pending
+        .drain(..)
+        .filter(|record| record.required)
+        .collect();
+    for record in required {
+        start_cue(world, sequence, record, true);
+    }
+    let active = world
+        .get::<PlayingSequence>(sequence)
+        .map(|playing| playing.active.clone())
+        .unwrap_or_default();
+    for cue in active {
+        world.trigger(CueSkipped { entity: cue });
+        finish_cue(world, sequence, cue);
+    }
+    world.entity_mut(sequence).despawn();
+    if report {
+        world.trigger(LineFinished { entity: runner });
     }
 }
 
@@ -210,7 +294,7 @@ fn drive_sequence(world: &mut World, sequence: Entity, delta: Duration) {
         }
         ready
             .into_iter()
-            .for_each(|record| start_cue(world, sequence, record));
+            .for_each(|record| start_cue(world, sequence, record, false));
     }
 
     let Some(playing) = world.get::<PlayingSequence>(sequence) else {
@@ -234,8 +318,8 @@ fn cue_ended(world: &mut World, cue: Entity, delta: Duration) -> bool {
 }
 
 /// Starts one cue: built-ins directly, everything else through its command's
-/// bridge.
-fn start_cue(world: &mut World, sequence: Entity, record: CueRecord) {
+/// bridge. `skipped` marks cues started while their sequence is stopping.
+fn start_cue(world: &mut World, sequence: Entity, record: CueRecord, skipped: bool) {
     let cue = world
         .spawn((
             Cue {
@@ -245,6 +329,9 @@ fn start_cue(world: &mut World, sequence: Entity, record: CueRecord) {
             ChildOf(sequence),
         ))
         .id();
+    if skipped {
+        world.entity_mut(cue).insert(Skipped);
+    }
     let life = match record.name.as_str() {
         "wait" => CueLife::For(Duration::from_secs_f32(
             record

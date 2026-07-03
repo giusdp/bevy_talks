@@ -10,6 +10,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use super::sequencer::{begin_sequence, build_line_cues, stop_sequences};
 use super::step::{
     ConversationRef, Response, Step, Subtitle, find_conversation, root_entry, step_from,
     subtitle_at,
@@ -294,6 +295,8 @@ fn apply_step(
     from: (ConversationId, EntryId),
     fresh: bool,
 ) {
+    // A new step replaces the presented line; its sequence stops, converging.
+    stop_sequences(world, entity);
     match step {
         Step::Line(subtitle) => {
             let at = (subtitle.conversation, subtitle.entry);
@@ -302,6 +305,10 @@ fn apply_step(
                 world.resource_mut::<Visits>().record_displayed(at);
                 run_script(world, at);
             }
+            // Staging is presentation, not logic: unlike the script, the
+            // sequence replays on resume.
+            let cues = build_line_cues(world, at, &subtitle.text);
+            begin_sequence(world, entity, cues);
             let bound = |world: &World, actor: ActorId| {
                 world
                     .get::<Participants>(entity)
@@ -577,6 +584,76 @@ mod tests {
 
         let emitted = &app.world().resource::<Emitted>().0;
         assert_eq!(emitted, &["line: Hello", "menu: Leave"]);
+    }
+
+    /// How many times the `mark` sequencer command ran.
+    #[derive(Resource, Default)]
+    struct Marked(u32);
+
+    #[rstest]
+    fn lines_play_sequences_that_converge_when_the_step_moves_on() {
+        use crate::runtime::sequencer::PlayingSequence;
+        use crate::scripting::{AddSequencerCommand, CueLife};
+
+        let mut db = db();
+        db.conversations[0].entries[1].sequence = "mark().at(60).required(); wait(60)".to_owned();
+        let (mut app, runner) = app_with(db);
+        app.init_resource::<Marked>();
+        app.add_sequencer_command(
+            "mark",
+            |In((_, ())): In<(Entity, ())>, mut marked: ResMut<Marked>| {
+                marked.0 += 1;
+                CueLife::Instant
+            },
+        );
+
+        app.update(); // presents "Hello"; its sequence starts
+        let world = app.world_mut();
+        assert_eq!(world.query::<&PlayingSequence>().iter(world).count(), 1);
+        assert_eq!(world.resource::<Marked>().0, 0, "mark is a minute out");
+
+        world.trigger(AdvanceConversation { entity: runner });
+        app.update(); // the menu replaces the line; its sequence converges
+
+        assert_eq!(
+            app.world().resource::<Marked>().0,
+            1,
+            "required cues still run when the sequence stops"
+        );
+        let world = app.world_mut();
+        assert_eq!(
+            world.query::<&PlayingSequence>().iter(world).count(),
+            0,
+            "menus play no line sequence"
+        );
+    }
+
+    /// `(LineFinished fired, CueSkipped fired)` in the skip test.
+    #[derive(Resource, Default)]
+    struct SkipLog(u32, u32);
+
+    #[rstest]
+    fn skip_line_fast_forwards_without_advancing(test_app: (App, Entity)) {
+        use crate::runtime::sequencer::{CueSkipped, LineFinished, PlayingSequence, SkipLine};
+
+        let (mut app, runner) = test_app;
+        app.init_resource::<SkipLog>();
+        app.add_observer(|_: On<LineFinished>, mut log: ResMut<SkipLog>| log.0 += 1);
+        app.add_observer(|_: On<CueSkipped>, mut log: ResMut<SkipLog>| log.1 += 1);
+
+        app.update(); // presents "Hello" with the default wait(line_end)
+        app.world_mut().trigger(SkipLine { entity: runner });
+        app.update();
+
+        let log = app.world().resource::<SkipLog>();
+        assert_eq!((log.0, log.1), (1, 1));
+        let world = app.world_mut();
+        assert_eq!(world.query::<&PlayingSequence>().iter(world).count(), 0);
+        let phase = &world.get::<DialogueRunner>(runner).unwrap().phase;
+        assert!(
+            matches!(phase, Phase::Presenting { .. }),
+            "skipping the sequence doesn't advance the line"
+        );
     }
 
     #[rstest]

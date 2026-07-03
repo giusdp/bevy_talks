@@ -49,6 +49,7 @@ impl Plugin for TalksPlugin {
             )
             .add_observer(runtime::runner::on_advance)
             .add_observer(runtime::runner::on_choose)
-            .add_observer(runtime::sequencer::on_finish_cue);
+            .add_observer(runtime::sequencer::on_finish_cue)
+            .add_observer(runtime::sequencer::on_skip_line);
     }
 }
