@@ -39,7 +39,27 @@ wait(line_end)
 
 ## line_end and the default sequence
 
-`line_end` is the estimated reading time of the line, computed from its length using `SequencerSettings` (characters per second, with a minimum). An entry with no sequence plays the default one from the same resource, `wait(line_end)` unless you change it. So every presented line plays a sequence and every line has a clock, even when nobody authored one.
+`line_end` is the estimated reading time of the line: its character count divided by a reading speed, with a floor so short lines don't flash by. An entry with no sequence plays a default one instead. So every presented line plays a sequence and every line has a clock, even when nobody authored one.
+
+Both knobs live in the `SequencerSettings` resource:
+
+| Field | Default | What it does |
+|---|---|---|
+| `chars_per_second` | `30.0` | Reading speed `line_end` is estimated with. Lower it for slower, more deliberate pacing. |
+| `min_seconds` | `1.0` | The floor for `line_end`: even a "Hi." stays up this long. |
+| `default_sequence` | `"wait(line_end)"` | The sequence played by entries that don't author one. |
+
+`TalksPlugin` inserts the defaults; to customize, overwrite the resource:
+
+```rust,ignore
+app.insert_resource(SequencerSettings {
+    chars_per_second: 15.0,
+    min_seconds: 2.0,
+    default_sequence: r#"wait(line_end); emit("line_done")"#.to_owned(),
+});
+```
+
+The default sequence is full Rhai like any authored one, so it can call your registered commands — handy for a blip sound or a portrait animation on every unauthored line. It is also the fallback: an authored sequence that fails to evaluate logs a warning and plays the default instead. Setting `default_sequence` to an empty string makes unauthored lines play no cues at all, so their `LineFinished` fires immediately.
 
 ## Registering commands
 

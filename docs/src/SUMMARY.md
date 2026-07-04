@@ -14,5 +14,6 @@
   - [Sequences and Cutscenes](./runtime/cues.md)
   - [Manual and Auto Advance](./runtime/pacing.md)
   - [Saving and Loading](./runtime/persistence.md)
+  - [Rhai Reference](./runtime/rhai-reference.md)
 - [The Editor](./editor.md)
 - [Roadmap](./roadmap.md)
