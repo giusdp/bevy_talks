@@ -1,6 +1,9 @@
 //! Editor state: the working copy of the database, selection, and database creation.
 
-use std::path::PathBuf;
+use std::{
+    path::{Path, PathBuf},
+    sync::OnceLock,
+};
 
 use bevy::{
     asset::{
@@ -13,9 +16,6 @@ use bevy::{
     ui_widgets::Activate,
 };
 use bevy_talks::prelude::*;
-
-/// Asset path of the database opened at startup.
-pub const DATABASE_PATH: &str = "test.dialogue.ron";
 
 /// The editor's working copy of the loaded database.
 #[derive(Resource)]
@@ -54,17 +54,44 @@ pub struct EditorSelection {
     pub actor: Option<ActorId>,
 }
 
-/// Handle of a database load in flight.
+/// A database load in flight, with the asset path it came from.
 #[derive(Resource)]
-pub struct PendingLoad(pub Handle<DialogueDatabase>);
+pub struct PendingLoad {
+    /// Handle being awaited.
+    pub handle: Handle<DialogueDatabase>,
+    /// Asset path the database will be saved back to.
+    pub path: String,
+}
 
 /// Marker for the "new database name" text input.
 #[derive(Component, Default, Clone)]
 pub struct NewDatabaseName;
 
-/// Kicks off loading the startup database asset.
-pub fn start_database_load(mut commands: Commands, assets: Res<AssetServer>) {
-    commands.insert_resource(PendingLoad(assets.load(DATABASE_PATH)));
+/// Kicks off loading the first database in the workspace. If the workspace has
+/// none, starts on a fresh unsaved database instead.
+pub fn start_database_load(
+    mut commands: Commands,
+    assets: Res<AssetServer>,
+    mut selection: ResMut<EditorSelection>,
+) {
+    match database_files().into_iter().next() {
+        Some(path) => {
+            commands.insert_resource(PendingLoad {
+                handle: assets.load(&path),
+                path,
+            });
+        }
+        None => {
+            let db = default_database();
+            let first = db.conversations.first();
+            selection.conversation = first.map(|c| c.id);
+            selection.entry = first.and_then(root_entry_id);
+            commands.insert_resource(EditorState {
+                db,
+                path: "untitled.dialogue.ron".to_owned(),
+            });
+        }
+    }
 }
 
 /// Copies the loaded asset into [`EditorState`] and selects the first conversation.
@@ -74,7 +101,7 @@ pub fn finish_database_load(
     databases: Res<Assets<DialogueDatabase>>,
     mut selection: ResMut<EditorSelection>,
 ) {
-    let Some(db) = databases.get(&pending.0) else {
+    let Some(db) = databases.get(&pending.handle) else {
         return;
     };
     let first = db.conversations.first();
@@ -82,7 +109,7 @@ pub fn finish_database_load(
     selection.entry = first.and_then(root_entry_id);
     commands.insert_resource(EditorState {
         db: db.clone(),
-        path: DATABASE_PATH.to_owned(),
+        path: pending.path.clone(),
     });
     commands.remove_resource::<PendingLoad>();
 }
@@ -117,24 +144,56 @@ pub fn create_new_database(
     commands.insert_resource(EditorState { db, path });
 }
 
-/// The asset folder the editor works in.
-pub fn assets_dir() -> PathBuf {
+/// The workspace asset folder, chosen at startup. See [`set_workspace`].
+static WORKSPACE: OnceLock<PathBuf> = OnceLock::new();
+
+/// The default workspace: this repo's own `assets` folder.
+pub fn default_workspace() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../assets")
 }
 
-/// All `.dialogue.ron` files in the asset folder, sorted.
+/// Sets the workspace asset folder for the whole process. Call once, before
+/// the app is built, so both the asset server and direct disk access agree.
+pub fn set_workspace(path: &Path) {
+    let _ = WORKSPACE.set(path.to_path_buf());
+}
+
+/// The asset folder the editor works in.
+pub fn assets_dir() -> PathBuf {
+    WORKSPACE.get().cloned().unwrap_or_else(default_workspace)
+}
+
+/// All `.dialogue.ron` files under the asset folder, recursively, as asset
+/// paths relative to the workspace root, sorted.
 pub fn database_files() -> Vec<String> {
-    let mut files: Vec<String> = std::fs::read_dir(assets_dir())
+    let root = assets_dir();
+    let mut files = collect_databases(&root, &root);
+    files.sort();
+    files
+}
+
+/// Recursively gathers `.dialogue.ron` files under `dir`, each expressed
+/// relative to `root`.
+fn collect_databases(dir: &Path, root: &Path) -> Vec<String> {
+    std::fs::read_dir(dir)
         .into_iter()
         .flatten()
         .flatten()
-        .filter_map(|entry| {
-            let name = entry.file_name().into_string().ok()?;
-            name.ends_with(".dialogue.ron").then_some(name)
+        .flat_map(|entry| {
+            let path = entry.path();
+            if path.is_dir() {
+                collect_databases(&path, root)
+            } else {
+                path.file_name()
+                    .and_then(|n| n.to_str())
+                    .filter(|n| n.ends_with(".dialogue.ron"))
+                    .and_then(|_| path.strip_prefix(root).ok())
+                    .and_then(|rel| rel.to_str())
+                    .map(|rel| vec![rel.to_owned()])
+                    .unwrap_or_default()
+            }
         })
-        .collect();
-    files.sort();
-    files
+        .collect()
 }
 
 /// Reads a database straight from disk, bypassing the asset cache so the

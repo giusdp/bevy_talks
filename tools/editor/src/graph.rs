@@ -32,9 +32,32 @@ const GROUP_BORDER: Color = Color::srgb(0.70, 0.22, 0.76);
 /// Border color of regular nodes.
 const LINE_BORDER: Color = Color::srgb(0.25, 0.39, 0.58);
 
-/// Marker for the container that holds the rendered conversation graph.
+/// Spacing between background grid lines, in canvas pixels.
+pub const GRID_SPACING: f32 = 40.0;
+
+/// Marker for the fixed full-frame surface that catches pan drags. It never
+/// moves, so there is always something under the pointer to drag.
 #[derive(Component, Default, Clone)]
 pub struct CanvasBody;
+
+/// Marker for the translated layer that holds the rendered conversation graph.
+/// Panning slides this; [`CanvasBody`] stays put.
+#[derive(Component, Default, Clone)]
+pub struct CanvasContent;
+
+/// Pan offset applied to the canvas viewport, in pixels. Dragging empty canvas
+/// background slides the whole node layer by this amount.
+#[derive(Component, Default, Clone, Copy)]
+pub struct CanvasPan {
+    /// Horizontal offset.
+    pub x: f32,
+    /// Vertical offset.
+    pub y: f32,
+}
+
+/// Marker for the background grid layer, which is slid to fake an infinite grid.
+#[derive(Component, Default, Clone)]
+pub struct GridLayer;
 
 /// Canvas position of a draggable graph node.
 #[derive(Component, Clone, Copy, Default)]
@@ -72,7 +95,7 @@ pub fn rebuild_canvas(
     mut commands: Commands,
     state: Res<EditorState>,
     selection: Res<EditorSelection>,
-    body: Single<Entity, With<CanvasBody>>,
+    body: Single<Entity, With<CanvasContent>>,
     mut shown: Local<Option<ConversationId>>,
 ) {
     if !state.is_changed() && *shown == selection.conversation {
@@ -408,8 +431,8 @@ fn start_graph_node_drag(
 /// Moves the dragged node with the pointer.
 fn drag_graph_node(mut drag: On<Pointer<Drag>>, mut nodes: Query<&mut GraphNodePosition>) {
     if let Ok(mut position) = nodes.get_mut(drag.event_target()) {
-        position.x = (position.x + drag.delta.x).max(0.0);
-        position.y = (position.y + drag.delta.y).max(0.0);
+        position.x += drag.delta.x;
+        position.y += drag.delta.y;
         drag.propagate(false);
     }
 }
@@ -452,4 +475,40 @@ pub fn apply_graph_node_positions(
         node.left = px(position.x);
         node.top = px(position.y);
     }
+}
+
+/// Pans the canvas when its empty background is dragged. The catcher stays
+/// fixed under the pointer; only the content layer slides. Node drags stop
+/// propagation, so this only fires when the pointer starts on empty space.
+pub fn pan_canvas(
+    mut drag: On<Pointer<Drag>>,
+    mut pan: Query<&mut CanvasPan>,
+    mut content: Query<&mut Node, With<CanvasContent>>,
+) {
+    let Ok(mut pan) = pan.get_mut(drag.event_target()) else {
+        return;
+    };
+    pan.x += drag.delta.x;
+    pan.y += drag.delta.y;
+    if let Ok(mut node) = content.single_mut() {
+        node.left = px(pan.x);
+        node.top = px(pan.y);
+    }
+    drag.propagate(false);
+}
+
+/// Slides the grid layer to follow the pan, wrapping by one cell so the grid
+/// reads as infinite instead of a fixed patch that scrolls away.
+pub fn apply_grid_pan(
+    body: Query<&CanvasPan, Changed<CanvasPan>>,
+    mut grid: Query<&mut Node, With<GridLayer>>,
+) {
+    let Ok(pan) = body.single() else {
+        return;
+    };
+    let Ok(mut node) = grid.single_mut() else {
+        return;
+    };
+    node.left = px(pan.x.rem_euclid(GRID_SPACING) - GRID_SPACING);
+    node.top = px(pan.y.rem_euclid(GRID_SPACING) - GRID_SPACING);
 }

@@ -21,7 +21,7 @@ use bevy::{
 };
 use bevy_talks::prelude::TalksPlugin;
 
-use graph::CanvasBody;
+use graph::{CanvasBody, CanvasContent, CanvasPan, GRID_SPACING, GridLayer};
 use panels::{
     ActorsPanelBody, ConversationTitleText, ConversationsPanelBody, DatabaseFilesBody,
     FileLabelText, InspectorBody, StatusText, ValidationText, VariablesPanelBody,
@@ -30,6 +30,16 @@ use state::{EditorSelection, EditorState, NewDatabaseName, PendingLoad};
 use widgets::{PANEL_BORDER, action_button, header_text, muted_text, panel, panel_header};
 
 fn main() {
+    // Workspace assets folder: first CLI arg, else this repo's own assets.
+    // Made absolute so the asset server and direct disk access agree, since a
+    // relative arg would resolve against different bases.
+    let workspace = std::env::args()
+        .nth(1)
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(state::default_workspace);
+    let workspace = std::path::absolute(&workspace).unwrap_or(workspace);
+    state::set_workspace(&workspace);
+
     App::new()
         .add_plugins((
             DefaultPlugins
@@ -42,8 +52,8 @@ fn main() {
                     ..default()
                 })
                 .set(AssetPlugin {
-                    // The editor edits the workspace assets, not tools/editor/assets.
-                    file_path: "../../assets".to_owned(),
+                    // The editor edits the chosen workspace assets, not tools/editor/assets.
+                    file_path: workspace.to_string_lossy().into_owned(),
                     ..default()
                 }),
             FeathersPlugins,
@@ -79,6 +89,7 @@ fn main() {
                     .chain()
                     .run_if(resource_exists::<EditorState>),
                 graph::apply_graph_node_positions,
+                graph::apply_grid_pan,
             ),
         )
         .run();
@@ -298,7 +309,20 @@ fn graph_canvas() -> impl Scene {
         BorderColor::all(PANEL_BORDER)
         BackgroundColor(Color::srgb(0.075, 0.080, 0.092))
         Children [
-            {grid_lines()},
+            (
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: px(-GRID_SPACING),
+                    top: px(-GRID_SPACING),
+                    width: percent(100),
+                    height: percent(100),
+                }
+                Pickable::IGNORE
+                GridLayer
+                Children [
+                    {grid_lines()},
+                ]
+            ),
             (
                 Node {
                     position_type: PositionType::Absolute,
@@ -308,6 +332,21 @@ fn graph_canvas() -> impl Scene {
                     height: percent(100),
                 }
                 CanvasBody
+                CanvasPan::default()
+                on(graph::pan_canvas)
+                Children [
+                    (
+                        Node {
+                            position_type: PositionType::Absolute,
+                            left: px(0),
+                            top: px(0),
+                            width: percent(100),
+                            height: percent(100),
+                        }
+                        Pickable::IGNORE
+                        CanvasContent
+                    ),
+                ]
             ),
             (
                 Node {
@@ -319,39 +358,51 @@ fn graph_canvas() -> impl Scene {
                     column_gap: px(8),
                     align_items: AlignItems::Center,
                 }
+                Pickable::IGNORE
                 Children [
                     muted_text("Click node: inspect"),
                     muted_text("Drag node: move"),
                     muted_text("Right-click node: link from selected"),
+                    muted_text("Drag empty space: pan"),
                 ]
             )
         ]
     }
 }
 
-/// Background grid lines for the canvas.
+/// How many grid cells to draw in each direction. Enough to cover the widest
+/// center panel plus the one-cell wrap margin; the frame clips the overflow.
+const GRID_COLUMNS: i32 = 64;
+/// How many grid rows to draw. See [`GRID_COLUMNS`].
+const GRID_ROWS: i32 = 48;
+/// A brighter line is drawn every this many cells, giving a coarse reference.
+const GRID_MAJOR_EVERY: i32 = 5;
+
+/// Background grid lines for the canvas, spanning enough to survive panning.
 fn grid_lines() -> Vec<Box<dyn Scene>> {
-    let mut lines: Vec<Box<dyn Scene>> = Vec::new();
-    for i in 1..=22 {
-        lines.push(Box::new(grid_line(i as f32 * 40.0, true)));
-    }
-    for i in 1..=12 {
-        lines.push(Box::new(grid_line(i as f32 * 40.0, false)));
-    }
-    lines
+    let verticals = (0..GRID_COLUMNS)
+        .map(|i| Box::new(grid_line(i as f32 * GRID_SPACING, true, i % GRID_MAJOR_EVERY == 0)) as _);
+    let horizontals = (0..GRID_ROWS)
+        .map(|i| Box::new(grid_line(i as f32 * GRID_SPACING, false, i % GRID_MAJOR_EVERY == 0)) as _);
+    verticals.chain(horizontals).collect()
 }
 
-/// One canvas grid line.
-fn grid_line(offset: f32, vertical: bool) -> impl Scene {
+/// One canvas grid line. Major lines are a touch brighter than minor ones.
+fn grid_line(offset: f32, vertical: bool, major: bool) -> impl Scene {
     let (left, top) = if vertical {
         (offset, 0.0)
     } else {
         (0.0, offset)
     };
     let (width, height) = if vertical {
-        (px(1), percent(100))
+        (px(1), px(GRID_ROWS as f32 * GRID_SPACING))
     } else {
-        (percent(100), px(1))
+        (px(GRID_COLUMNS as f32 * GRID_SPACING), px(1))
+    };
+    let color = if major {
+        Color::srgba(0.28, 0.31, 0.37, 0.30)
+    } else {
+        Color::srgba(0.24, 0.26, 0.31, 0.13)
     };
     bsn! {
         Node {
@@ -361,7 +412,7 @@ fn grid_line(offset: f32, vertical: bool) -> impl Scene {
             width: width,
             height: height,
         }
-        BackgroundColor(Color::srgba(0.22, 0.24, 0.28, 0.22))
+        BackgroundColor(color)
     }
 }
 
