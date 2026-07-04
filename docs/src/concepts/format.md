@@ -49,6 +49,6 @@ The file is a direct serialization of `DialogueDatabase`.
 
 Notes:
 
-- `fields` and `variables` may be omitted.
+- `fields` and `variables` may be omitted, as may an entry's `condition` and `script` (see [Conditions and Scripts](../runtime/scripting.md)).
 - Field values are tagged enum variants: `Text("…")`, `Number(1.5)`, `Boolean(true)`, `Localization("…")`, `Actor(2)`.
 - Loading is **lenient**: files that parse are accepted even if their content has problems. See [Validation](./validation.md).

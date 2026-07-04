@@ -10,6 +10,8 @@ use bevy::prelude::*;
 use crate::data::{DialogueDatabase, FieldValue};
 
 /// Current variable values, keyed by name.
+///
+/// Also available to conditions and scripts as `vars`, see [`crate::scripting`].
 #[derive(Resource, Debug, Default)]
 pub struct Variables(pub HashMap<String, FieldValue>);
 

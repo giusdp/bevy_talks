@@ -17,7 +17,7 @@ pub struct VisitCount {
 ```
 
 Presenting a line bumps its `displayed` count; opening a menu bumps `offered` for every choice in it. 
-You can read it from your own systems, and future conditions will use it for things like "only say this once":
+You can read it from your own systems, including [dialogue systems](./scripting.md#calling-into-your-game) called from conditions, for things like "only say this once":
 
 ```rust,ignore
 fn already_greeted(visits: Res<Visits>) -> bool {

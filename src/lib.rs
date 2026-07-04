@@ -12,6 +12,7 @@ pub mod loader;
 pub mod persist;
 pub mod runtime;
 pub mod saver;
+pub mod scripting;
 
 /// The plugin that provides dialogue and conversation handling.
 pub struct TalksPlugin;
@@ -23,15 +24,32 @@ impl Plugin for TalksPlugin {
             .init_asset_loader::<DialogueDatabaseLoader>()
             .init_resource::<runtime::Variables>()
             .init_resource::<runtime::Visits>()
+            .init_resource::<runtime::SequencerSettings>()
+            .init_resource::<scripting::DialogueSystems>()
+            .init_resource::<scripting::SequencerCommands>()
+            .init_resource::<scripting::ScriptEngine>()
+            .init_resource::<scripting::CompiledScripts>()
+            .init_resource::<scripting::cues::PendingCues>()
             .add_systems(
                 Update,
                 (
-                    runtime::variables::seed_variables,
-                    runtime::runner::start_runners,
+                    scripting::rebuild_engine.run_if(
+                        resource_changed::<scripting::DialogueSystems>
+                            .or_eager(resource_changed::<scripting::SequencerCommands>),
+                    ),
+                    runtime::variables::seed_variables
+                        .run_if(on_message::<AssetEvent<DialogueDatabase>>),
+                    scripting::compile_scripts.run_if(on_message::<AssetEvent<DialogueDatabase>>),
+                    runtime::runner::drive_runners
+                        .run_if(any_with_component::<runtime::DialogueRunner>),
+                    runtime::sequencer::drive_sequences
+                        .run_if(any_with_component::<runtime::PlayingSequence>),
                 )
                     .chain(),
             )
             .add_observer(runtime::runner::on_advance)
-            .add_observer(runtime::runner::on_choose);
+            .add_observer(runtime::runner::on_choose)
+            .add_observer(runtime::sequencer::on_finish_cue)
+            .add_observer(runtime::sequencer::on_skip_line);
     }
 }

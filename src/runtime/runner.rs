@@ -10,12 +10,15 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
+use super::sequencer::{begin_sequence, build_line_cues, stop_sequences};
 use super::step::{
     ConversationRef, Response, Step, Subtitle, find_conversation, root_entry, step_from,
     subtitle_at,
 };
+use super::variables::Variables;
 use super::visits::Visits;
 use crate::data::{ActorId, ConversationId, DialogueDatabase, EntryId};
+use crate::scripting::{check_condition, ensure_compiled, run_script};
 
 /// A running conversation. Spawn one to start talking.
 #[derive(Component, Debug)]
@@ -54,7 +57,9 @@ impl DialogueRunner {
         match &self.phase {
             Phase::Presenting { at }
             | Phase::AwaitingChoice { at, .. }
-            | Phase::Resuming { at } => Some(*at),
+            | Phase::Resuming { at }
+            | Phase::Advancing { from: at }
+            | Phase::Choosing { to: at } => Some(*at),
             Phase::Starting | Phase::Ended => None,
         }
     }
@@ -66,7 +71,7 @@ pub enum Phase {
     /// Waiting for the database asset; steps to the first line once loaded.
     Starting,
     /// Waiting for the database asset; re-presents the saved entry once
-    /// loaded, without counting a new visit.
+    /// loaded, without counting a new visit or re-running its script.
     Resuming {
         /// The entry to resume at.
         at: (ConversationId, EntryId),
@@ -76,12 +81,22 @@ pub enum Phase {
         /// The entry being presented.
         at: (ConversationId, EntryId),
     },
+    /// The current line is done; [`drive_runners`] steps past it next Update.
+    Advancing {
+        /// The entry being stepped past.
+        from: (ConversationId, EntryId),
+    },
     /// A menu is on screen; waiting for [`ChooseResponse`].
     AwaitingChoice {
         /// The entry whose links produced the menu.
         at: (ConversationId, EntryId),
         /// The offered responses.
         responses: Vec<Response>,
+    },
+    /// A response was picked; [`drive_runners`] presents it next Update.
+    Choosing {
+        /// The chosen entry.
+        to: (ConversationId, EntryId),
     },
     /// The conversation is over. The runner sticks around; despawning it is
     /// the game's call.
@@ -138,164 +153,170 @@ pub struct ConversationEnded {
     pub entity: Entity,
 }
 
-/// Starts runners in [`Phase::Starting`] or [`Phase::Resuming`] once their
-/// database is available.
-pub fn start_runners(
-    mut runners: Query<(Entity, &mut DialogueRunner, Option<&Participants>)>,
-    databases: Res<Assets<DialogueDatabase>>,
-    mut visits: ResMut<Visits>,
-    mut commands: Commands,
-) {
-    for (entity, mut runner, participants) in &mut runners {
-        let Some(db) = databases.get(&runner.database) else {
-            continue;
-        };
-        match runner.phase {
-            Phase::Starting => {
-                let Some(root) = find_conversation(db, &runner.conversation)
-                    .and_then(|c| root_entry(c).map(|e| (c.id, e.id)))
-                else {
-                    warn!("conversation {:?} not found", runner.conversation);
-                    let nowhere = (ConversationId::default(), EntryId::default());
-                    apply_step(
-                        Step::End,
-                        nowhere,
-                        entity,
-                        &mut runner,
-                        participants,
-                        None,
-                        &mut commands,
-                    );
-                    continue;
-                };
-                apply_step(
-                    step_from(db, root),
-                    root,
-                    entity,
-                    &mut runner,
-                    participants,
-                    Some(&mut visits),
-                    &mut commands,
-                );
-            }
-            Phase::Resuming { at } => {
-                // Re-presents the saved entry; the player already saw it, so
-                // no new visit is counted.
-                let step = match subtitle_at(db, at) {
-                    Some(subtitle) => Step::Line(subtitle),
-                    None => {
-                        warn!("resume point {at:?} not found");
-                        Step::End
-                    }
-                };
-                apply_step(
-                    step,
-                    at,
-                    entity,
-                    &mut runner,
-                    participants,
-                    None,
-                    &mut commands,
-                );
-            }
-            _ => {}
-        }
-    }
-}
-
-/// Steps a presenting runner to whatever follows the current line.
-pub fn on_advance(
-    advance: On<AdvanceConversation>,
-    mut runners: Query<(&mut DialogueRunner, Option<&Participants>)>,
-    databases: Res<Assets<DialogueDatabase>>,
-    mut visits: ResMut<Visits>,
-    mut commands: Commands,
-) {
-    let entity = advance.entity;
-    let Ok((mut runner, participants)) = runners.get_mut(entity) else {
+/// Marks a presenting runner as ready to step past its current line.
+pub fn on_advance(advance: On<AdvanceConversation>, mut runners: Query<&mut DialogueRunner>) {
+    let Ok(mut runner) = runners.get_mut(advance.entity) else {
         return;
     };
     let Phase::Presenting { at } = runner.phase else {
         warn!("AdvanceConversation while not presenting; ignored");
         return;
     };
-    let Some(db) = databases.get(&runner.database) else {
-        return;
-    };
-    apply_step(
-        step_from(db, at),
-        at,
-        entity,
-        &mut runner,
-        participants,
-        Some(&mut visits),
-        &mut commands,
-    );
+    runner.phase = Phase::Advancing { from: at };
 }
 
-/// Presents the chosen player response as the next line.
-pub fn on_choose(
-    choose: On<ChooseResponse>,
-    mut runners: Query<(&mut DialogueRunner, Option<&Participants>)>,
-    databases: Res<Assets<DialogueDatabase>>,
-    mut visits: ResMut<Visits>,
-    mut commands: Commands,
-) {
-    let entity = choose.entity;
-    let Ok((mut runner, participants)) = runners.get_mut(entity) else {
+/// Marks a choosing runner's picked response, by menu index.
+pub fn on_choose(choose: On<ChooseResponse>, mut runners: Query<&mut DialogueRunner>) {
+    let Ok(mut runner) = runners.get_mut(choose.entity) else {
         return;
     };
     let Phase::AwaitingChoice { responses, .. } = &runner.phase else {
         warn!("ChooseResponse while no menu is open; ignored");
         return;
     };
-    let Some(response) = responses.get(choose.index).cloned() else {
+    let Some(response) = responses.get(choose.index) else {
         warn!("ChooseResponse index {} out of bounds", choose.index);
         return;
     };
-    let Some(db) = databases.get(&runner.database) else {
-        return;
+    runner.phase = Phase::Choosing {
+        to: (response.conversation, response.entry),
     };
-    let step = match subtitle_at(db, (response.conversation, response.entry)) {
-        Some(subtitle) => Step::Line(subtitle),
-        None => Step::End,
-    };
-    apply_step(
-        step,
-        (response.conversation, response.entry),
-        entity,
-        &mut runner,
-        participants,
-        Some(&mut visits),
-        &mut commands,
-    );
 }
 
-/// Applies a [`Step`] to a runner: updates its phase, records visits, and
-/// emits the event. `from` is the entry the step was taken from, kept as the
-/// menu's position. `visits: None` skips recording (resume re-presents a line
-/// the player already saw).
+/// Drives every runner with pending work: starting, resuming, advancing past
+/// a finished line, or presenting a chosen response.
+///
+/// Exclusive because conditions and scripts may reach anything in the world.
+pub fn drive_runners(world: &mut World) {
+    let pending: Vec<_> = world
+        .query::<(Entity, &DialogueRunner)>()
+        .iter(world)
+        .filter(|(_, runner)| {
+            matches!(
+                runner.phase,
+                Phase::Starting
+                    | Phase::Resuming { .. }
+                    | Phase::Advancing { .. }
+                    | Phase::Choosing { .. }
+            )
+        })
+        .map(|(entity, runner)| {
+            (
+                entity,
+                runner.database.clone(),
+                runner.conversation.clone(),
+                runner.phase.clone(),
+            )
+        })
+        .collect();
+    for (entity, database, conversation, phase) in pending {
+        drive_runner(world, entity, &database, conversation, phase);
+    }
+}
+
+/// Steps one runner; does nothing while its database asset isn't loaded.
+fn drive_runner(
+    world: &mut World,
+    entity: Entity,
+    database: &Handle<DialogueDatabase>,
+    conversation: ConversationRef,
+    phase: Phase,
+) {
+    // The database is cloned out of Assets so conditions, scripts, and
+    // observers keep unrestricted world access while we traverse it.
+    let Some(db) = world
+        .resource::<Assets<DialogueDatabase>>()
+        .get(database)
+        .cloned()
+    else {
+        return;
+    };
+    // Seeding and compilation normally follow asset events, which land one
+    // frame after the asset exists. A conversation starting on that first
+    // frame must not race them, so first contact does both (idempotently).
+    if matches!(phase, Phase::Starting | Phase::Resuming { .. }) {
+        world.resource_mut::<Variables>().seed(&db);
+        ensure_compiled(world, database.id(), &db);
+    }
+    match phase {
+        Phase::Starting => {
+            match find_conversation(&db, &conversation)
+                .and_then(|c| root_entry(c).map(|e| (c.id, e.id)))
+            {
+                Some(root) => advance_from(world, entity, &db, root),
+                None => {
+                    warn!("conversation {conversation:?} not found");
+                    let nowhere = (ConversationId::default(), EntryId::default());
+                    apply_step(world, entity, Step::End, nowhere, true);
+                }
+            }
+        }
+        Phase::Resuming { at } => {
+            let step = match subtitle_at(&db, at) {
+                Some(subtitle) => Step::Line(subtitle),
+                None => {
+                    warn!("resume point {at:?} not found");
+                    Step::End
+                }
+            };
+            apply_step(world, entity, step, at, false);
+        }
+        Phase::Advancing { from } => advance_from(world, entity, &db, from),
+        Phase::Choosing { to } => {
+            let step = match subtitle_at(&db, to) {
+                Some(subtitle) => Step::Line(subtitle),
+                None => Step::End,
+            };
+            apply_step(world, entity, step, to, true);
+        }
+        _ => {}
+    }
+}
+
+/// Steps past `from` to whatever follows, gating links by their conditions.
+fn advance_from(
+    world: &mut World,
+    entity: Entity,
+    db: &DialogueDatabase,
+    from: (ConversationId, EntryId),
+) {
+    let step = step_from(db, from, &mut |key| check_condition(world, key));
+    apply_step(world, entity, step, from, true);
+}
+
+/// Applies a [`Step`] to a runner: updates its phase, records visits, runs
+/// the presented entry's script, and emits the event. `from` is the entry the
+/// step was taken from, kept as the menu's position. `fresh: false` means the
+/// line was already seen (resume): no visit is counted, no script runs.
 fn apply_step(
+    world: &mut World,
+    entity: Entity,
     step: Step,
     from: (ConversationId, EntryId),
-    entity: Entity,
-    runner: &mut DialogueRunner,
-    participants: Option<&Participants>,
-    visits: Option<&mut Visits>,
-    commands: &mut Commands,
+    fresh: bool,
 ) {
+    // A new step replaces the presented line; its sequence stops, converging.
+    stop_sequences(world, entity);
     match step {
         Step::Line(subtitle) => {
-            runner.phase = Phase::Presenting {
-                at: (subtitle.conversation, subtitle.entry),
-            };
-            if let Some(visits) = visits {
-                visits.record_displayed((subtitle.conversation, subtitle.entry));
+            let at = (subtitle.conversation, subtitle.entry);
+            set_phase(world, entity, Phase::Presenting { at });
+            if fresh {
+                world.resource_mut::<Visits>().record_displayed(at);
+                run_script(world, at);
             }
-            let bound = |actor: ActorId| participants.and_then(|p| p.0.get(&actor).copied());
-            let speaker = bound(subtitle.actor);
-            let listener = bound(subtitle.conversant);
-            commands.trigger(SubtitleStarted {
+            // Staging is presentation, not logic: unlike the script, the
+            // sequence replays on resume.
+            let cues = build_line_cues(world, at, &subtitle.text);
+            begin_sequence(world, entity, cues);
+            let bound = |world: &World, actor: ActorId| {
+                world
+                    .get::<Participants>(entity)
+                    .and_then(|p| p.0.get(&actor).copied())
+            };
+            let speaker = bound(world, subtitle.actor);
+            let listener = bound(world, subtitle.conversant);
+            world.trigger(SubtitleStarted {
                 entity,
                 subtitle,
                 speaker,
@@ -303,24 +324,33 @@ fn apply_step(
             });
         }
         Step::Menu(responses) => {
-            if let Some(visits) = visits {
+            if fresh {
+                let mut visits = world.resource_mut::<Visits>();
                 for response in &responses {
                     visits.record_offered((response.conversation, response.entry));
                 }
             }
-            commands.trigger(ResponseMenuOpened {
+            set_phase(
+                world,
                 entity,
-                responses: responses.clone(),
-            });
-            runner.phase = Phase::AwaitingChoice {
-                at: from,
-                responses,
-            };
+                Phase::AwaitingChoice {
+                    at: from,
+                    responses: responses.clone(),
+                },
+            );
+            world.trigger(ResponseMenuOpened { entity, responses });
         }
         Step::End => {
-            runner.phase = Phase::Ended;
-            commands.trigger(ConversationEnded { entity });
+            set_phase(world, entity, Phase::Ended);
+            world.trigger(ConversationEnded { entity });
         }
+    }
+}
+
+/// Sets a runner's phase, if the runner still exists.
+fn set_phase(world: &mut World, entity: Entity, phase: Phase) {
+    if let Some(mut runner) = world.get_mut::<DialogueRunner>(entity) {
+        runner.phase = phase;
     }
 }
 
@@ -349,6 +379,9 @@ mod tests {
                 })
                 .collect(),
             fields: vec![],
+            condition: String::new(),
+            script: String::new(),
+            sequence: String::new(),
         };
         DialogueDatabase {
             version: "1".to_owned(),
@@ -389,6 +422,11 @@ mod tests {
 
     #[fixture]
     fn test_app() -> (App, Entity) {
+        app_with(db())
+    }
+
+    /// An app with event-logging observers and one runner on `db`.
+    fn app_with(db: DialogueDatabase) -> (App, Entity) {
         let mut app = App::new();
         app.add_plugins((MinimalPlugins, AssetPlugin::default(), TalksPlugin));
         app.init_resource::<Emitted>();
@@ -408,7 +446,7 @@ mod tests {
         let handle = app
             .world_mut()
             .resource_mut::<Assets<DialogueDatabase>>()
-            .add(db());
+            .add(db);
         let runner = app
             .world_mut()
             .spawn(DialogueRunner::new(
@@ -511,6 +549,111 @@ mod tests {
         );
         let phase = &app.world().get::<DialogueRunner>(resumed).unwrap().phase;
         assert!(matches!(phase, Phase::Presenting { .. }));
+    }
+
+    #[rstest]
+    fn conditions_gate_menus_and_scripts_run_on_presentation() {
+        use crate::data::{FieldValue, Variable};
+
+        // "Hello" greets via script; the "Ask" response needs Rich, which
+        // starts false; a second response "Leave" is always available.
+        let mut db = db();
+        db.variables.push(Variable {
+            name: "Rich".to_owned(),
+            initial: FieldValue::Boolean(false),
+            fields: vec![],
+        });
+        let conversation = &mut db.conversations[0];
+        conversation.entries[1].script = r#"vars["Greeted"] = true"#.to_owned();
+        conversation.entries[1].links.push(Link {
+            dest_conversation: ConversationId(1),
+            dest_entry: EntryId(4),
+        });
+        conversation.entries[2].condition = r#"vars["Rich"]"#.to_owned();
+        conversation.entries[3].actor = ActorId(0);
+        conversation.entries[3].conversant = ActorId(1);
+        conversation.entries[3].menu_text = "Leave".to_owned();
+
+        let (mut app, runner) = app_with(db);
+        app.update(); // presents "Hello" and runs its script
+        assert!(app.world().resource::<Variables>().truthy("Greeted"));
+
+        app.world_mut()
+            .trigger(AdvanceConversation { entity: runner });
+        app.update(); // opens the menu; "Ask" is gated out
+
+        let emitted = &app.world().resource::<Emitted>().0;
+        assert_eq!(emitted, &["line: Hello", "menu: Leave"]);
+    }
+
+    /// How many times the `mark` sequencer command ran.
+    #[derive(Resource, Default)]
+    struct Marked(u32);
+
+    #[rstest]
+    fn lines_play_sequences_that_converge_when_the_step_moves_on() {
+        use crate::runtime::sequencer::PlayingSequence;
+        use crate::scripting::{AddSequencerCommand, CueLife};
+
+        let mut db = db();
+        db.conversations[0].entries[1].sequence = "mark().at(60).required(); wait(60)".to_owned();
+        let (mut app, runner) = app_with(db);
+        app.init_resource::<Marked>();
+        app.add_sequencer_command(
+            "mark",
+            |In((_, ())): In<(Entity, ())>, mut marked: ResMut<Marked>| {
+                marked.0 += 1;
+                CueLife::Instant
+            },
+        );
+
+        app.update(); // presents "Hello"; its sequence starts
+        let world = app.world_mut();
+        assert_eq!(world.query::<&PlayingSequence>().iter(world).count(), 1);
+        assert_eq!(world.resource::<Marked>().0, 0, "mark is a minute out");
+
+        world.trigger(AdvanceConversation { entity: runner });
+        app.update(); // the menu replaces the line; its sequence converges
+
+        assert_eq!(
+            app.world().resource::<Marked>().0,
+            1,
+            "required cues still run when the sequence stops"
+        );
+        let world = app.world_mut();
+        assert_eq!(
+            world.query::<&PlayingSequence>().iter(world).count(),
+            0,
+            "menus play no line sequence"
+        );
+    }
+
+    /// `(LineFinished fired, CueSkipped fired)` in the skip test.
+    #[derive(Resource, Default)]
+    struct SkipLog(u32, u32);
+
+    #[rstest]
+    fn skip_line_fast_forwards_without_advancing(test_app: (App, Entity)) {
+        use crate::runtime::sequencer::{CueSkipped, LineFinished, PlayingSequence, SkipLine};
+
+        let (mut app, runner) = test_app;
+        app.init_resource::<SkipLog>();
+        app.add_observer(|_: On<LineFinished>, mut log: ResMut<SkipLog>| log.0 += 1);
+        app.add_observer(|_: On<CueSkipped>, mut log: ResMut<SkipLog>| log.1 += 1);
+
+        app.update(); // presents "Hello" with the default wait(line_end)
+        app.world_mut().trigger(SkipLine { entity: runner });
+        app.update();
+
+        let log = app.world().resource::<SkipLog>();
+        assert_eq!((log.0, log.1), (1, 1));
+        let world = app.world_mut();
+        assert_eq!(world.query::<&PlayingSequence>().iter(world).count(), 0);
+        let phase = &world.get::<DialogueRunner>(runner).unwrap().phase;
+        assert!(
+            matches!(phase, Phase::Presenting { .. }),
+            "skipping the sequence doesn't advance the line"
+        );
     }
 
     #[rstest]
