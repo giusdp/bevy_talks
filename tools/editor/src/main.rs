@@ -380,10 +380,20 @@ const GRID_MAJOR_EVERY: i32 = 5;
 
 /// Background grid lines for the canvas, spanning enough to survive panning.
 fn grid_lines() -> Vec<Box<dyn Scene>> {
-    let verticals = (0..GRID_COLUMNS)
-        .map(|i| Box::new(grid_line(i as f32 * GRID_SPACING, true, i % GRID_MAJOR_EVERY == 0)) as _);
-    let horizontals = (0..GRID_ROWS)
-        .map(|i| Box::new(grid_line(i as f32 * GRID_SPACING, false, i % GRID_MAJOR_EVERY == 0)) as _);
+    let verticals = (0..GRID_COLUMNS).map(|i| {
+        Box::new(grid_line(
+            i as f32 * GRID_SPACING,
+            true,
+            i % GRID_MAJOR_EVERY == 0,
+        )) as _
+    });
+    let horizontals = (0..GRID_ROWS).map(|i| {
+        Box::new(grid_line(
+            i as f32 * GRID_SPACING,
+            false,
+            i % GRID_MAJOR_EVERY == 0,
+        )) as _
+    });
     verticals.chain(horizontals).collect()
 }
 
