@@ -1,0 +1,1053 @@
+<!DOCTYPE HTML>
+<html lang="en" class="light sidebar-visible" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Bevy Talks Documentation</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon-de23e50b.svg">
+        <link rel="shortcut icon" href="favicon-8114d1fc.png">
+        <link rel="stylesheet" href="css/variables-8adf115d.css">
+        <link rel="stylesheet" href="css/general-0392ca55.css">
+        <link rel="stylesheet" href="css/chrome-fc474251.css">
+        <link rel="stylesheet" href="css/print-9e4910d8.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="fonts/fonts-9644e21d.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" id="mdbook-highlight-css" href="highlight-493f70e1.css">
+        <link rel="stylesheet" id="mdbook-tomorrow-night-css" href="tomorrow-night-4c0ae647.css">
+        <link rel="stylesheet" id="mdbook-ayu-highlight-css" href="ayu-highlight-3fdfc3ac.css">
+
+        <!-- Custom theme stylesheets -->
+
+
+        <!-- Provide site root and default themes to javascript -->
+        <script>
+            const path_to_root = "";
+            const default_light_theme = "light";
+            const default_dark_theme = "navy";
+            window.path_to_searchindex_js = "searchindex-7667e792.js";
+        </script>
+        <!-- Start loading toc.js asap -->
+        <script src="toc-f9d1afe1.js"></script>
+    </head>
+    <body>
+    <div id="mdbook-help-container">
+        <div id="mdbook-help-popup">
+            <h2 class="mdbook-help-title">Keyboard shortcuts</h2>
+            <div>
+                <p>Press <kbd>←</kbd> or <kbd>→</kbd> to navigate between chapters</p>
+                <p>Press <kbd>S</kbd> or <kbd>/</kbd> to search in the book</p>
+                <p>Press <kbd>?</kbd> to show this help</p>
+                <p>Press <kbd>Esc</kbd> to hide this help</p>
+            </div>
+        </div>
+    </div>
+    <div id="mdbook-body-container">
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                let theme = localStorage.getItem('mdbook-theme');
+                let sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            const default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? default_dark_theme : default_light_theme;
+            let theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            const html = document.documentElement;
+            html.classList.remove('light')
+            html.classList.add(theme);
+            html.classList.add("js");
+        </script>
+
+        <input type="checkbox" id="mdbook-sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            let sidebar = null;
+            const sidebar_toggle = document.getElementById("mdbook-sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+                sidebar_toggle.checked = false;
+            }
+            if (sidebar === 'visible') {
+                sidebar_toggle.checked = true;
+            } else {
+                html.classList.remove('sidebar-visible');
+            }
+        </script>
+
+        <nav id="mdbook-sidebar" class="sidebar" aria-label="Table of contents">
+            <!-- populated by js -->
+            <mdbook-sidebar-scrollbox class="sidebar-scrollbox"></mdbook-sidebar-scrollbox>
+            <noscript>
+                <iframe class="sidebar-iframe-outer" src="toc.html"></iframe>
+            </noscript>
+            <div id="mdbook-sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <div id="mdbook-page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                <div id="mdbook-menu-bar-hover-placeholder"></div>
+                <div id="mdbook-menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="mdbook-sidebar-toggle" class="icon-button" for="mdbook-sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="mdbook-sidebar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M0 96C0 78.3 14.3 64 32 64H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32C14.3 128 0 113.7 0 96zM0 256c0-17.7 14.3-32 32-32H416c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32zM448 416c0 17.7-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32H416c17.7 0 32 14.3 32 32z"/></svg></span>
+                        </label>
+                        <button id="mdbook-theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="mdbook-theme-list">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M371.3 367.1c27.3-3.9 51.9-19.4 67.2-42.9L600.2 74.1c12.6-19.5 9.4-45.3-7.6-61.2S549.7-4.4 531.1 9.6L294.4 187.2c-24 18-38.2 46.1-38.4 76.1L371.3 367.1zm-19.6 25.4l-116-104.4C175.9 290.3 128 339.6 128 400c0 3.9 .2 7.8 .6 11.6c1.8 17.5-10.2 36.4-27.8 36.4H96c-17.7 0-32 14.3-32 32s14.3 32 32 32H240c61.9 0 112-50.1 112-112c0-2.5-.1-5-.2-7.5z"/></svg></span>
+                        </button>
+                        <ul id="mdbook-theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-default_theme">Auto</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-rust">Rust</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-coal">Coal</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-navy">Navy</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="mdbook-theme-ayu">Ayu</button></li>
+                        </ul>
+                        <button id="mdbook-search-toggle" class="icon-button" type="button" title="Search (`/`)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="/ s" aria-controls="mdbook-searchbar">
+                            <span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M416 208c0 45.9-14.9 88.3-40 122.7L502.6 457.4c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L330.7 376c-34.4 25.2-76.8 40-122.7 40C93.1 416 0 322.9 0 208S93.1 0 208 0S416 93.1 416 208zM208 352c79.5 0 144-64.5 144-144s-64.5-144-144-144S64 128.5 64 208s64.5 144 144 144z"/></svg></span>
+                        </button>
+                    </div>
+
+                    <h1 class="menu-title">Bevy Talks Documentation</h1>
+
+                    <div class="right-buttons">
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <span class=fa-svg id="print-button"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M128 0C92.7 0 64 28.7 64 64v96h64V64H354.7L384 93.3V160h64V93.3c0-17-6.7-33.3-18.7-45.3L400 18.7C388 6.7 371.7 0 354.7 0H128zM384 352v32 64H128V384 368 352H384zm64 32h32c17.7 0 32-14.3 32-32V256c0-35.3-28.7-64-64-64H64c-35.3 0-64 28.7-64 64v96c0 17.7 14.3 32 32 32H64v64c0 35.3 28.7 64 64 64H384c35.3 0 64-28.7 64-64V384zm-16-88c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></svg></span>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="mdbook-search-wrapper" class="hidden">
+                    <form id="mdbook-searchbar-outer" class="searchbar-outer">
+                        <div class="search-wrapper">
+                            <input type="search" id="mdbook-searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="mdbook-searchresults-outer" aria-describedby="searchresults-header">
+                            <div class="spinner-wrapper">
+                                <span class=fa-svg id="fa-spin"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M304 48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zm0 416c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM48 304c26.5 0 48-21.5 48-48s-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48zm464-48c0-26.5-21.5-48-48-48s-48 21.5-48 48s21.5 48 48 48s48-21.5 48-48zM142.9 437c18.7-18.7 18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zm0-294.2c18.7-18.7 18.7-49.1 0-67.9S93.7 56.2 75 75s-18.7 49.1 0 67.9s49.1 18.7 67.9 0zM369.1 437c18.7 18.7 49.1 18.7 67.9 0s18.7-49.1 0-67.9s-49.1-18.7-67.9 0s-18.7 49.1 0 67.9z"/></svg></span>
+                            </div>
+                        </div>
+                    </form>
+                    <div id="mdbook-searchresults-outer" class="searchresults-outer hidden">
+                        <div id="mdbook-searchresults-header" class="searchresults-header"></div>
+                        <ul id="mdbook-searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('mdbook-sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('mdbook-sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#mdbook-sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="mdbook-content" class="content">
+                    <main>
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<blockquote>
+<p><strong>⚠</strong> <code>bevy_talks</code> is in development. The API described here is young and will change. Feedback is very welcome.</p>
+</blockquote>
+<p><code>bevy_talks</code> is a dialogue system for <a href="https://bevyengine.org">Bevy</a>. It gives
+your game:</p>
+<ul>
+<li><strong>A dialogue database asset</strong>: actors and conversations authored as <code>.dialogue.ron</code> files, loaded through the Bevy asset server.</li>
+<li><strong>Conversations as graphs</strong>: each conversation is a directed graph of  entries: spoken lines, player choices, and organizational group nodes, connected by links.</li>
+<li><strong>A runtime that plays them</strong>: spawn a <code>DialogueRunner</code>, observe the events it emits, and render them however your game wants.</li>
+<li><strong>A variable store</strong>: a <code>Variables</code> resource seeded from the database, the shared game state that dialogue and gameplay read and write.</li>
+<li><strong>Conditions and scripts</strong>: entries carry <a href="https://rhai.rs">Rhai</a> logic that gates branches and runs effects, with your own Bevy systems callable from dialogue.</li>
+<li><strong>Sequences and cutscenes</strong>: entries stage what happens while a line plays, with timed cues that call into your game: camera moves, animations, pauses.</li>
+<li><strong>A visual editor</strong>: a Bevy app for authoring databases: a node canvas for the conversation graph, an inspector for entries and actors, and save/load.</li>
+</ul>
+<h2 id="the-shape-of-a-conversation"><a class="header" href="#the-shape-of-a-conversation">The shape of a conversation</a></h2>
+<p>Every conversation starts at its <strong>root entry</strong> and flows along links. An
+entry spoken by a non-player actor is presented as a line; when the only ways
+forward are entries spoken by a player actor, they are offered as a choice
+menu. When there are no links left, the conversation ends.</p>
+<pre class="mermaid">graph LR
+    START --&gt; hello["Actor 1: Hello"]
+    hello --&gt; ask["Player: Ask about Bevy"]
+    hello --&gt; bye["Player: Say goodbye"]
+    ask --&gt; answer["Actor 1: It's a game engine in Rust!"]
+</pre>
+
+<h2 id="where-to-go-next"><a class="header" href="#where-to-go-next">Where to go next</a></h2>
+<ul>
+<li><a href="#getting-started">Getting Started</a> — play your first conversation.</li>
+<li><a href="#the-dialogue-database">The Dialogue Database</a> — the data model.</li>
+<li><a href="#playing-conversations">Playing Conversations</a> — the runtime in detail.</li>
+<li><a href="#the-editor">The Editor</a> — authoring without writing RON by hand.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="getting-started"><a class="header" href="#getting-started">Getting Started</a></h1>
+<h2 id="install"><a class="header" href="#install">Install</a></h2>
+<p>Add the plugin to your app:</p>
+<pre class="playground"><code class="language-rust no_run">use bevy::prelude::*;
+use bevy_talks::prelude::*;
+
+fn main() {
+    App::new()
+        .add_plugins((DefaultPlugins, TalksPlugin))
+        .run();
+}</code></pre>
+<p><code>TalksPlugin</code> registers the <code>DialogueDatabase</code> asset, its <code>.dialogue.ron</code> loader, and the conversation runtime.</p>
+<h2 id="author-a-database"><a class="header" href="#author-a-database">Author a database</a></h2>
+<p>Put a <code>.dialogue.ron</code> file in your assets folder — either written by hand (see <a href="#the-dialogueron-format">the format</a>) or authored in <a href="#the-editor">the editor</a>. A minimal one:</p>
+<pre><code class="language-ron">(
+    version: "1",
+    actors: [
+        (id: 0, name: "Player", is_player: true),
+        (id: 1, name: "Actor 1", is_player: false),
+    ],
+    conversations: [
+        (
+            id: 1,
+            title: "Greeting",
+            actor: 0,
+            conversant: 1,
+            entries: [
+                (
+                    id: 1, actor: 1, conversant: 0,
+                    menu_text: "", dialogue_text: "",
+                    is_root: true, is_group: false,
+                    links: [(dest_conversation: 1, dest_entry: 2)],
+                ),
+                (
+                    id: 2, actor: 1, conversant: 0,
+                    menu_text: "", dialogue_text: "Welcome back.",
+                    is_root: false, is_group: false,
+                    links: [],
+                ),
+            ],
+        ),
+    ],
+)
+</code></pre>
+<h2 id="play-it"><a class="header" href="#play-it">Play it</a></h2>
+<p>Spawning a <code>DialogueRunner</code> starts the conversation.
+Observe the events it emits and drive it with <code>AdvanceConversation</code> and <code>ChooseResponse</code>:</p>
+<pre><code class="language-rust ignore">fn start(mut commands: Commands, assets: Res&lt;AssetServer&gt;) {
+    let db: Handle&lt;DialogueDatabase&gt; = assets.load("my_game.dialogue.ron");
+    commands.spawn(DialogueRunner::new(
+        db,
+        ConversationRef::Title("Greeting".to_owned()),
+    ));
+}
+
+fn show_line(line: On&lt;SubtitleStarted&gt;) {
+    println!("{}", line.subtitle.text);
+    // present the line, then when the player continues:
+    // commands.trigger(AdvanceConversation { entity: line.entity });
+}
+
+fn show_menu(menu: On&lt;ResponseMenuOpened&gt;) {
+    for (i, response) in menu.responses.iter().enumerate() {
+        println!("{}) {}", i + 1, response.text);
+    }
+    // when the player picks one:
+    // commands.trigger(ChooseResponse { entity: menu.entity, index });
+}
+
+fn done(_: On&lt;ConversationEnded&gt;) {
+    println!("bye!");
+}</code></pre>
+<p>Register the observers with <code>app.add_observer(...)</code>, or scope them to one runner with <code>.observe(...)</code> at the spawn site.</p>
+<h2 id="a-complete-example"><a class="header" href="#a-complete-example">A complete example</a></h2>
+<p>The repository ships a playable terminal example:</p>
+<pre><code class="language-sh">cargo run --example terminal
+</code></pre>
+<p>It plays <code>assets/test.dialogue.ron</code> in your shell.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-dialogue-database"><a class="header" href="#the-dialogue-database">The Dialogue Database</a></h1>
+<p>A <code>DialogueDatabase</code> is the unit of authored content: one asset holding the cast and every conversation that plays against it.</p>
+<pre class="mermaid">graph TD
+    DB[DialogueDatabase] --&gt; Actors
+    DB --&gt; Variables
+    DB --&gt; Conversations
+    Conversations --&gt; Entries[DialogueEntry]
+    Entries --&gt; Links[Link]
+</pre>
+
+<h2 id="actors"><a class="header" href="#actors">Actors</a></h2>
+<pre><code class="language-rust ignore">pub struct Actor {
+    pub id: ActorId,        // unique within the database
+    pub name: String,
+    pub is_player: bool,
+    pub fields: Vec&lt;Field&gt;, // custom data
+}</code></pre>
+<p><code>is_player</code> matters at runtime: entries spoken by player actors become menu choices, entries spoken by everyone else are presented as lines.</p>
+<h2 id="variables"><a class="header" href="#variables">Variables</a></h2>
+<pre><code class="language-rust ignore">pub struct Variable {
+    pub name: String,        // unique within the database
+    pub initial: FieldValue, // what it starts as
+    pub fields: Vec&lt;Field&gt;,  // custom data
+}</code></pre>
+<p>Named game-state values and what they start as. At runtime they seed the <a href="#variables-1"><code>Variables</code> store</a>.</p>
+<h2 id="conversations"><a class="header" href="#conversations">Conversations</a></h2>
+<pre><code class="language-rust ignore">pub struct Conversation {
+    pub id: ConversationId,   // unique within the database
+    pub title: String,        // the human-facing handle, used to start it
+    pub actor: ActorId,       // default speaker
+    pub conversant: ActorId,  // default listener
+    pub entries: Vec&lt;DialogueEntry&gt;,
+    pub fields: Vec&lt;Field&gt;,
+}</code></pre>
+<h2 id="entries"><a class="header" href="#entries">Entries</a></h2>
+<p>An entry is one node of the conversation graph:</p>
+<pre><code class="language-rust ignore">pub struct DialogueEntry {
+    pub id: EntryId,          // unique within its conversation
+    pub actor: ActorId,       // who speaks
+    pub conversant: ActorId,  // who is spoken to
+    pub menu_text: String,    // label when offered as a choice
+    pub dialogue_text: String,// the spoken line
+    pub is_root: bool,        // the conversation's entry point
+    pub is_group: bool,       // organizational pass-through node
+    pub links: Vec&lt;Link&gt;,
+    pub fields: Vec&lt;Field&gt;,
+}</code></pre>
+<ul>
+<li>Exactly one entry per conversation should be the <strong>root</strong> (the starting point). Its own text is never displayed.</li>
+<li><strong>Group</strong> entries carry no dialogue of their own: at runtime they are transparent, and evaluation flows straight through their links. Use them to
+organize large graphs.</li>
+<li><code>menu_text</code> and <code>dialogue_text</code> are separate so a choice can read differently in the menu (“Ask about the ship”) than when spoken
+(“So… what’s the deal with the ship?”). If <code>menu_text</code> is empty, menus fall back to <code>dialogue_text</code>.</li>
+</ul>
+<h2 id="links"><a class="header" href="#links">Links</a></h2>
+<pre><code class="language-rust ignore">pub struct Link {
+    pub dest_conversation: ConversationId,
+    pub dest_entry: EntryId,
+}</code></pre>
+<p>A link is a directed edge to any entry, including entries of <em>other</em> conversations, which lets long dialogue be split into manageable pieces.
+Link order is meaningful: menus offer choices in link order.</p>
+<h2 id="custom-fields"><a class="header" href="#custom-fields">Custom fields</a></h2>
+<p>Every actor, conversation, and entry carries a <code>fields</code> bag:</p>
+<pre><code class="language-rust ignore">pub struct Field {
+    pub title: String,
+    pub value: FieldValue, // Text | Number | Boolean | Localization | Actor
+}</code></pre>
+<p>Fields are the extension point for anything the core schema doesn’t model: game-specific metadata, localized text variants, editor data.
+The editor itself stores node canvas positions as <code>canvas_x</code>/<code>canvas_y</code> number fields.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-dialogueron-format"><a class="header" href="#the-dialogueron-format">The dialogue.ron Format</a></h1>
+<p>Databases are stored as <a href="https://github.com/ron-rs/ron">RON</a> files with the <code>.dialogue.ron</code> extension.
+The file is a direct serialization of <code>DialogueDatabase</code>.</p>
+<pre><code class="language-ron">(
+    version: "1",
+    variables: [
+        (name: "AcceptedJob", initial: Boolean(false)),
+    ],
+    actors: [
+        (
+            id: 0,
+            name: "Player",
+            is_player: true,
+            fields: [],
+        ),
+    ],
+    conversations: [
+        (
+            id: 1,
+            title: "Greeting",
+            actor: 0,
+            conversant: 1,
+            entries: [
+                (
+                    id: 1,
+                    actor: 1,
+                    conversant: 0,
+                    menu_text: "",
+                    dialogue_text: "Hello",
+                    is_root: true,
+                    is_group: false,
+                    links: [
+                        (dest_conversation: 1, dest_entry: 2),
+                    ],
+                    fields: [
+                        (title: "mood", value: Text("cheerful")),
+                        (title: "canvas_x", value: Number(25.0)),
+                    ],
+                ),
+            ],
+            fields: [],
+        ),
+    ],
+)
+</code></pre>
+<p>Notes:</p>
+<ul>
+<li><code>fields</code> and <code>variables</code> may be omitted, as may an entry’s <code>condition</code> and <code>script</code> (see <a href="#conditions-and-scripts">Conditions and Scripts</a>).</li>
+<li>Field values are tagged enum variants: <code>Text("…")</code>, <code>Number(1.5)</code>, <code>Boolean(true)</code>, <code>Localization("…")</code>, <code>Actor(2)</code>.</li>
+<li>Loading is <strong>lenient</strong>: files that parse are accepted even if their content has problems. See <a href="#validation">Validation</a>.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="validation"><a class="header" href="#validation">Validation</a></h1>
+<p><code>bevy_talks</code> never refuses to load a database because its <em>content</em> is wrong.
+Instead, validation is a separate, explicit step that reports problems:</p>
+<pre><code class="language-rust ignore">use bevy_talks::prelude::validate;
+
+for issue in validate(&amp;db) {
+    warn!("{issue}");
+}</code></pre>
+<p>An empty result means the database is clean. The reported <code>Issue</code>s:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Issue</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>DuplicateActor</code></td><td>two actors share an id</td></tr>
+<tr><td><code>DuplicateConversation</code></td><td>two conversations share an id</td></tr>
+<tr><td><code>DuplicateEntry</code></td><td>two entries in one conversation share an id</td></tr>
+<tr><td><code>NoRoot</code></td><td>a conversation has no root entry</td></tr>
+<tr><td><code>MultipleRoots</code></td><td>a conversation has more than one root entry</td></tr>
+<tr><td><code>DanglingLink</code></td><td>a link points at a missing destination</td></tr>
+</tbody>
+</table>
+</div>
+<p>The editor runs validation continuously and shows the result in its status bar.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="playing-conversations"><a class="header" href="#playing-conversations">Playing Conversations</a></h1>
+<h2 id="the-runner"><a class="header" href="#the-runner">The runner</a></h2>
+<p>A conversation plays on a <strong>runner entity</strong>. Spawning it is starting it:</p>
+<pre><code class="language-rust ignore">commands.spawn(DialogueRunner::new(
+    database_handle,
+    ConversationRef::Title("Greeting".to_owned()), // or ConversationRef::Id(..)
+));</code></pre>
+<p>The runner waits until the database asset is loaded, finds the conversation, and steps from its root entry.
+From then on it is a small state machine, exposed as <code>runner.phase</code>:</p>
+<ul>
+<li><code>Starting</code>: waiting for the asset.</li>
+<li><code>Presenting</code>: a line is on screen; waiting for <code>AdvanceConversation</code>.</li>
+<li><code>AwaitingChoice</code>: a menu is open; waiting for <code>ChooseResponse</code>.</li>
+<li><code>Ended</code>: done.</li>
+</ul>
+<blockquote>
+<p><strong>⚠</strong> The DialogueRunner entity stays alive in <code>Ended</code> phase. Despawning it is your call.</p>
+</blockquote>
+<h2 id="events"><a class="header" href="#events">Events</a></h2>
+<p>All communication happens through entity events on the runner.</p>
+<p><strong>Emitted by the runner</strong> (observe globally with <code>app.add_observer</code>, or on the runner entity with <code>.observe</code>):</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Event</th><th>Payload</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>SubtitleStarted</code></td><td><code>subtitle</code>, <code>speaker</code>, <code>listener</code></td><td>present this line</td></tr>
+<tr><td><code>ResponseMenuOpened</code></td><td><code>responses</code></td><td>present this choice menu</td></tr>
+<tr><td><code>ConversationEnded</code></td><td></td><td>nothing follows</td></tr>
+</tbody>
+</table>
+</div>
+<p><strong>Triggered by the game</strong>:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Event</th><th>Meaning</th></tr>
+</thead>
+<tbody>
+<tr><td><code>AdvanceConversation { entity }</code></td><td>the current line is done, continue</td></tr>
+<tr><td><code>ChooseResponse { entity, index }</code></td><td>pick the <code>index</code>-th offered response</td></tr>
+</tbody>
+</table>
+</div>
+<p>Inputs in the wrong phase (advancing while a menu is open, an out-of-range index) are logged and ignored.</p>
+<h2 id="the-flow"><a class="header" href="#the-flow">The flow</a></h2>
+<pre class="mermaid">flowchart TD
+    spawn([spawn DialogueRunner]) --&gt; step
+    step{evaluate links of\ncurrent entry}
+    step --&gt;|first non-player response| line[SubtitleStarted]
+    step --&gt;|only player responses| menu[ResponseMenuOpened]
+    step --&gt;|no responses| ended[ConversationEnded]
+    line --&gt;|AdvanceConversation| step
+    menu --&gt;|ChooseResponse| chosen[SubtitleStarted\nfor the chosen line]
+    chosen --&gt;|AdvanceConversation| step
+</pre>
+
+<p>The stepping rules:</p>
+<ul>
+<li>Links are evaluated <strong>in order</strong>.</li>
+<li>If any reachable response is spoken by a <strong>non-player</strong> actor, the first one wins and is presented as the next line.</li>
+<li>Otherwise, all reachable <strong>player</strong> responses become the menu, labeled with <code>menu_text</code>.
+The chosen entry is then presented as a spoken line before stepping onward.</li>
+<li>No responses means the conversation ends.</li>
+<li>The root entry’s own text is skipped; conversations effectively begin at whatever the root links to.</li>
+</ul>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="actors-and-participants"><a class="header" href="#actors-and-participants">Actors and Participants</a></h1>
+<h2 id="every-line-already-knows-its-actors"><a class="header" href="#every-line-already-knows-its-actors">Every line already knows its actors</a></h2>
+<p>When you author an entry in the editor, you pick two actors for it: who
+speaks the line and who is being spoken to. That information is stored in
+the database, so the runtime never has to guess who is talking.</p>
+<p>When the runner presents a line, the <code>SubtitleStarted</code> event carries both as
+<code>ActorId</code>s:</p>
+<pre><code class="language-rust ignore">fn show_line(line: On&lt;SubtitleStarted&gt;) {
+    let speaker_id = line.subtitle.actor;       // who says the line
+    let listener_id = line.subtitle.conversant; // who it's said to
+    // look the name up in the database:
+    // db.actors.iter().find(|a| a.id == speaker_id).map(|a| &amp;a.name)
+}</code></pre>
+<p>If all your UI needs is a name above a text box, <strong>you are done</strong>. Look the name up by id and render.</p>
+<h2 id="the-problem-participants-component-solves"><a class="header" href="#the-problem-participants-component-solves">The problem <code>Participants</code> component solves</a></h2>
+<p>An <code>ActorId</code> is just a number in a data file. Suppose a line is spoken by <code>ActorId(1)</code>, “Ferry Keeper”.
+The runtime has no idea that the ferry keeper in your <em>scene</em> is that entity standing on the pier.
+If you want to spawn a speech bubble above her head or point the camera at her, you need an
+<code>Entity</code>, not an id.</p>
+<p><code>Participants</code> is how you tell the dialogue runner. It’s an optional component, a plain map from <code>ActorId</code> to <code>Entity</code>,
+added next to the <code>DialogueRunner</code> when you spawn it:</p>
+<pre><code class="language-rust ignore">use std::collections::HashMap;
+
+commands.spawn((
+    DialogueRunner::new(db, ConversationRef::Title("Greeting".to_owned())),
+    // "in this conversation, actor 0 is the player entity,
+    //  and actor 1 is the ferry keeper entity"
+    Participants(HashMap::from([
+        (ActorId(0), player_entity),
+        (ActorId(1), ferry_keeper_entity),
+    ])),
+));</code></pre>
+<p>With the map in place, the runner does the lookup for you on every line:</p>
+<pre><code class="language-rust ignore">fn show_line(line: On&lt;SubtitleStarted&gt;) {
+    if let Some(speaker_entity) = line.speaker {
+        // `speaker_entity` is the actual Entity, we can spawn the bubble above it
+    }
+}</code></pre>
+<h3 id="the-rules"><a class="header" href="#the-rules">The rules:</a></h3>
+<ul>
+<li><code>line.subtitle.actor</code> / <code>line.subtitle.conversant</code>: the <code>ActorId</code>s. <strong>Always present</strong>, straight from the database.</li>
+<li><code>line.speaker</code> / <code>line.listener</code>: <code>Option&lt;Entity&gt;</code>.
+<ul>
+<li><code>Some</code> only when a <code>Participants</code> map on the runner contains that actor’s id.</li>
+<li><code>None</code> in every other case: no <code>Participants</code> component, or the id isn’t in the map.</li>
+</ul>
+</li>
+<li>You don’t have to map every actor in the conversation. Only the ones you want resolved. Unmapped actors simply come through as <code>None</code>.</li>
+</ul>
+<h3 id="why-the-indirection"><a class="header" href="#why-the-indirection">Why the indirection</a></h3>
+<p>Because the conversation data only ever references actor <em>ids</em>, the same
+graph can play against different casts. A generic “Merchant” conversation
+can run in three towns: each runner maps <code>ActorId(1)</code> to a different
+merchant entity, and the dialogue itself never changes.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="variables-1"><a class="header" href="#variables-1">Variables</a></h1>
+<p>Variables are the game state that dialogue reads and writes: has the player accepted the job, how much gold do they carry, what name did they pick. They also drive <a href="#conditions-and-scripts">conditions and scripts</a> on entries.</p>
+<p>There are two halves: definitions in the database, and a live store at runtime.</p>
+<h2 id="defining-variables-in-the-database"><a class="header" href="#defining-variables-in-the-database">Defining variables in the database</a></h2>
+<p>The database carries a list of variables with their starting values:</p>
+<pre><code class="language-rust ignore">pub struct Variable {
+    pub name: String,        // unique within the database
+    pub initial: FieldValue, // what it starts as
+    pub fields: Vec&lt;Field&gt;,  // custom data
+}</code></pre>
+<p>In a <code>.dialogue.ron</code> file:</p>
+<pre><code class="language-ron">(
+    version: "1",
+    variables: [
+        (name: "AcceptedJob", initial: Boolean(false)),
+        (name: "Gold", initial: Number(10.0)),
+        (name: "PlayerName", initial: Text("")),
+    ],
+    actors: [ /* … */ ],
+    conversations: [ /* … */ ],
+)
+</code></pre>
+<p><code>variables</code> may be omitted entirely; old files load unchanged.</p>
+<h2 id="the-variables-resource"><a class="header" href="#the-variables-resource">The <code>Variables</code> resource</a></h2>
+<p>At runtime all values live in one resource, a plain map from name to <code>FieldValue</code>:</p>
+<pre><code class="language-rust ignore">#[derive(Resource)]
+pub struct Variables(pub HashMap&lt;String, FieldValue&gt;);</code></pre>
+<p>When a database asset loads, the plugin seeds the store: every variable the store doesn’t know yet is inserted at its initial value. Values that already exist are left alone, so a hot-reloaded database never overwrites state the game has changed.</p>
+<p>Read and write it like any resource:</p>
+<pre><code class="language-rust ignore">fn accept_job(mut vars: ResMut&lt;Variables&gt;) {
+    vars.set("AcceptedJob", true);
+    vars.set("Gold", vars.number("Gold") + 50.0);
+}
+
+fn greet(vars: Res&lt;Variables&gt;) {
+    if vars.truthy("AcceptedJob") {
+        // ...
+    }
+}</code></pre>
+<p><code>set</code> accepts anything convertible into a <code>FieldValue</code> (<code>bool</code>, <code>f32</code>, <code>&amp;str</code>, <code>String</code>). Variables don’t have to be declared in the database. <code>set</code> creates them on the fly; the database list is just the authored starting state.</p>
+<h2 id="reading-values"><a class="header" href="#reading-values">Reading values</a></h2>
+<p>A missing variable or a type mismatch returns the type’s default instead of panicking.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Accessor</th><th>Returns</th><th>On missing / wrong type</th></tr>
+</thead>
+<tbody>
+<tr><td><code>get(name)</code></td><td><code>Option&lt;&amp;FieldValue&gt;</code></td><td><code>None</code></td></tr>
+<tr><td><code>truthy(name)</code></td><td><code>bool</code></td><td><code>false</code></td></tr>
+<tr><td><code>number(name)</code></td><td><code>f32</code></td><td><code>0.0</code></td></tr>
+<tr><td><code>text(name)</code></td><td><code>&amp;str</code></td><td><code>""</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Variables reset when the game closes. To keep them across sessions, see <a href="#saving-and-loading">Saving and Loading</a>.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="conditions-and-scripts"><a class="header" href="#conditions-and-scripts">Conditions and Scripts</a></h1>
+<p>Entries can carry logic. A <strong>condition</strong> decides whether the entry can be reached, a <strong>script</strong> runs when the entry is presented. Both are written in <a href="https://rhai.rs/book/">Rhai</a>, a small scripting language embedded in the library, and both are optional. A third kind of entry logic, the sequence, schedules what happens on screen while the line plays; it has <a href="#sequences-and-cutscenes">its own page</a>.</p>
+<pre><code class="language-ron">(
+    id: 3,
+    menu_text: "Bribe the guard",
+    dialogue_text: "Perhaps this changes your mind.",
+    condition: "vars[\"Gold\"] &gt;= 10",
+    script: "vars[\"Gold\"] -= 10; guard_bribed()",
+    // ...
+)
+</code></pre>
+<p>In the editor both live in the Logic section of the entry inspector.</p>
+<h2 id="the-vars-binding"><a class="header" href="#the-vars-binding">The <code>vars</code> binding</a></h2>
+<p>Conditions and scripts see the <a href="#variables-1">variable store</a> as <code>vars</code>:</p>
+<pre><code class="language-rhai">vars["Gold"] &gt;= 10          // read
+vars["AcceptedJob"] = true  // write, creates the variable if needed
+vars.has("MetBoris")        // existence check
+</code></pre>
+<p>Reading a variable that doesn’t exist is an error, so typos surface as warnings instead of silently comparing against a default. Numbers are floats on the script side, but Rhai mixes integers and floats freely: <code>vars["Gold"] &gt;= 10</code> works.</p>
+<h2 id="conditions"><a class="header" href="#conditions">Conditions</a></h2>
+<p>A condition is a single expression that returns a bool. When the runner follows links, every destination is checked: entries whose condition fails are dropped. A choice disappears from the menu, an NPC branch is skipped, and gating a group node cuts off everything behind it. An empty condition always passes.</p>
+<p>Conditions are expressions only. Statements like <code>vars["x"] = 1</code> don’t compile there, which catches the classic <code>=</code> versus <code>==</code> mistake at load time.</p>
+<h2 id="scripts"><a class="header" href="#scripts">Scripts</a></h2>
+<p>A script runs when its entry is presented as a line, after the visit is recorded and before <code>SubtitleStarted</code> fires, so anything the script writes is visible to your observers. Scripts are full Rhai: statements, <code>if</code>, <code>let</code>, function calls.</p>
+<p>Scripts run once per presentation. Resuming a saved conversation re-presents the line without re-running its script, matching how resume skips visit counting.</p>
+<h2 id="calling-into-your-game"><a class="header" href="#calling-into-your-game">Calling into your game</a></h2>
+<p>The game can expose Bevy systems to dialogue logic:</p>
+<pre><code class="language-rust ignore">app.add_dialogue_system("has_item", |In(name): In&lt;String&gt;, inventory: Res&lt;Inventory&gt;| {
+    inventory.contains(&amp;name)
+});
+
+app.add_dialogue_system("give_item", |In(name): In&lt;String&gt;, mut inventory: ResMut&lt;Inventory&gt;| {
+    inventory.add(&amp;name);
+});</code></pre>
+<p>A condition can now say <code>has_item("sword")</code> and a script <code>give_item("sword")</code>. The function runs as a one-shot system in the middle of evaluation, with everything a system can do: queries, resources, commands.</p>
+<p>The system’s <code>In</code> input is the argument list: a single value or a tuple, up to four arguments, of <code>bool</code>, <code>i64</code>, <code>f64</code>, <code>f32</code>, <code>String</code>, or <code>Dynamic</code>. Integer arguments coerce to float parameters. The return value, if any, becomes the call’s result in the script; systems returning nothing are fine for fire-and-forget calls.</p>
+<p>Register systems before the app runs; the script engine picks up changes to the registered set automatically.</p>
+<h2 id="when-logic-breaks"><a class="header" href="#when-logic-breaks">When logic breaks</a></h2>
+<p>Broken logic never blocks dialogue. A condition that fails to compile, errors at runtime, or returns something that isn’t a bool passes with a warning in the log.
+A failing script is reported and skipped. Warnings name the conversation and entry, so a typo in a condition shows up as a log line, not as a quest that can’t be started.</p>
+<p>Compilation of the script code happens once when the database loads, so syntax errors in any entry are reported up front, before the entry is ever reached.</p>
+<h2 id="try-it"><a class="header" href="#try-it">Try it</a></h2>
+<p>The shop example plays a merchant whose greeting, stock, and prices are driven by everything on this page: conditions calling a <code>gold()</code> system, scripts spending it, and a <code>give_item</code> system filling a game resource.</p>
+<pre><code class="language-sh">cargo run --example shop
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="sequences-and-cutscenes"><a class="header" href="#sequences-and-cutscenes">Sequences and Cutscenes</a></h1>
+<p>A <strong>sequence</strong> is <a href="https://rhai.rs/book/">Rhai</a> code that runs when the entry is presented, but instead of doing things on the spot, it schedules <strong>cues</strong>: timed instructions played out while the line is on screen. Camera moves, animations, sounds, pauses.</p>
+<pre><code class="language-ron">(
+    id: 5,
+    dialogue_text: "You dare come back here?",
+    sequence: "shake_camera(0.5); play_anim(\"point\").at(0.8); wait(line_end)",
+    // ...
+)
+</code></pre>
+<p>In the editor the sequence lives in the Logic section of the entry inspector, next to the condition and the script.</p>
+<h2 id="the-timing-methods"><a class="header" href="#the-timing-methods">The timing methods</a></h2>
+<p>Every scheduled cue returns a handle, and the timing methods chain on it:</p>
+<pre><code class="language-rhai">wait(2.0)                              // a cue that lasts two seconds
+emit("looked")                         // fires a message, instantly
+play_anim("draw").at(1.5)             // starts 1.5 seconds in
+play_sound("gasp").after("looked")    // starts when that message fires
+zoom("closeup").emits("zoomed")       // fires a message when done
+reset_camera().required()             // still runs if the line is skipped
+</code></pre>
+<p><code>at</code> delays a cue’s start. <code>after</code> holds it until a message fires. <code>emits</code> fires a message when the cue finishes, which is how cues chain off each other without counting seconds. <code>required</code> marks cleanup that must happen even when the player skips the line.</p>
+<p><code>wait</code> and <code>emit</code> are built in. Everything else is a command your game registers.</p>
+<p>A sequence is full Rhai, so it can branch on game state:</p>
+<pre><code class="language-rhai">if vars["Scared"] { play_anim("cower") } else { play_anim("smirk") }
+wait(line_end)
+</code></pre>
+<h2 id="line_end-and-the-default-sequence"><a class="header" href="#line_end-and-the-default-sequence">line_end and the default sequence</a></h2>
+<p><code>line_end</code> is the estimated reading time of the line: its character count divided by a reading speed, with a floor so short lines don’t flash by. An entry with no sequence plays a default one instead. So every presented line plays a sequence and every line has a clock, even when nobody authored one.</p>
+<p>Both knobs live in the <code>SequencerSettings</code> resource:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Field</th><th>Default</th><th>What it does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>chars_per_second</code></td><td><code>30.0</code></td><td>Reading speed <code>line_end</code> is estimated with. Lower it for slower, more deliberate pacing.</td></tr>
+<tr><td><code>min_seconds</code></td><td><code>1.0</code></td><td>The floor for <code>line_end</code>: even a “Hi.” stays up this long.</td></tr>
+<tr><td><code>default_sequence</code></td><td><code>"wait(line_end)"</code></td><td>The sequence played by entries that don’t author one.</td></tr>
+</tbody>
+</table>
+</div>
+<p><code>TalksPlugin</code> inserts the defaults; to customize, overwrite the resource:</p>
+<pre><code class="language-rust ignore">app.insert_resource(SequencerSettings {
+    chars_per_second: 15.0,
+    min_seconds: 2.0,
+    default_sequence: r#"wait(line_end); emit("line_done")"#.to_owned(),
+});</code></pre>
+<p>The default sequence is full Rhai like any authored one, so it can call your registered commands — handy for a blip sound or a portrait animation on every unauthored line. It is also the fallback: an authored sequence that fails to evaluate logs a warning and plays the default instead. Setting <code>default_sequence</code> to an empty string makes unauthored lines play no cues at all, so their <code>LineFinished</code> fires immediately.</p>
+<h2 id="registering-commands"><a class="header" href="#registering-commands">Registering commands</a></h2>
+<p>Commands are Bevy systems, registered like <a href="#calling-into-your-game">dialogue systems</a>:</p>
+<pre><code class="language-rust ignore">app.add_sequencer_command("play_anim", play_anim);
+
+fn play_anim(In((cue, clip)): In&lt;(Entity, String)&gt;, /* any system params */) -&gt; CueLife {
+    // start the clip...
+    CueLife::For(Duration::from_secs_f32(1.2))
+}</code></pre>
+<p>The system’s <code>In</code> input is the cue entity paired with the arguments (a value or a tuple, up to four of <code>bool</code>, <code>i64</code>, <code>f64</code>, <code>f32</code>, <code>String</code>, or <code>Dynamic</code>). It returns how long the cue lives:</p>
+<ul>
+<li><code>CueLife::Instant</code>: done the moment it ran.</li>
+<li><code>CueLife::For(duration)</code>: done after that long.</li>
+<li><code>CueLife::Until</code>: open-ended. The game finishes it by triggering <code>FinishCue</code> on the cue entity, when the audio ends, the tween completes, the character arrives.</li>
+</ul>
+<h2 id="pacing-the-conversation"><a class="header" href="#pacing-the-conversation">Pacing the conversation</a></h2>
+<p>When a line’s last cue finishes, <code>LineFinished</code> fires on the runner. Advancing stays your call, so nothing moves until you trigger <code>AdvanceConversation</code>. A game that wants sequences to pace the dialogue wires the two together with one observer:</p>
+<pre><code class="language-rust ignore">app.add_observer(|line: On&lt;LineFinished&gt;, mut commands: Commands| {
+    commands.trigger(AdvanceConversation { entity: line.entity });
+});</code></pre>
+<p>With that in place a conversation plays itself: each line stays up for its reading time, or for as long as its cues take, then flows on. Menus still wait for a choice. Manual advance, auto-play, and switching between the two are covered in <a href="#manual-and-auto-advance">Manual and Auto Advance</a>.</p>
+<h2 id="skipping"><a class="header" href="#skipping">Skipping</a></h2>
+<p>Trigger <code>SkipLine</code> on the runner to fast-forward the line’s sequence without advancing the conversation. The sequence ends immediately but lands on the same state it would have reached by playing out: <code>required</code> cues that hadn’t started yet still run (marked with a <code>Skipped</code> component, so their handlers can jump straight to the end result), every running cue gets a <code>CueSkipped</code> event to snap its effects to their final state, and <code>LineFinished</code> fires.</p>
+<p>Advancing or choosing while a sequence is still playing cuts it short the same way, except <code>LineFinished</code> does not fire, since the line was replaced rather than finished.</p>
+<h2 id="script-or-sequence"><a class="header" href="#script-or-sequence">Script or sequence?</a></h2>
+<p>If it changes the game, it is a script. If it shows the game, it is a sequence.</p>
+<p>The two fields differ in when they re-run. A script runs once per visit and never on resume. A sequence replays every time the line is presented, including when a saved conversation resumes, because the re-presented line still needs its cues and its clock. The whole sequence body re-runs to rebuild the cue list, so writing game state there means paying for it again on every load. Keep <code>vars</code> writes and calls like <code>spend(10)</code> in the script; a sequence should be safe to run twice.</p>
+<h2 id="try-it-1"><a class="header" href="#try-it-1">Try it</a></h2>
+<p>The cutscene example plays a stormy inn scene that runs on its own: sound effects landing mid-line, a song chained with messages, a required cue that survives skipping, and the one-observer auto-advance. Enter skips a line.</p>
+<pre><code class="language-sh">cargo run --example cutscene
+</code></pre>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="manual-and-auto-advance"><a class="header" href="#manual-and-auto-advance">Manual and Auto Advance</a></h1>
+<p>Who decides when the next line comes? Some games wait for a click on every line, others also offer an auto mode.</p>
+<p>The key idea: a presented line is not instant, it <em>plays</em> for a while. A line with a <a href="#sequences-and-cutscenes">sequence</a> plays for as long as its effects take.</p>
+<p>Three events are involved. Two are commands your game sends to the dialogue runner:</p>
+<ul>
+<li><code>AdvanceConversation</code> ends the current line and moves on.</li>
+<li><code>SkipLine</code> fast-forwards the current line without leaving it. Fires <code>LineFinished</code> at the end.</li>
+</ul>
+<p>The third goes the other way, from the runner to your game:</p>
+<ul>
+<li><code>LineFinished</code> reports that the line has finished playing. It exists so your game knows the line has nothing left and can advance the conversation.</li>
+</ul>
+<h2 id="manual"><a class="header" href="#manual">Manual</a></h2>
+<p>You can just ignore <code>LineFinished</code> entirely and advance on input:</p>
+<pre><code class="language-rust ignore">// on click / key press, while the runner is presenting:
+commands.trigger(AdvanceConversation { entity: runner });</code></pre>
+<p>This is the shop example.</p>
+<h2 id="manual-with-fast-forward"><a class="header" href="#manual-with-fast-forward">Manual with fast-forward</a></h2>
+<p>What most dialogue-heavy games do: the first press finishes the line, the second moves on. Track whether the line has played out with a marker:</p>
+<pre><code class="language-rust ignore">#[derive(Component)]
+struct LineDone;
+
+app.add_observer(|line: On&lt;LineFinished&gt;, mut commands: Commands| {
+    commands.entity(line.entity).insert(LineDone);
+});
+app.add_observer(|line: On&lt;SubtitleStarted&gt;, mut commands: Commands| {
+    commands.entity(line.entity).remove::&lt;LineDone&gt;();
+});</code></pre>
+<p>Then input branches on the marker:</p>
+<pre><code class="language-rust ignore">fn on_press(runner: Entity, done: bool, commands: &amp;mut Commands) {
+    if done {
+        commands.trigger(AdvanceConversation { entity: runner });
+    } else {
+        commands.trigger(SkipLine { entity: runner });
+    }
+}</code></pre>
+<p>Press once to jump to the end, press again to continue.</p>
+<h2 id="auto-play"><a class="header" href="#auto-play">Auto-play</a></h2>
+<p>One observer, and the lines pace themselves:</p>
+<pre><code class="language-rust ignore">app.add_observer(|line: On&lt;LineFinished&gt;, mut commands: Commands| {
+    commands.trigger(AdvanceConversation { entity: line.entity });
+});</code></pre>
+<p>Every line stays up for its reading time, or for as long as its authored effects take, then flows on.
+This is the cutscene example. Input still works: <code>SkipLine</code> fires <code>LineFinished</code>, which this observer turns into an advance, so pressing skip in auto mode jumps to the next line.</p>
+<p>To give readers more time without touching every entry, stretch the default reading-time clock in <code>SequencerSettings</code>:</p>
+<pre><code class="language-rust ignore">settings.default_sequence = "wait(line_end + 0.75)".to_owned();</code></pre>
+<h2 id="the-toggle"><a class="header" href="#the-toggle">The toggle</a></h2>
+<p>Both modes can be the same two observers with a switch in front:</p>
+<pre><code class="language-rust ignore">#[derive(Resource, Default)]
+struct AutoPlay(bool);
+
+app.add_observer(
+    |line: On&lt;LineFinished&gt;, auto: Res&lt;AutoPlay&gt;, mut commands: Commands| {
+        if auto.0 {
+            commands.trigger(AdvanceConversation { entity: line.entity });
+        } else {
+            commands.entity(line.entity).insert(LineDone);
+        }
+    },
+);</code></pre>
+<p>Input keeps the fast-forward branching from above.
+One catch when the player turns auto on: the current line may have finished long ago, sitting there waiting for a press that will never come. Catch it up when the flag flips:</p>
+<pre><code class="language-rust ignore">fn enable_auto(
+    mut auto: ResMut&lt;AutoPlay&gt;,
+    waiting: Query&lt;Entity, With&lt;LineDone&gt;&gt;,
+    mut commands: Commands,
+) {
+    auto.0 = true;
+    for runner in &amp;waiting {
+        commands.trigger(AdvanceConversation { entity: runner });
+    }
+}</code></pre>
+<p>Turning auto off needs nothing: the next <code>LineFinished</code> simply inserts the marker and waits.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="saving-and-loading"><a class="header" href="#saving-and-loading">Saving and Loading</a></h1>
+<p>Variables and visit counts live in resources, so they vanish when the game closes. The persistence layer turns them into a snapshot your game can store and apply back.</p>
+<p>The library does not own save files. It has no opinion on where saves live, how they are encrypted, or when to write them.
+It gives you a serializable <code>DialogueSave</code> and your game puts it wherever it keeps its saves.</p>
+<h2 id="visit-tracking"><a class="header" href="#visit-tracking">Visit tracking</a></h2>
+<p>Before saving, it helps to know what gets saved. Besides variables, the runner records how often each entry has been reached in the <code>Visits</code> resource:</p>
+<pre><code class="language-rust ignore">pub struct VisitCount {
+    pub offered: u32,   // times the entry appeared in a response menu
+    pub displayed: u32, // times the entry was presented as a line
+}</code></pre>
+<p>Presenting a line bumps its <code>displayed</code> count; opening a menu bumps <code>offered</code> for every choice in it.
+You can read it from your own systems, including <a href="#calling-into-your-game">dialogue systems</a> called from conditions, for things like “only say this once”:</p>
+<pre><code class="language-rust ignore">fn already_greeted(visits: Res&lt;Visits&gt;) -&gt; bool {
+    visits.displayed((ConversationId(1), EntryId(2))) &gt; 0
+}</code></pre>
+<h2 id="the-snapshot"><a class="header" href="#the-snapshot">The snapshot</a></h2>
+<p><code>DialogueSave</code> captures variables and visits in one serializable struct:</p>
+<pre><code class="language-rust ignore">// Saving: record the state and stringify it.
+fn save_game(variables: Res&lt;Variables&gt;, visits: Res&lt;Visits&gt;) {
+    let snapshot = DialogueSave::record(&amp;variables, &amp;visits);
+    let text = save_to_ron(&amp;snapshot).unwrap();
+    // write `text` into your save file
+}
+
+// Loading: parse and apply.
+fn load_game(mut variables: ResMut&lt;Variables&gt;, mut visits: ResMut&lt;Visits&gt;) {
+    let text = /* read from your save file */;
+    let snapshot = save_from_ron(&amp;text).unwrap();
+    snapshot.apply(&amp;mut variables, &amp;mut visits);
+}</code></pre>
+<p><code>save_to_ron</code>/<code>save_from_ron</code> are conveniences. <code>DialogueSave</code> derives serde, so you can also embed it directly in your game’s own save struct and serialize everything together.</p>
+<h2 id="applying-merges"><a class="header" href="#applying-merges">Applying merges</a></h2>
+<p><code>apply</code> overwrites the values present in the snapshot and leaves everything else alone. Combined with database seeding (which only fills in variables the store doesn’t know), this makes loading order-independent and update-safe:</p>
+<ul>
+<li>Load the save before or after the database loads; the result is the same.</li>
+<li>Ship a game update that adds new variables or entries; old saves keep working. The new variables get their initial values, the saved ones keep their saved values.</li>
+</ul>
+<p>Apply a save before anything reads <code>Variables</code>, or those reads see initial values for one moment.</p>
+<h2 id="resuming-a-conversation"><a class="header" href="#resuming-a-conversation">Resuming a conversation</a></h2>
+<p>Runners are entities your game owns, so they are not part of <code>DialogueSave</code>. If you want to save mid-conversation, store the runner’s position in your own save data:</p>
+<pre><code class="language-rust ignore">// Saving: where is the conversation?
+let at: Option&lt;(ConversationId, EntryId)&gt; = runner.save_point();
+
+// Loading: pick it back up.
+commands.spawn(DialogueRunner::resume(database_handle, at));</code></pre>
+<p><code>save_point</code> returns the entry currently on screen, both while a line is presented and while a menu is open (the menu’s entry is the line the choices hang off). On load, the resumed runner re-presents that entry: your UI gets a fresh <code>SubtitleStarted</code> showing the line the player was reading when they saved. It does not count as a new visit. Advancing continues normally; if a menu was open at save time, it reopens on the first advance.</p>
+<p>Most games don’t save mid-conversation. If yours doesn’t, skip all of this: an ended runner returns <code>None</code> and there is nothing to resume.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="rhai-reference"><a class="header" href="#rhai-reference">Rhai Reference</a></h1>
+<p>Conditions, scripts, and sequences all share one engine, so beyond what’s listed here they are plain <a href="https://rhai.rs/book/">Rhai</a>: arithmetic, strings, <code>if</code>, <code>let</code>, loops, functions.</p>
+<h2 id="the-variable-store"><a class="header" href="#the-variable-store">The variable store</a></h2>
+<p>It’s a simple map that is available everywhere. See <a href="#variables-1">Variables</a>. You can access it and modify it in the following ways:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Syntax</th><th>What it does</th></tr>
+</thead>
+<tbody>
+<tr><td><code>vars["Name"]</code></td><td>Reads a variable. Unknown names are an error, so typos surface as warnings.</td></tr>
+<tr><td><code>vars["Name"] = value</code></td><td>Writes a variable, creating it if needed. Holds bools, numbers, and text.</td></tr>
+<tr><td><code>vars.has("Name")</code></td><td>Whether the variable exists.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Numbers are floats on the script side, but Rhai mixes integers and floats freely: <code>vars["Gold"] &gt;= 10</code> works.</p>
+<h2 id="built-in-cues"><a class="header" href="#built-in-cues">Built-in cues</a></h2>
+<p>Available in <a href="#sequences-and-cutscenes">sequences</a>, you can schedule cues instead of running on the spot.</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Call</th><th>What it schedules</th></tr>
+</thead>
+<tbody>
+<tr><td><code>wait(seconds)</code></td><td>A simple wait to make a step in your cutscene to take as long as you need.</td></tr>
+<tr><td><code>emit("message")</code></td><td>Fires a named message. Other cues can start <code>.after</code> it.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Constant</th><th>Value</th></tr>
+</thead>
+<tbody>
+<tr><td><code>line_end</code></td><td>The estimated reading time of the line being presented, from <code>SequencerSettings</code>.</td></tr>
+</tbody>
+</table>
+</div>
+<p>An entry with no sequence plays the default one, <code>wait(line_end)</code> unless you change it in <code>SequencerSettings</code>.</p>
+<h2 id="timing-methods"><a class="header" href="#timing-methods">Timing methods</a></h2>
+<p>There are some built-in methods you can use for timing:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Method</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td><code>.at(seconds)</code></td><td>Starts the cue that many seconds into the sequence.</td></tr>
+<tr><td><code>.after("message")</code></td><td>Holds the cue until that message fires.</td></tr>
+<tr><td><code>.emits("message")</code></td><td>Fires a message when the cue finishes.</td></tr>
+<tr><td><code>.required()</code></td><td>Still runs when the line is skipped, for cleanup and state that must land.</td></tr>
+</tbody>
+</table>
+</div>
+<p>An example:</p>
+<pre><code class="language-rhai">shake_camera(0.5);
+play_anim("draw").at(1.5).emits("drawn");
+play_sound("gasp").after("drawn");
+reset_camera().required();
+wait(line_end)
+</code></pre>
+<h2 id="your-games-functions"><a class="header" href="#your-games-functions">Your game’s functions</a></h2>
+<p>You register your own Bevy systems so dialogue runners can call them by name. There are two ways to register one, because there are two different things a call can mean:</p>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Registration</th><th>It’s a…</th><th>The call in Rhai</th><th>What that means</th></tr>
+</thead>
+<tbody>
+<tr><td><code>app.add_dialogue_system("has_item", system)</code></td><td><strong>function</strong></td><td><code>has_item("sword")</code></td><td>Runs right away and gives back an answer.</td></tr>
+<tr><td><code>app.add_sequencer_command("play_anim", system)</code></td><td><strong>stage direction</strong></td><td><code>play_anim("draw").at(1.5)</code></td><td>Doesn’t run yet when a runner reads the sequence. It’s staged for later, with a <code>.at</code>/<code>.after</code>/<code>.emits</code>/<code>.required</code> on when.</td></tr>
+</tbody>
+</table>
+</div>
+<p>Both kinds are callable everywhere: conditions, scripts, and sequences. That’s why a sequence can mix them, <code>if has_item("lute") { play_anim() }</code>: checking <code>has_item</code> happens immediately, while <code>play_anim()</code> gets scheduled to play out.</p>
+<p>Both take up to four arguments of <code>bool</code>, <code>i64</code>, <code>f64</code>, <code>f32</code>, <code>String</code>, or <code>Dynamic</code>.</p>
+<h2 id="where-each-field-runs"><a class="header" href="#where-each-field-runs">Where each field runs</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Entry field</th><th>Mode</th><th>Runs</th><th>Good for</th></tr>
+</thead>
+<tbody>
+<tr><td><code>condition</code></td><td>Expression only — one expression returning a bool</td><td>When the runner checks whether the entry can be reached</td><td>Gating branches: <code>vars["Gold"] &gt;= 10 &amp;&amp; has_item("sword")</code></td></tr>
+<tr><td><code>script</code></td><td>Full Rhai</td><td>Once per presentation; never on resume</td><td>Changing the game: <code>vars["Gold"] -= 10; guard_bribed()</code></td></tr>
+<tr><td><code>sequence</code></td><td>Full Rhai, calls schedule cues</td><td>Every presentation, including resume</td><td>Showing the game: <code>play_anim("bow"); wait(line_end)</code></td></tr>
+</tbody>
+</table>
+</div>
+<p>Broken logic never blocks dialogue: a condition that fails to compile or errors at runtime passes with a warning, a failing script is reported and skipped.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="the-editor"><a class="header" href="#the-editor">The Editor</a></h1>
+<p>The repository ships a visual editor as Bevy app, built on the bevy_feathers.</p>
+<blockquote>
+<p><strong>⚠</strong> <code>bevy_talks_editor</code> is really experimental and badly put together. It’s currently a quick hack just to visually edit the ron files.</p>
+</blockquote>
+<pre><code class="language-sh">cargo run -p bevy_talks_editor
+</code></pre>
+<p>It edits the files in the repository’s <code>assets/</code> folder.</p>
+<p><img src="images/editor.png" alt="The editor"></p>
+<h2 id="working-the-graph"><a class="header" href="#working-the-graph">Working the graph</a></h2>
+<div class="table-wrapper">
+<table>
+<thead>
+<tr><th>Gesture</th><th>Effect</th></tr>
+</thead>
+<tbody>
+<tr><td>Click a node</td><td>inspect that entry</td></tr>
+<tr><td>Drag a node</td><td>move it (positions persist as <code>canvas_x</code>/<code>canvas_y</code> fields)</td></tr>
+<tr><td>Right-click a node</td><td>link the <em>selected</em> entry to it</td></tr>
+<tr><td><strong>Add Child Entry</strong> (inspector)</td><td>new entry linked from the inspected one, with speaker and listener swapped</td></tr>
+<tr><td><strong>Delete Entry</strong> (inspector)</td><td>removes the entry and every link pointing at it</td></tr>
+<tr><td>Click a row under <em>Outgoing Links</em></td><td>removes that link</td></tr>
+</tbody>
+</table>
+</div>
+<p>Entry text is edited in the inspector: menu text, dialogue text, the
+root/group flags, and dropdowns assigning the speaking and listening actor.</p>
+<div style="break-before: page; page-break-before: always;"></div>
+<h1 id="roadmap"><a class="header" href="#roadmap">Roadmap</a></h1>
+<p>What exists today is the authoring and playback core: the database asset and
+format, the editor, and a runtime that plays branching, multi-actor
+conversations.</p>
+<p>Planned, roughly in order:</p>
+<ul>
+<li><strong>Conditions and scripts</strong>: gate links and entries on game state, and run effects when lines are delivered. This includes choosing an evaluation
+approach (embedded scripting language vs. typed expressions).</li>
+<li><strong>Variables</strong>: a variable table in the database with a mutable runtime store, the state that conditions read and scripts write.</li>
+<li><strong>Link priorities</strong>: control which branch wins when several are valid.</li>
+<li><strong>Visit tracking</strong>: per-entry “was offered / was displayed” state, for “only say this once” logic.</li>
+<li><strong>Localization</strong>: the <code>Localization</code> field variant exists; the runtime needs language selection and text resolution.</li>
+<li><strong>Cutscenes</strong>: sequences of commands (camera cuts, animations, audio) that play alongside a line’s delivery.</li>
+</ul>
+
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <template id=fa-eye><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M288 32c-80.8 0-145.5 36.8-192.6 80.6C48.6 156 17.3 208 2.5 243.7c-3.3 7.9-3.3 16.7 0 24.6C17.3 304 48.6 356 95.4 399.4C142.5 443.2 207.2 480 288 480s145.5-36.8 192.6-80.6c46.8-43.5 78.1-95.4 93-131.1c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C433.5 68.8 368.8 32 288 32zM432 256c0 79.5-64.5 144-144 144s-144-64.5-144-144s64.5-144 144-144s144 64.5 144 144zM288 192c0 35.3-28.7 64-64 64c-11.5 0-22.3-3-31.6-8.4c-.2 2.8-.4 5.5-.4 8.4c0 53 43 96 96 96s96-43 96-96s-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6z"/></svg></span></template>
+        <template id=fa-eye-slash><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M38.8 5.1C28.4-3.1 13.3-1.2 5.1 9.2S-1.2 34.7 9.2 42.9l592 464c10.4 8.2 25.5 6.3 33.7-4.1s6.3-25.5-4.1-33.7L525.6 386.7c39.6-40.6 66.4-86.1 79.9-118.4c3.3-7.9 3.3-16.7 0-24.6c-14.9-35.7-46.2-87.7-93-131.1C465.5 68.8 400.8 32 320 32c-68.2 0-125 26.3-169.3 60.8L38.8 5.1zM223.1 149.5C248.6 126.2 282.7 112 320 112c79.5 0 144 64.5 144 144c0 24.9-6.3 48.3-17.4 68.7L408 294.5c5.2-11.8 8-24.8 8-38.5c0-53-43-96-96-96c-2.8 0-5.6 .1-8.4 .4c5.3 9.3 8.4 20.1 8.4 31.6c0 10.2-2.4 19.8-6.6 28.3l-90.3-70.8zm223.1 298L373 389.9c-16.4 6.5-34.3 10.1-53 10.1c-79.5 0-144-64.5-144-144c0-6.9 .5-13.6 1.4-20.2L83.1 161.5C60.3 191.2 44 220.8 34.5 243.7c-3.3 7.9-3.3 16.7 0 24.6c14.9 35.7 46.2 87.7 93 131.1C174.5 443.2 239.2 480 320 480c47.8 0 89.9-12.9 126.2-32.5z"/></svg></span></template>
+        <template id=fa-copy><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M502.6 70.63l-61.25-61.25C435.4 3.371 427.2 0 418.7 0H255.1c-35.35 0-64 28.66-64 64l.0195 256C192 355.4 220.7 384 256 384h192c35.2 0 64-28.8 64-64V93.25C512 84.77 508.6 76.63 502.6 70.63zM464 320c0 8.836-7.164 16-16 16H255.1c-8.838 0-16-7.164-16-16L239.1 64.13c0-8.836 7.164-16 16-16h128L384 96c0 17.67 14.33 32 32 32h47.1V320zM272 448c0 8.836-7.164 16-16 16H63.1c-8.838 0-16-7.164-16-16L47.98 192.1c0-8.836 7.164-16 16-16H160V128H63.99c-35.35 0-64 28.65-64 64l.0098 256C.002 483.3 28.66 512 64 512h192c35.2 0 64-28.8 64-64v-32h-47.1L272 448z"/></svg></span></template>
+        <template id=fa-play><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M73 39c-14.8-9.1-33.4-9.4-48.5-.9S0 62.6 0 80V432c0 17.4 9.4 33.4 24.5 41.9s33.7 8.1 48.5-.9L361 297c14.3-8.7 23-24.2 23-41s-8.7-32.2-23-41L73 39z"/></svg></span></template>
+        <template id=fa-clock-rotate-left><span class=fa-svg><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 6.2.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2022 Fonticons, Inc. --><path d="M75 75L41 41C25.9 25.9 0 36.6 0 57.9V168c0 13.3 10.7 24 24 24H134.1c21.4 0 32.1-25.9 17-41l-30.8-30.8C155 85.5 203 64 256 64c106 0 192 86 192 192s-86 192-192 192c-40.8 0-78.6-12.7-109.7-34.4c-14.5-10.1-34.4-6.6-44.6 7.9s-6.6 34.4 7.9 44.6C151.2 495 201.7 512 256 512c141.4 0 256-114.6 256-256S397.4 0 256 0C185.3 0 121.3 28.7 75 75zm181 53c-13.3 0-24 10.7-24 24V256c0 6.4 2.5 12.5 7 17l72 72c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-65-65V152c0-13.3-10.7-24-24-24z"/></svg></span></template>
+
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr-ef4e11c1.min.js"></script>
+        <script src="mark-09e88c2c.min.js"></script>
+        <script src="searcher-09f2665d.js"></script>
+
+        <script src="clipboard-1626706a.min.js"></script>
+        <script src="highlight-abc7f01d.js"></script>
+        <script src="book-c22b7243.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="mermaid-a19b8af3.min.js"></script>
+        <script src="mermaid-init-4533fb11.js"></script>
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>
