@@ -28,7 +28,7 @@ jobs:
           tool: cargo-binstall
 
       - name: Install mdbook and preprocessors
-        uses: jdx/mise-action@v2
+        uses: jdx/mise-action@v4
 
       - name: Build
         run: mise run docs-build
