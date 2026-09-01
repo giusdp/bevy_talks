@@ -23,7 +23,7 @@ jobs:
       # Lets mise install the cargo-backed tools (mdbook-toc, mdbook-mermaid)
       # from prebuilt binaries instead of compiling them
       - name: Install cargo-binstall
-        uses: taiki-e/install-action@v2.85.4
+        uses: taiki-e/install-action@v2.87.1
         with:
           tool: cargo-binstall
 
